@@ -39,8 +39,9 @@ app.post("/ativar", (req, res) => {
   res.send({ ok: true });
 });
 
-// LOOP BOT
+// LOOP BOT (🔥 limpa finalizados)
 setInterval(() => {
+  pedidos = pedidos.filter(p => p.status !== "ok");
   executarBot(pedidos);
 }, 60000);
 
