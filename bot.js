@@ -11,6 +11,7 @@ async function executarBot(pedidos) {
   try {
     browser = await puppeteer.launch({
       headless: "new",
+      executablePath: "/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -31,45 +32,43 @@ async function executarBot(pedidos) {
     await page.click("button[type=submit]");
     await page.waitForNavigation({ waitUntil: "networkidle2" });
 
+    console.log("LOGADO COM SUCESSO");
+
     for (let p of pendentes) {
       try {
         console.log("Ativando:", p.mac);
 
         await page.goto("https://iboplayer.pro/manage-playlists/list/");
-        await page.waitForTimeout(5000);
+        await page.waitForTimeout(6000);
 
         // CLICAR ADD PLAYLIST
-        const botoes = await page.$$("button");
-        for (let btn of botoes) {
-          const texto = await page.evaluate(el => el.innerText, btn);
-          if (texto.includes("Add Playlist")) {
-            await btn.click();
-            break;
-          }
-        }
-
-        await page.waitForTimeout(4000);
-
-        // PEGAR INPUTS
-        const inputs = await page.$$("input");
-
-        await inputs[0].click({ clickCount: 3 });
-        await inputs[0].type(p.nome);
-
-        await inputs[1].click({ clickCount: 3 });
-        await inputs[1].type(p.m3u);
-
-        // SUBMIT
-        const botoes2 = await page.$$("button");
-        for (let btn of botoes2) {
-          const texto = await page.evaluate(el => el.innerText, btn);
-          if (texto.includes("SUBMIT")) {
-            await btn.click();
-            break;
-          }
-        }
+        await page.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll("button"))
+            .find(el => el.innerText.includes("Add Playlist"));
+          if (btn) btn.click();
+        });
 
         await page.waitForTimeout(5000);
+
+        const inputs = await page.$$("input");
+
+        if (inputs.length < 2) {
+          throw new Error("Inputs não encontrados");
+        }
+
+        await inputs[0].type(p.nome);
+        await inputs[1].type(p.m3u);
+
+        console.log("Dados preenchidos");
+
+        // SUBMIT
+        await page.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll("button"))
+            .find(el => el.innerText.includes("SUBMIT"));
+          if (btn) btn.click();
+        });
+
+        await page.waitForTimeout(6000);
 
         p.status = "ok";
         console.log("SUCESSO:", p.mac);
