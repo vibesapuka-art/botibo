@@ -10,7 +10,7 @@ async function executarBot(pedidos) {
   if (pendentes.length === 0) return;
 
   const pedido = pendentes[0];
-  const PIN_PADRAO = "1234554321"; 
+  const PIN_PADRAO = "123321"; 
 
   console.log("BOT iniciado... Ativando:", pedido.mac);
   let browser;
