@@ -1,16 +1,22 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
-// função sleep manual (substitui waitForTimeout)
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function executarBot(pedidos) {
-  const pendentes = pedidos.filter(p => p.status === "pendente").slice(0, 1);
-  if (pendentes.length === 0) return;
+  const pendentes = pedidos.filter(p => p.status === "pendente");
+
+  if (pendentes.length === 0) {
+    console.log("Nenhum pedido pendente");
+    return;
+  }
+
+  const pedido = pendentes[0];
 
   console.log("BOT iniciado...");
+  console.log("Ativando:", pedido.mac);
 
   let browser;
 
@@ -23,11 +29,8 @@ async function executarBot(pedidos) {
 
     const page = await browser.newPage();
 
-    // ======================
     // LOGIN
-    // ======================
     await page.goto("https://iboplayer.pro/manage-playlists/login/");
-
     await page.waitForSelector("input", { timeout: 30000 });
 
     const inputsLogin = await page.$$("input");
@@ -41,7 +44,6 @@ async function executarBot(pedidos) {
 
     console.log("Preencheu login");
 
-    // clicar login
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button"))
         .find(el => el.innerText.toLowerCase().includes("login"));
@@ -50,61 +52,52 @@ async function executarBot(pedidos) {
 
     await sleep(5000);
 
-    console.log("LOGADO (forçado)");
+    console.log("LOGADO");
 
-    // ======================
-    // PROCESSAR PEDIDOS
-    // ======================
-    for (let p of pendentes) {
-      try {
-        console.log("Ativando:", p.mac);
+    // IR PRA LISTA
+    await page.goto("https://iboplayer.pro/manage-playlists/list/");
+    await sleep(6000);
 
-        await page.goto("https://iboplayer.pro/manage-playlists/list/");
-        await sleep(6000);
+    // ADD PLAYLIST
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button"))
+        .find(el => el.innerText.includes("Add Playlist"));
+      if (btn) btn.click();
+    });
 
-        // clicar Add Playlist
-        await page.evaluate(() => {
-          const btn = Array.from(document.querySelectorAll("button"))
-            .find(el => el.innerText.includes("Add Playlist"));
-          if (btn) btn.click();
-        });
+    await sleep(4000);
 
-        await sleep(4000);
+    const inputs = await page.$$("input");
 
-        const inputs = await page.$$("input");
-
-        if (inputs.length < 2) {
-          throw new Error("Inputs não encontrados");
-        }
-
-        await inputs[0].click({ clickCount: 3 });
-        await inputs[0].type(p.nome);
-
-        await inputs[1].click({ clickCount: 3 });
-        await inputs[1].type(p.m3u);
-
-        console.log("Dados preenchidos");
-
-        // clicar submit
-        await page.evaluate(() => {
-          const btn = Array.from(document.querySelectorAll("button"))
-            .find(el => el.innerText.includes("SUBMIT"));
-          if (btn) btn.click();
-        });
-
-        await sleep(6000);
-
-        p.status = "ok";
-        console.log("SUCESSO:", p.mac);
-
-      } catch (err) {
-        p.status = "erro";
-        console.log("ERRO PEDIDO:", err.message);
-      }
+    if (inputs.length < 2) {
+      throw new Error("Inputs não encontrados");
     }
 
+    await inputs[0].click({ clickCount: 3 });
+    await inputs[0].type(pedido.nome);
+
+    await inputs[1].click({ clickCount: 3 });
+    await inputs[1].type(pedido.m3u);
+
+    console.log("Dados preenchidos");
+
+    // SUBMIT
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button"))
+        .find(el => el.innerText.includes("SUBMIT"));
+      if (btn) btn.click();
+    });
+
+    await sleep(6000);
+
+    pedido.status = "ok";
+    console.log("SUCESSO:", pedido.mac);
+
+    return;
+
   } catch (err) {
-    console.log("ERRO GERAL:", err.message);
+    pedido.status = "erro";
+    console.log("ERRO:", err.message);
   }
 
   if (browser) {
