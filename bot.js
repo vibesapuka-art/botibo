@@ -5,21 +5,29 @@ async function executarBot(pedidos) {
   const pedido = pedidos.find(p => p.status === "pendente");
   if (!pedido) return;
 
+  // Marca como processando IMEDIATAMENTE
+  pedido.status = "processando";
   console.log("PROCESSANDO DNS:", pedido.m3u);
-  let browser;
 
+  let browser;
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", // Ajuda muito no Render (plano grátis)
+        "--single-process"         // Economiza memória
+      ],
       executablePath: await chromium.executablePath(),
       headless: true
     });
 
     const page = await browser.newPage();
-    
+    await page.setDefaultNavigationTimeout(60000);
+
     // LOGIN
-    await page.goto("https://iboplayer.pro/manage-playlists/login/");
-    await page.waitForSelector("input[name='mac_address']");
+    await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
     
@@ -28,24 +36,20 @@ async function executarBot(pedidos) {
       if (btn) { btn.disabled = false; btn.click(); }
     });
 
-    await new Promise(r => setTimeout(r, 8000));
+    await new Promise(r => setTimeout(r, 10000));
 
-    // LISTA E VERIFICAÇÃO
-    await page.goto("https://iboplayer.pro/manage-playlists/list/");
-    await new Promise(r => setTimeout(r, 5000));
-
-    // Verifica se o DNS já existe na tabela para não duplicar
-    const existe = await page.evaluate((m3u) => {
-      return document.body.innerText.includes(m3u);
-    }, pedido.m3u);
-
+    // LISTA E SALVAMENTO
+    await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+    
+    // Verifica se já existe
+    const existe = await page.evaluate(m => document.body.innerText.includes(m), pedido.m3u);
     if (existe) {
-      console.log("DNS já cadastrado, pulando...");
+      console.log("DNS já cadastrado.");
       pedido.status = "ok";
       return;
     }
 
-    // ADICIONAR
+    // Processo de Adicionar (mesmo código anterior...)
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
       if (btn) btn.click();
@@ -53,20 +57,18 @@ async function executarBot(pedidos) {
 
     await new Promise(r => setTimeout(r, 3000));
     const inputs = await page.$$("input");
-    
     if (inputs.length >= 2) {
       await inputs[0].type(pedido.nome);
       await inputs[1].type(pedido.m3u);
-      
       await page.keyboard.press("Enter");
-      await new Promise(r => setTimeout(r, 6000));
-      
+      await new Promise(r => setTimeout(r, 8000));
       pedido.status = "ok";
-      console.log("FINALIZADO COM SUCESSO:", pedido.m3u);
+      console.log("SUCESSO NO DNS:", pedido.m3u);
     }
+
   } catch (err) {
-    console.log("ERRO NO BOT:", err.message);
-    pedido.status = "erro";
+    console.log("FALHA:", err.message);
+    pedido.status = "pendente"; // Volta para a fila se falhar por timeout
   } finally {
     if (browser) await browser.close();
   }
