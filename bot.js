@@ -1,4 +1,5 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 
 async function executarBot(pedidos) {
   const pendentes = pedidos.filter(p => p.status === "pendente").slice(0, 1);
@@ -10,13 +11,10 @@ async function executarBot(pedidos) {
 
   try {
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-      ]
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless
     });
 
     const page = await browser.newPage();
@@ -40,7 +38,7 @@ async function executarBot(pedidos) {
         await page.goto("https://iboplayer.pro/manage-playlists/list/");
         await page.waitForTimeout(6000);
 
-        // CLICAR ADD PLAYLIST
+        // ADD PLAYLIST
         await page.evaluate(() => {
           const btn = Array.from(document.querySelectorAll("button"))
             .find(el => el.innerText.includes("Add Playlist"));
