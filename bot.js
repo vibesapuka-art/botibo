@@ -19,7 +19,9 @@ async function executarBot(pedidos) {
 
     const page = await browser.newPage();
 
+    // ======================
     // LOGIN
+    // ======================
     await page.goto("https://iboplayer.pro/manage-playlists/login/", {
       waitUntil: "networkidle2"
     });
@@ -37,16 +39,24 @@ async function executarBot(pedidos) {
 
     console.log("Preencheu login");
 
+    // clicar login
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button"))
         .find(el => el.innerText.toLowerCase().includes("login"));
       if (btn) btn.click();
     });
 
-    await page.waitForNavigation({ waitUntil: "networkidle2" });
+    // 🔥 NÃO USA MAIS waitForNavigation (corrigido)
+    await Promise.race([
+      page.waitForSelector("button", { timeout: 15000 }),
+      page.waitForTimeout(8000)
+    ]);
 
-    console.log("LOGADO COM SUCESSO");
+    console.log("LOGADO (sem travar)");
 
+    // ======================
+    // PROCESSAR PEDIDOS
+    // ======================
     for (let p of pendentes) {
       try {
         console.log("Ativando:", p.mac);
@@ -54,7 +64,7 @@ async function executarBot(pedidos) {
         await page.goto("https://iboplayer.pro/manage-playlists/list/");
         await page.waitForTimeout(6000);
 
-        // ADD PLAYLIST
+        // clicar Add Playlist
         await page.evaluate(() => {
           const btn = Array.from(document.querySelectorAll("button"))
             .find(el => el.innerText.includes("Add Playlist"));
@@ -69,12 +79,15 @@ async function executarBot(pedidos) {
           throw new Error("Inputs não encontrados");
         }
 
+        await inputs[0].click({ clickCount: 3 });
         await inputs[0].type(p.nome);
+
+        await inputs[1].click({ clickCount: 3 });
         await inputs[1].type(p.m3u);
 
         console.log("Dados preenchidos");
 
-        // SUBMIT
+        // clicar submit
         await page.evaluate(() => {
           const btn = Array.from(document.querySelectorAll("button"))
             .find(el => el.innerText.includes("SUBMIT"));
