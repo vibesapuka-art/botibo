@@ -39,7 +39,7 @@ app.post("/ativar", (req, res) => {
   res.send({ ok: true });
 });
 
-// LOOP DO BOT
+// LOOP BOT
 setInterval(() => {
   executarBot(pedidos);
 }, 60000);
