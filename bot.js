@@ -101,15 +101,31 @@ async function executarBot(pedidos) {
     console.log("Dados preenchidos");
 
     // ======================
-    // SUBMIT
+    // 🔥 ATUALIZAÇÃO: GARANTIR PREENCHIMENTO (REACT)
     // ======================
     await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll("button"))
-        .find(el => el.innerText.includes("SUBMIT"));
-      if (btn) btn.click();
+      const inputs = document.querySelectorAll("input");
+      inputs.forEach(input => {
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
     });
 
-    await sleep(6000);
+    // ======================
+    // 🔥 ATUALIZAÇÃO: SUBMIT CORRIGIDO
+    // ======================
+    const submitBtn = await page.$('button[type="submit"]');
+
+    if (submitBtn) {
+      await submitBtn.click();
+      console.log("Clicou no botão submit");
+    } else {
+      console.log("Botão não encontrado, tentando ENTER");
+      await page.keyboard.press("Enter");
+    }
+
+    // espera resposta
+    await sleep(8000);
 
     pedido.status = "ok";
     console.log("SUCESSO:", pedido.mac);
@@ -119,12 +135,12 @@ async function executarBot(pedidos) {
   } catch (err) {
     pedido.status = "erro";
     console.log("ERRO:", err.message);
-  }
-
-  if (browser) {
-    try {
-      await browser.close();
-    } catch (e) {}
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (e) {}
+    }
   }
 }
 
