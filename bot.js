@@ -8,13 +8,9 @@ function sleep(ms) {
 async function executarBot(pedidos) {
   const pendentes = pedidos.filter(p => p.status === "pendente");
 
-  if (pendentes.length === 0) {
-    console.log("Nenhum pedido pendente");
-    return;
-  }
+  if (pendentes.length === 0) return;
 
   const pedido = pendentes[0];
-
   console.log("BOT iniciado...");
   console.log("Ativando:", pedido.mac);
 
@@ -22,125 +18,84 @@ async function executarBot(pedidos) {
 
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: true
+      headless: true,
     });
 
     const page = await browser.newPage();
+    
+    // 1. LOGIN
+    await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
+    
+    // Espera os campos específicos do HTML que você mandou
+    await page.waitForSelector("input[name='mac_address']");
+    
+    // Preenche MAC e KEY (Device Key)
+    await page.type("input[name='mac_address']", pedido.mac, { delay: 100 });
+    await page.type("input[name='password']", pedido.key, { delay: 100 });
 
-    // ======================
-    // LOGIN (🔥 CORRIGIDO)
-    // ======================
-    await page.goto("https://iboplayer.pro/manage-playlists/login/");
-    await page.waitForSelector("input", { timeout: 30000 });
+    // Habilita o botão que estava "disabled" no seu HTML
+    await page.evaluate(() => {
+      const btn = document.querySelector("button[type='submit']");
+      if (btn) {
+        btn.disabled = false;
+        btn.click();
+      }
+    });
 
-    const inputsLogin = await page.$$("input");
+    console.log("Preencheu login e clicou");
+    await sleep(8000); // Espera o login processar
 
-    if (inputsLogin.length < 2) {
-      throw new Error("Campos de login não encontrados");
+    // 2. IR PARA LISTA
+    await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+    await sleep(4000);
+
+    // 3. CLICAR EM ADD PLAYLIST
+    const addBtn = await page.evaluateHandle(() => {
+      return Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
+    });
+
+    if (addBtn) {
+      await addBtn.asElement().click();
+      await sleep(3000);
     }
 
-    // digita devagar (simula humano)
-    await inputsLogin[0].type(process.env.IBO_USER, { delay: 100 });
-    await inputsLogin[1].type(process.env.IBO_PASS, { delay: 100 });
-
-    console.log("Preencheu login");
-
-    // 🔥 ativa botão login
-    await page.evaluate(() => {
-      const btn = document.querySelector("button[type=submit]");
-      if (btn) btn.disabled = false;
-    });
-
-    await sleep(2000);
-
-    // clicar login
-    await page.evaluate(() => {
-      const btn = document.querySelector("button[type=submit]");
-      if (btn) btn.click();
-    });
-
-    console.log("CLICOU LOGIN");
-
-    await sleep(6000);
-
-    console.log("LOGADO REAL");
-
-    // ======================
-    // IR PARA LISTA
-    // ======================
-    await page.goto("https://iboplayer.pro/manage-playlists/list/");
-    await sleep(6000);
-
-    // ======================
-    // ADD PLAYLIST
-    // ======================
-    await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll("button"))
-        .find(el => el.innerText.includes("Add Playlist"));
-      if (btn) btn.click();
-    });
-
-    await sleep(5000);
-
+    // 4. PREENCHER DADOS DA PLAYLIST
     const inputs = await page.$$("input");
+    if (inputs.length >= 2) {
+      // Nome da Playlist
+      await inputs[0].type(pedido.nome, { delay: 50 });
+      // URL M3U
+      await inputs[1].type(pedido.m3u, { delay: 50 });
+      
+      console.log("Dados da playlist preenchidos");
 
-    if (inputs.length < 2) {
-      throw new Error("Inputs não encontrados");
-    }
-
-    // nome
-    await inputs[0].click({ clickCount: 3 });
-    await inputs[0].type(pedido.nome);
-
-    // url m3u
-    await inputs[1].click({ clickCount: 3 });
-    await inputs[1].type(pedido.m3u);
-
-    console.log("Dados preenchidos");
-
-    // ======================
-    // 🔥 ATUALIZAÇÃO: GARANTIR PREENCHIMENTO (REACT)
-    // ======================
-    await page.evaluate(() => {
-      const inputs = document.querySelectorAll("input");
-      inputs.forEach(input => {
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
+      // Força o React a entender que houve digitação
+      await page.evaluate(() => {
+        const fields = document.querySelectorAll("input");
+        fields.forEach(f => {
+          f.dispatchEvent(new Event("input", { bubbles: true }));
+          f.dispatchEvent(new Event("change", { bubbles: true }));
+        });
       });
-    });
 
-    // ======================
-    // 🔥 ATUALIZAÇÃO: SUBMIT CORRIGIDO
-    // ======================
-    const submitBtn = await page.$('button[type="submit"]');
-
-    if (submitBtn) {
-      await submitBtn.click();
-      console.log("Clicou no botão submit");
-    } else {
-      console.log("Botão não encontrado, tentando ENTER");
+      // 5. SALVAR (SUBMIT)
       await page.keyboard.press("Enter");
+      await sleep(5000);
+      
+      console.log("SUCESSO:", pedido.mac);
+      pedido.status = "ok";
+    } else {
+      throw new Error("Campos de playlist não encontrados");
     }
-
-    // espera resposta
-    await sleep(8000);
-
-    pedido.status = "ok";
-    console.log("SUCESSO:", pedido.mac);
-
-    return;
 
   } catch (err) {
     pedido.status = "erro";
-    console.log("ERRO:", err.message);
+    console.log("ERRO GERAL:", err.message);
   } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (e) {}
-    }
+    if (browser) await browser.close();
   }
 }
 
