@@ -39,26 +39,32 @@ app.post("/ativar", async (req, res) => {
   res.send({ ok: true });
 });
 
-// BOT
+// BOT MAIS LEVE
 async function processarPedidos() {
-  const pendentes = pedidos.filter(p => p.status === "pendente");
+  const pendentes = pedidos.filter(p => p.status === "pendente").slice(0, 1);
   if (pendentes.length === 0) return;
 
-  console.log("Processando pedidos...");
+  console.log("Processando 1 pedido...");
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
-  });
-
-  const page = await browser.newPage();
+  let browser;
 
   try {
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
+    });
+
+    const page = await browser.newPage();
+
     // LOGIN
     await page.goto("https://iboplayer.pro/manage-playlists/login/");
-    await page.waitForSelector("input[name=mac]");
+    await page.waitForSelector("input[name=mac]", { timeout: 15000 });
 
-    // ⚠️ LOGIN COM MAC/KEY DO DISPOSITIVO ADMIN
     await page.type("input[name=mac]", process.env.IBO_USER);
     await page.type("input[name=key]", process.env.IBO_PASS);
 
@@ -72,25 +78,23 @@ async function processarPedidos() {
         await page.goto("https://iboplayer.pro/manage-playlists/list/");
         await page.waitForTimeout(3000);
 
-        // CLICAR EM "ADD PLAYLIST"
+        // CLICAR "Add Playlist"
         await page.evaluate(() => {
-          const btns = Array.from(document.querySelectorAll("button"));
-          const btn = btns.find(b => b.innerText.includes("Add Playlist"));
+          const btn = [...document.querySelectorAll("button")]
+            .find(b => b.innerText.includes("Add Playlist"));
           if (btn) btn.click();
         });
 
         await page.waitForTimeout(3000);
 
-        // PREENCHER NOME
+        // PREENCHER
         await page.type("input[placeholder='e.g. Favorite 1']", p.nome);
-
-        // PREENCHER URL
         await page.type("input[placeholder='.m3u or .m3u8']", p.m3u);
 
-        // CLICAR EM SUBMIT
+        // SUBMIT
         await page.evaluate(() => {
-          const btns = Array.from(document.querySelectorAll("button"));
-          const btn = btns.find(b => b.innerText.includes("SUBMIT"));
+          const btn = [...document.querySelectorAll("button")]
+            .find(b => b.innerText.includes("SUBMIT"));
           if (btn) btn.click();
         });
 
@@ -101,7 +105,7 @@ async function processarPedidos() {
 
       } catch (err) {
         p.status = "erro";
-        console.log("ERRO:", err.message);
+        console.log("ERRO PEDIDO:", err.message);
       }
     }
 
@@ -109,11 +113,11 @@ async function processarPedidos() {
     console.log("ERRO GERAL:", err.message);
   }
 
-  await browser.close();
+  if (browser) await browser.close();
 }
 
-// LOOP
-setInterval(processarPedidos, 30000);
+// LOOP MAIS LENTO (IMPORTANTE)
+setInterval(processarPedidos, 60000);
 
 // PORTA
 const PORT = process.env.PORT || 3000;
