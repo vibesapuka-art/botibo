@@ -6,37 +6,31 @@ function sleep(ms) {
 }
 
 async function executarBot(pedidos) {
-  const pendentes = pedidos.filter(p => p.status === "pendente");
+  // Pega apenas o primeiro da fila que ainda está pendente
+  const pedido = pedidos.find(p => p.status === "pendente");
 
-  if (pendentes.length === 0) return;
+  if (!pedido) return;
 
-  const pedido = pendentes[0];
-  console.log("BOT iniciado...");
-  console.log("Ativando:", pedido.mac);
-
+  console.log("BOT iniciado para DNS:", pedido.m3u);
   let browser;
 
   try {
     browser = await puppeteer.launch({
-      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
-      defaultViewport: chromium.defaultViewport,
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
       executablePath: await chromium.executablePath(),
-      headless: true,
+      headless: true
     });
 
     const page = await browser.newPage();
-    
-    // 1. LOGIN
-    await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
-    
-    // Espera os campos específicos do HTML que você mandou
-    await page.waitForSelector("input[name='mac_address']");
-    
-    // Preenche MAC e KEY (Device Key)
-    await page.type("input[name='mac_address']", pedido.mac, { delay: 100 });
-    await page.type("input[name='password']", pedido.key, { delay: 100 });
+    await page.setDefaultNavigationTimeout(60000);
 
-    // Habilita o botão que estava "disabled" no seu HTML
+    // LOGIN
+    await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
+    await page.waitForSelector("input[name='mac_address']");
+
+    await page.type("input[name='mac_address']", pedido.mac, { delay: 50 });
+    await page.type("input[name='password']", pedido.key, { delay: 50 });
+
     await page.evaluate(() => {
       const btn = document.querySelector("button[type='submit']");
       if (btn) {
@@ -45,55 +39,51 @@ async function executarBot(pedidos) {
       }
     });
 
-    console.log("Preencheu login e clicou");
-    await sleep(8000); // Espera o login processar
+    await sleep(7000);
 
-    // 2. IR PARA LISTA
+    // LISTA
     await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-    await sleep(4000);
+    await sleep(5000);
 
-    // 3. CLICAR EM ADD PLAYLIST
-    const addBtn = await page.evaluateHandle(() => {
-      return Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
+    // CLICAR NO BOTÃO ADD
+    const clicouAdd = await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button"))
+        .find(el => el.innerText.includes("Add Playlist"));
+      if (btn) {
+        btn.click();
+        return true;
+      }
+      return false;
     });
 
-    if (addBtn) {
-      await addBtn.asElement().click();
-      await sleep(3000);
-    }
+    if (!clicouAdd) throw new Error("Botão Add Playlist não encontrado");
+    await sleep(3000);
 
-    // 4. PREENCHER DADOS DA PLAYLIST
+    // PREENCHER CAMPOS
     const inputs = await page.$$("input");
     if (inputs.length >= 2) {
-      // Nome da Playlist
       await inputs[0].type(pedido.nome, { delay: 50 });
-      // URL M3U
       await inputs[1].type(pedido.m3u, { delay: 50 });
-      
-      console.log("Dados da playlist preenchidos");
 
-      // Força o React a entender que houve digitação
+      // Forçar o site a reconhecer o texto
       await page.evaluate(() => {
-        const fields = document.querySelectorAll("input");
-        fields.forEach(f => {
-          f.dispatchEvent(new Event("input", { bubbles: true }));
-          f.dispatchEvent(new Event("change", { bubbles: true }));
+        document.querySelectorAll("input").forEach(i => {
+          i.dispatchEvent(new Event("input", { bubbles: true }));
+          i.dispatchEvent(new Event("change", { bubbles: true }));
         });
       });
 
-      // 5. SALVAR (SUBMIT)
+      await sleep(2000);
       await page.keyboard.press("Enter");
-      await sleep(5000);
-      
-      console.log("SUCESSO:", pedido.mac);
+      await sleep(6000);
+
       pedido.status = "ok";
-    } else {
-      throw new Error("Campos de playlist não encontrados");
+      console.log("SUCESSO NO DNS:", pedido.m3u);
     }
 
   } catch (err) {
     pedido.status = "erro";
-    console.log("ERRO GERAL:", err.message);
+    console.log("FALHA NO DNS:", pedido.m3u, "ERRO:", err.message);
   } finally {
     if (browser) await browser.close();
   }
