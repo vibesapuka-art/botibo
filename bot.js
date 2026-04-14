@@ -29,7 +29,9 @@ async function executarBot(pedidos) {
 
     const page = await browser.newPage();
 
-    // LOGIN
+    // ======================
+    // LOGIN (🔥 CORRIGIDO)
+    // ======================
     await page.goto("https://iboplayer.pro/manage-playlists/login/");
     await page.waitForSelector("input", { timeout: 30000 });
 
@@ -39,33 +41,48 @@ async function executarBot(pedidos) {
       throw new Error("Campos de login não encontrados");
     }
 
-    await inputsLogin[0].type(process.env.IBO_USER);
-    await inputsLogin[1].type(process.env.IBO_PASS);
+    // digita devagar (simula humano)
+    await inputsLogin[0].type(process.env.IBO_USER, { delay: 100 });
+    await inputsLogin[1].type(process.env.IBO_PASS, { delay: 100 });
 
     console.log("Preencheu login");
 
+    // 🔥 ativa botão login
     await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll("button"))
-        .find(el => el.innerText.toLowerCase().includes("login"));
+      const btn = document.querySelector("button[type=submit]");
+      if (btn) btn.disabled = false;
+    });
+
+    await sleep(2000);
+
+    // clicar login
+    await page.evaluate(() => {
+      const btn = document.querySelector("button[type=submit]");
       if (btn) btn.click();
     });
 
-    await sleep(5000);
+    console.log("CLICOU LOGIN");
 
-    console.log("LOGADO");
+    await sleep(6000);
 
-    // IR PRA LISTA
+    console.log("LOGADO REAL");
+
+    // ======================
+    // IR PARA LISTA
+    // ======================
     await page.goto("https://iboplayer.pro/manage-playlists/list/");
     await sleep(6000);
 
+    // ======================
     // ADD PLAYLIST
+    // ======================
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button"))
         .find(el => el.innerText.includes("Add Playlist"));
       if (btn) btn.click();
     });
 
-    await sleep(4000);
+    await sleep(5000);
 
     const inputs = await page.$$("input");
 
@@ -73,15 +90,19 @@ async function executarBot(pedidos) {
       throw new Error("Inputs não encontrados");
     }
 
+    // nome
     await inputs[0].click({ clickCount: 3 });
     await inputs[0].type(pedido.nome);
 
+    // url m3u
     await inputs[1].click({ clickCount: 3 });
     await inputs[1].type(pedido.m3u);
 
     console.log("Dados preenchidos");
 
+    // ======================
     // SUBMIT
+    // ======================
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button"))
         .find(el => el.innerText.includes("SUBMIT"));
