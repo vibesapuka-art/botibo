@@ -1,6 +1,11 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
+// função sleep manual (substitui waitForTimeout)
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function executarBot(pedidos) {
   const pendentes = pedidos.filter(p => p.status === "pendente").slice(0, 1);
   if (pendentes.length === 0) return;
@@ -12,9 +17,8 @@ async function executarBot(pedidos) {
   try {
     browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless
+      headless: true
     });
 
     const page = await browser.newPage();
@@ -22,9 +26,7 @@ async function executarBot(pedidos) {
     // ======================
     // LOGIN
     // ======================
-    await page.goto("https://iboplayer.pro/manage-playlists/login/", {
-      waitUntil: "networkidle2"
-    });
+    await page.goto("https://iboplayer.pro/manage-playlists/login/");
 
     await page.waitForSelector("input", { timeout: 30000 });
 
@@ -46,13 +48,9 @@ async function executarBot(pedidos) {
       if (btn) btn.click();
     });
 
-    // 🔥 NÃO USA MAIS waitForNavigation (corrigido)
-    await Promise.race([
-      page.waitForSelector("button", { timeout: 15000 }),
-      page.waitForTimeout(8000)
-    ]);
+    await sleep(5000);
 
-    console.log("LOGADO (sem travar)");
+    console.log("LOGADO (forçado)");
 
     // ======================
     // PROCESSAR PEDIDOS
@@ -62,7 +60,7 @@ async function executarBot(pedidos) {
         console.log("Ativando:", p.mac);
 
         await page.goto("https://iboplayer.pro/manage-playlists/list/");
-        await page.waitForTimeout(6000);
+        await sleep(6000);
 
         // clicar Add Playlist
         await page.evaluate(() => {
@@ -71,7 +69,7 @@ async function executarBot(pedidos) {
           if (btn) btn.click();
         });
 
-        await page.waitForTimeout(5000);
+        await sleep(4000);
 
         const inputs = await page.$$("input");
 
@@ -94,7 +92,7 @@ async function executarBot(pedidos) {
           if (btn) btn.click();
         });
 
-        await page.waitForTimeout(6000);
+        await sleep(6000);
 
         p.status = "ok";
         console.log("SUCESSO:", p.mac);
@@ -109,7 +107,11 @@ async function executarBot(pedidos) {
     console.log("ERRO GERAL:", err.message);
   }
 
-  if (browser) await browser.close();
+  if (browser) {
+    try {
+      await browser.close();
+    } catch (e) {}
+  }
 }
 
 module.exports = executarBot;
