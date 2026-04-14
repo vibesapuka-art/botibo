@@ -1,7 +1,6 @@
 {
   "name": "painel-iptv",
   "version": "1.0.0",
-  "description": "Painel IPTV com automação IBO Player",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
