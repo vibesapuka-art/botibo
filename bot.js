@@ -20,13 +20,29 @@ async function executarBot(pedidos) {
     const page = await browser.newPage();
 
     // LOGIN
-    await page.goto("https://iboplayer.pro/manage-playlists/login/");
-    await page.waitForSelector("input[name=mac]", { timeout: 20000 });
+    await page.goto("https://iboplayer.pro/manage-playlists/login/", {
+      waitUntil: "networkidle2"
+    });
 
-    await page.type("input[name=mac]", process.env.IBO_USER);
-    await page.type("input[name=key]", process.env.IBO_PASS);
+    await page.waitForSelector("input", { timeout: 30000 });
 
-    await page.click("button[type=submit]");
+    const inputsLogin = await page.$$("input");
+
+    if (inputsLogin.length < 2) {
+      throw new Error("Campos de login não encontrados");
+    }
+
+    await inputsLogin[0].type(process.env.IBO_USER);
+    await inputsLogin[1].type(process.env.IBO_PASS);
+
+    console.log("Preencheu login");
+
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button"))
+        .find(el => el.innerText.toLowerCase().includes("login"));
+      if (btn) btn.click();
+    });
+
     await page.waitForNavigation({ waitUntil: "networkidle2" });
 
     console.log("LOGADO COM SUCESSO");
