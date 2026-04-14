@@ -7,47 +7,40 @@ const app = express();
 app.use(bodyParser.json());
 
 let pedidos = [];
+let botOcupado = false; // Trava para não abrir dois navegadores ao mesmo tempo
 
 app.post("/ativar", (req, res) => {
   const { mac, key, user, pass } = req.body;
+  if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
 
-  if (!mac || !key || !user || !pass) {
-    return res.status(400).send({ erro: "Dados incompletos" });
-  }
-
-  // Pega a lista real do seu arquivo dns.js
-  const listaDNS = dnsConfig.servidores;
-
-  // Adiciona cada DNS como um pedido separado
-  listaDNS.forEach((servidor) => {
-    const m3u = `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`;
-    
+  dnsConfig.servidores.forEach((servidor) => {
     pedidos.push({
-      mac,
-      key,
-      m3u,
-      nome: user, // O nome da playlist no painel
+      mac, key,
+      m3u: `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`,
+      nome: user,
       status: "pendente"
     });
   });
 
-  console.log(`FILA ATUALIZADA: ${listaDNS.length} novos DNS para o MAC ${mac}`);
-  res.send({ ok: true, total: listaDNS.length });
+  res.send({ ok: true, msg: "Fila iniciada" });
 });
 
-// Loop que processa a fila
 setInterval(async () => {
-  // Filtra apenas o que ainda não foi feito
-  const pendentes = pedidos.filter(p => p.status === "pendente");
-  
-  if (pendentes.length > 0) {
-    // Processa apenas o primeiro da fila para não sobrecarregar
-    await executarBot(pedidos);
-    
-    // Limpa da memória o que já deu certo para não repetir
-    pedidos = pedidos.filter(p => p.status !== "ok");
+  // Só inicia se o bot não estiver ocupado e houver pedidos
+  if (!botOcupado && pedidos.some(p => p.status === "pendente")) {
+    botOcupado = true;
+    try {
+      // Processa apenas UM por vez e aguarda o fim real
+      await executarBot(pedidos);
+    } catch (e) {
+      console.log("Erro no ciclo:", e.message);
+    } finally {
+      // Limpa finalizados e libera o bot para o próximo DNS
+      pedidos = pedidos.filter(p => p.status !== "ok");
+      botOcupado = false; 
+    }
   }
-}, 45000); // Intervalo de 45 segundos entre cada cadastro
+}, 10000); // Tenta verificar a fila a cada 10 segundos
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Servidor ativo na porta", PORT));
+app.listen(PORT, () => console.log("Servidor em execução"));
