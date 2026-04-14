@@ -10,8 +10,7 @@ async function executarBot(pedidos) {
 
   try {
     browser = await puppeteer.launch({
-      headless: "new",
-      executablePath: "/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome",
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
