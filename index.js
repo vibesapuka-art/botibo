@@ -9,39 +9,56 @@ app.use(bodyParser.json());
 let pedidos = [];
 let botOcupado = false;
 
-app.get("/", (req, res) => res.send("Servidor Ativo 🚀"));
-
 app.post("/ativar", (req, res) => {
   const { mac, key, user, pass } = req.body;
-  if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
 
-  // Adiciona os DNS da sua lista para o MAC enviado
+  // No celular, lembre-se de enviar como application/json
+  if (!mac || !key || !user || !pass) {
+    return res.status(400).send({ erro: "Dados incompletos" });
+  }
+
+  // Adiciona todos os servidores da sua lista de DNS
   dnsConfig.servidores.forEach((servidor) => {
     const m3u = `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`;
-    pedidos.push({ mac, key, m3u, nome: user, status: "pendente" });
+    pedidos.push({
+      mac,
+      key,
+      m3u,
+      nome: user,
+      status: "pendente"
+    });
   });
 
-  console.log(`Fila atualizada para o MAC: ${mac}`);
-  res.send({ ok: true, msg: "Processamento iniciado" });
+  console.log(`Fila atualizada para MAC: ${mac}`);
+  res.send({ ok: true });
 });
 
-// Loop de processamento seguro
+// Loop de processamento inteligente
 setInterval(async () => {
-  if (!botOcupado && pedidos.some(p => p.status === "pendente")) {
-    botOcupado = true;
-    
-    // Limpa da memória os que já foram finalizados
-    pedidos = pedidos.filter(p => p.status !== "ok");
+  // Só inicia se o bot não estiver ocupado e houver algo pendente
+  if (!botOcupado) {
+    const proximo = pedidos.find(p => p.status === "pendente");
 
-    try {
-      await executarBot(pedidos);
-    } catch (e) {
-      console.log("Falha no ciclo do bot:", e.message);
-    } finally {
-      botOcupado = false; // Liberta para o próximo pedido apenas após fechar o anterior
+    if (proximo) {
+      botOcupado = true;
+      
+      // MUDA STATUS IMEDIATAMENTE PARA EVITAR LOOP
+      proximo.status = "processando"; 
+      
+      console.log("Iniciando processamento único para:", proximo.m3u);
+
+      try {
+        await executarBot(pedidos);
+      } catch (e) {
+        console.log("Erro no ciclo:", e.message);
+      } finally {
+        // Limpa da memória os pedidos que já deram OK
+        pedidos = pedidos.filter(p => p.status !== "ok");
+        botOcupado = false;
+      }
     }
   }
 }, 30000); // Tenta processar a cada 30 segundos
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor a correr na porta ${PORT}`));
+app.listen(PORT, () => console.log("Servidor rodando porta", PORT));
