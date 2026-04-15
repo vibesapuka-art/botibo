@@ -9,46 +9,33 @@ app.use(bodyParser.json());
 let pedidos = [];
 let botOcupado = false;
 
-app.get("/", (req, res) => res.send("Servidor IPTV Ativo 🚀"));
-
 app.post("/ativar", (req, res) => {
   const { mac, key, user, pass } = req.body;
+  if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
 
-  if (!mac || !key || !user || !pass) {
-    return res.status(400).send({ erro: "Dados incompletos" });
-  }
+  // Adiciona apenas o primeiro DNS da lista para este teste
+  const servidor = dnsConfig.servidores[0]; 
+  const m3u = `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`;
 
-  // Adiciona todos os DNS da lista para este MAC na fila
-  dnsConfig.servidores.forEach((servidor) => {
-    const m3u = `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`;
-    pedidos.push({
-      mac, key, m3u,
-      nome: user,
-      status: "pendente"
-    });
-  });
-
-  console.log(`Fila atualizada: ${dnsConfig.servidores.length} DNS adicionados para o MAC ${mac}`);
+  pedidos.push({ mac, key, m3u, nome: user, status: "pendente" });
+  console.log("NOVO PEDIDO NA FILA:", mac);
   res.send({ ok: true });
 });
 
-// Loop de processamento (Verifica a fila a cada 20 segundos)
+// Loop a cada 40 segundos para dar tempo do Render respirar
 setInterval(async () => {
   if (!botOcupado && pedidos.some(p => p.status === "pendente")) {
     botOcupado = true;
-    
-    // Remove os que já foram concluídos da memória
-    pedidos = pedidos.filter(p => p.status !== "ok");
-
+    pedidos = pedidos.filter(p => p.status !== "ok"); // Remove finalizados
     try {
       await executarBot(pedidos);
     } catch (e) {
-      console.log("Erro no ciclo do bot:", e.message);
+      console.log("Falha no ciclo:", e.message);
     } finally {
       botOcupado = false;
     }
   }
-}, 20000);
+}, 40000);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Servidor rodando na porta", PORT));
+app.listen(PORT, () => console.log("Servidor rodando porta", PORT));
