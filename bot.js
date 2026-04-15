@@ -6,7 +6,6 @@ function sleep(ms) {
 }
 
 async function executarBot(pedidos) {
-  // Pega apenas o primeiro da fila que não foi finalizado
   const pedido = pedidos.find(p => p.status === "pendente" || p.status === "processando");
   if (!pedido) return;
 
@@ -17,9 +16,16 @@ async function executarBot(pedidos) {
   let browser;
 
   try {
+    // 🔥 CORREÇÃO AQUI: executablePath (CamelCase) e await chromium.executablePath()
     browser = await puppeteer.launch({
-      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--single-process"],
-      executable_path: await chromium.executablePath(),
+      args: [
+        ...chromium.args, 
+        "--no-sandbox", 
+        "--disable-setuid-sandbox", 
+        "--disable-dev-shm-usage", 
+        "--single-process"
+      ],
+      executablePath: await chromium.executablePath(), // Corrigido de executable_path para executablePath
       headless: true
     });
 
@@ -28,17 +34,15 @@ async function executarBot(pedidos) {
 
     // LOGIN
     await page.goto("https://iboplayer.pro/manage-playlists/login/");
-    await page.waitForSelector("input", { timeout: 30000 });
     const inputsLogin = await page.$$("input");
-    await inputsLogin[0].type(process.env.IBO_USER, { delay: 100 });
-    await inputsLogin[1].type(process.env.IBO_PASS, { delay: 100 });
-    await page.evaluate(() => {
-      const btn = document.querySelector("button[type=submit]");
-      if (btn) { btn.disabled = false; btn.click(); }
-    });
+    if (inputsLogin.length >= 2) {
+        await inputsLogin[0].type(process.env.IBO_USER, { delay: 100 });
+        await inputsLogin[1].type(process.env.IBO_PASS, { delay: 100 });
+        await page.evaluate(() => document.querySelector("button[type=submit]").click());
+    }
     await sleep(8000);
 
-    // IR PARA LISTA E CONFERIR SE JÁ EXISTE
+    // LISTA E VERIFICAÇÃO
     await page.goto("https://iboplayer.pro/manage-playlists/list/");
     await sleep(5000);
     const existe = await page.evaluate(m => document.body.innerText.includes(m), pedido.m3u);
@@ -61,7 +65,7 @@ async function executarBot(pedidos) {
     await inputs[0].type(pedido.nome, { delay: 50 });
     await inputs[1].type(pedido.m3u, { delay: 50 });
 
-    // ATIVAR PIN (PROTECT)
+    // ATIVAR PIN
     console.log("Ativando PIN...");
     await page.evaluate(() => {
       const check = document.querySelector('input[type="checkbox"]');
@@ -69,7 +73,7 @@ async function executarBot(pedidos) {
     });
     await sleep(2000);
 
-    // PREENCHER OS DOIS CAMPOS DE PIN
+    // PREENCHER PIN (3) e CONFIRMAR (4)
     const todosInputs = await page.$$("input");
     if (todosInputs.length >= 5) {
       await todosInputs[3].type(PIN_PADRAO, { delay: 100 });
@@ -81,7 +85,7 @@ async function executarBot(pedidos) {
     if (submitBtn) await submitBtn.click();
     else await page.keyboard.press("Enter");
 
-    await sleep(12000); // Espera o site processar
+    await sleep(15000);
 
     // VERIFICAÇÃO FINAL
     await page.goto("https://iboplayer.pro/manage-playlists/list/");
@@ -96,7 +100,7 @@ async function executarBot(pedidos) {
 
   } catch (err) {
     console.log("ERRO NO PROCESSO:", err.message);
-    pedido.status = "pendente"; // Volta para a fila se falhar
+    pedido.status = "pendente"; 
   } finally {
     if (browser) await browser.close();
   }
