@@ -1,80 +1,59 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const path = require("path");
-const fs = require("fs");
-const executarBot = require("./bot");
-
-const app = express();
-app.use(bodyParser.json());
-
-const pastaPublic = fs.existsSync(path.join(__dirname, "public")) ? "public" : "Public";
-app.use(express.static(path.join(__dirname, pastaPublic)));
-
-let pedidos = [];
-let botOcupado = false;
-
-const SERVIDORES = [
-    "http://xw.pluss.fun", "http://meusrv.top:80", "http://prd.blc-atena.com",
-    "http://solar.playblc.work", "http://atbx.blc-atena.com", "http://atn.blc-atena.com",
-    "http://od.blc-atena.com", "http://ecps.blc-atena.com", "http://tita.playblc.work",
-    "http://vr766.com", "http://hades.blcplay2.work", "http://ifx.blc-atena.com",
-    "http://ntb.blc-atena.com", "http://flash.netpl4y.com", "http://olympus.netpl4y.com"
-];
-
-app.post("/ativar", (req, res) => {
-    const { mac, key, user, pass, limparTudo } = req.body;
-    
-    pedidos = pedidos.filter(p => p.mac !== mac);
-
-    if (limparTudo) {
-        // Se for LIMPAR, adicionamos apenas UM comando na fila
-        pedidos.push({
-            mac: mac.trim(),
-            key: key.trim(),
-            status: "pendente",
-            somenteLimpar: true // Marca especial para o bot saber que não deve adicionar nada
-        });
-    } else {
-        // Se for APENAS ATIVAR, segue o fluxo normal de 15 itens
-        SERVIDORES.forEach((servidor) => {
-            let nomePl = servidor.replace("http://", "").replace("https://", "").split('.')[0].toUpperCase();
-            pedidos.push({
-                mac: mac.trim(),
-                key: key.trim(),
-                m3u: `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`,
-                nome: nomePl,
-                status: "pendente",
-                somenteLimpar: false
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ativador IBO</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #333; background: #252525; color: white; box-sizing: border-box;}
+        .btn-green { width: 100%; padding: 15px; background: #00ff88; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-red { width: 100%; padding: 15px; background: #ff4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #progresso { display: none; margin-top: 20px; }
+        .bar-bg { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; }
+        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color:#00ff88">Ativador Digital</h2>
+        <div id="form">
+            <input type="text" id="mac" placeholder="MAC Address">
+            <input type="text" id="key" placeholder="Device Key">
+            <input type="text" id="user" placeholder="Usuário">
+            <input type="password" id="pass" placeholder="Senha">
+            <button class="btn-green" onclick="enviar(false)">APENAS ATIVAR</button>
+            <button class="btn-red" onclick="enviar(true)">LIMPAR NOSSAS PLAYLISTS</button>
+        </div>
+        <div id="progresso">
+            <p id="status">Iniciando...</p>
+            <div class="bar-bg"><div class="bar-fill" id="bar"></div></div>
+        </div>
+    </div>
+    <script>
+        async function enviar(limpar) {
+            const mac = document.getElementById('mac').value;
+            if(!mac) return alert("Preencha o MAC");
+            document.getElementById('form').style.display = 'none';
+            document.getElementById('progresso').style.display = 'block';
+            await fetch('/ativar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mac, key: document.getElementById('key').value,
+                    user: document.getElementById('user').value,
+                    pass: document.getElementById('pass').value,
+                    limparTudo: limpar
+                })
             });
-        });
-    }
-    res.send({ ok: true });
-});
-
-app.get("/status", (req, res) => {
-    const { mac } = req.query;
-    const pedidoLimpeza = pedidos.find(p => p.mac === mac && p.somenteLimpar === true);
-    
-    if (pedidoLimpeza) {
-        return res.json({ concluidos: 0, total: 1, status: "limpando" });
-    }
-
-    const restantes = pedidos.filter(p => p.mac === mac).length;
-    res.json({ concluidos: 15 - restantes, total: 15, status: "processando" });
-});
-
-setInterval(async () => {
-    if (!botOcupado) {
-        const proximo = pedidos.find(p => p.status === "pendente");
-        if (proximo) {
-            botOcupado = true;
-            try { await executarBot(pedidos); } 
-            finally {
-                pedidos = pedidos.filter(p => p.status !== "ok");
-                botOcupado = false;
-            }
+            setInterval(async () => {
+                const res = await fetch('/status?mac='+mac);
+                const d = await res.json();
+                document.getElementById('bar').style.width = (d.concluidos/d.total)*100 + '%';
+                document.getElementById('status').innerText = `Processando: ${d.concluidos}/${d.total}`;
+            }, 5000);
         }
-    }
-}, 20000);
-
-app.listen(process.env.PORT || 3000);
+    </script>
+</body>
+</html>
