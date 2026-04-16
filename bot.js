@@ -19,7 +19,7 @@ async function executarBot(pedidos) {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(60000);
 
-    // 1. LOGIN
+    // 1. LOGIN NO IBO PLAYER
     await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
@@ -31,40 +31,53 @@ async function executarBot(pedidos) {
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // VERIFICA SE O LOGIN FALHOU
-    const logado = await page.url().includes("manage-playlists/list/");
-    if (!logado) {
-      console.log(`[ERRO] Login inválido: ${pedido.mac}`);
+    // VERIFICA SE O LOGIN DEU CERTO
+    const urlAtual = page.url();
+    if (urlAtual.includes("login")) {
+      console.log(`[ERRO] Login falhou para o MAC: ${pedido.mac}`);
       pedido.status = "erro_login";
       return;
     }
 
-    // 2. FUNÇÃO DE LIMPEZA (Só executa se solicitado no primeiro item da fila)
+    // 2. LOGICA DE LIMPEZA TOTAL (Se o pedido tiver a marca 'limpar')
     if (pedido.limpar === true) {
-        console.log("[LIMPEZA] Removendo playlists existentes...");
-        let botoesDelete = await page.$$('.fa-trash-alt');
+      console.log(`[LIMPEZA] Iniciando faxina no MAC: ${pedido.mac}`);
+      await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+      
+      let temBotaoDelete = await page.$('.fa-trash-alt');
+
+      while (temBotaoDelete) {
+        console.log("[LIMPEZA] Apagando playlist encontrada...");
         
-        while (botoesDelete.length > 0) {
-            await botoesDelete[0].click();
-            await new Promise(r => setTimeout(r, 2000));
-            const inputPin = await page.$('input[type="password"]');
-            if (inputPin) {
-                await inputPin.type(PIN_PADRAO);
-                await page.keyboard.press('Enter');
-            }
-            await new Promise(r => setTimeout(r, 3000));
-            await page.goto("https://iboplayer.pro/manage-playlists/list/");
-            botoesDelete = await page.$$('.fa-trash-alt');
+        await page.evaluate(() => {
+          const lixeira = document.querySelector('.fa-trash-alt');
+          if (lixeira) lixeira.parentElement.click(); 
+        });
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Digita o PIN de confirmação
+        const inputPin = await page.$('input[type="password"]');
+        if (inputPin) {
+          await inputPin.type(PIN_PADRAO);
+          await page.keyboard.press('Enter');
         }
+
+        await new Promise(r => setTimeout(r, 4500));
+        await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+        temBotaoDelete = await page.$('.fa-trash-alt');
+      }
+      console.log("[LIMPEZA] Painel limpo com sucesso!");
     }
 
-    // 3. VERIFICA SE JÁ EXISTE (Para não duplicar)
+    // 3. VERIFICA SE JÁ EXISTE (Evita duplicar se for "apenas ativar")
+    await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
     const existe = await page.evaluate(nome => {
       return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
     }, pedido.nome);
 
     if (existe) {
-      console.log(`[PULO] ${pedido.nome} já cadastrada.`);
+      console.log(`[PULO] ${pedido.nome} já está lá.`);
       pedido.status = "ok";
       return;
     }
@@ -81,7 +94,7 @@ async function executarBot(pedidos) {
       await inputs[0].type(pedido.nome);
       await inputs[1].type(pedido.m3u);
 
-      // Ativar PIN de Proteção
+      // Ativar proteção por PIN
       await page.evaluate(() => {
         const check = document.querySelector('input[type="checkbox"]');
         if (check) check.click();
@@ -101,12 +114,12 @@ async function executarBot(pedidos) {
 
       await new Promise(r => setTimeout(r, 10000));
       pedido.status = "ok";
-      console.log(`[SUCESSO] Adicionado: ${pedido.nome}`);
+      console.log(`[SUCESSO] Playlist ${pedido.nome} adicionada.`);
     }
 
   } catch (err) {
-    console.log("[ERRO]:", err.message);
-    pedido.status = "pendente"; 
+    console.log("[ERRO NO BOT]:", err.message);
+    pedido.status = "pendente"; // Tenta novamente no próximo ciclo
   } finally {
     if (browser) await browser.close();
   }
