@@ -2,23 +2,17 @@ const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
 async function executarBot(pedidos) {
-  // Encontra o próximo pedido na fila
   const pedido = pedidos.find(p => p.status === "pendente" || p.status === "processando");
   if (!pedido) return;
 
   pedido.status = "processando";
   const PIN_PADRAO = "123321";
-  
-  // Lista oficial das suas playlists para a limpeza seletiva
-  const NOSSAS_LISTAS = [
-    "XW", "MEUSRV", "PRD", "SOLAR", "ATBX", "ATN", "OD", "ECPS", 
-    "TITA", "VR766", "HADES", "IFX", "NTB", "FLASH", "OLYMPUS"
-  ];
+  const NOSSAS_LISTAS = ["XW", "MEUSRV", "PRD", "SOLAR", "ATBX", "ATN", "OD", "ECPS", "TITA", "VR766", "HADES", "IFX", "NTB", "FLASH", "OLYMPUS"];
 
   let browser;
   try {
     browser = await puppeteer.launch({
-      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
       executablePath: await chromium.executablePath(),
       headless: true
     });
@@ -26,100 +20,87 @@ async function executarBot(pedidos) {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(60000);
 
-    // 1. LOGIN NO IBO PLAYER
-    await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
+    // 1. LOGIN (Atualizado para o novo domínio das suas fotos)
+    await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
-    
-    await page.evaluate(() => {
-      const btn = document.querySelector("button[type='submit']");
-      if (btn) { btn.disabled = false; btn.click(); }
-    });
-
+    await page.click("button[type='submit']");
     await new Promise(r => setTimeout(r, 8000));
 
-    // Verifica se o login falhou
-    if (page.url().includes("login")) {
-      console.log(`[ERRO] Login inválido para o MAC: ${pedido.mac}`);
-      pedido.status = "erro_login";
-      return;
-    }
-
-    // --- FUNÇÃO DE LIMPEZA SELETIVA ---
+    // FUNÇÃO DE LIMPEZA MELHORADA
     const realizarLimpeza = async () => {
-      console.log(`[LIMPEZA] Verificando playlists para excluir no MAC: ${pedido.mac}`);
-      await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-      await new Promise(r => setTimeout(r, 3000));
-
-      let encontrou = true;
-      while (encontrou) {
-        encontrou = await page.evaluate((nomes) => {
+      console.log(`[LIMPEZA] Iniciando faxina seletiva...`);
+      await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
+      
+      let encontrouAlgo = true;
+      while (encontrouAlgo) {
+        encontrouAlgo = await page.evaluate((nomes) => {
           const linhas = Array.from(document.querySelectorAll('tr'));
           for (let linha of linhas) {
-            const textoLinha = linha.innerText.toUpperCase();
-            const ehNossa = nomes.some(n => textoLinha.includes(n));
-            const btnDelete = linha.querySelector('.delete_playlist');
-            
-            if (ehNossa && btnDelete) {
-              btnDelete.click(); // Abre o modal de PIN
+            const texto = linha.innerText.toUpperCase();
+            // Verifica se a linha tem um de nossos nomes e se tem o botão amarelo de Delete
+            const btnDelete = linha.querySelector('.btn-warning.delete_playlist') || linha.querySelector('.delete_playlist');
+            if (nomes.some(n => texto.includes(n)) && btnDelete) {
+              btnDelete.click();
               return true;
             }
           }
           return false;
         }, NOSSAS_LISTAS);
 
-        if (encontrou) {
-          await new Promise(r => setTimeout(r, 2000));
-          const inputPin = await page.$('input[type="password"]');
-          if (inputPin) {
-            await inputPin.type(PIN_PADRAO);
-            await page.keyboard.press('Enter');
-          }
-          console.log("[LIMPEZA] Playlist removida, recarregando...");
+        if (encontrouAlgo) {
+          console.log("[LIMPEZA] Modal de PIN detectado. Inserindo...");
+          await new Promise(r => setTimeout(r, 2500));
+          
+          // Digita o PIN em qualquer campo de senha visível (modal)
+          await page.evaluate((pin) => {
+            const inputs = Array.from(document.querySelectorAll('input[type="password"]'));
+            const inputVisivel = inputs.find(i => i.offsetParent !== null);
+            if (inputVisivel) {
+              inputVisivel.value = pin;
+              // Dispara evento de input para o site reconhecer o texto
+              inputVisivel.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            // Clica no botão "Ok" VERDE (btn-success) que aparece na sua foto
+            const botoes = Array.from(document.querySelectorAll('button'));
+            const btnOk = botoes.find(b => b.innerText.trim().toUpperCase() === 'OK' && b.classList.contains('btn-success'));
+            if (btnOk) btnOk.click();
+          }, PIN_PADRAO);
+
           await new Promise(r => setTimeout(r, 5000));
-          await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+          await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
         }
       }
-      console.log("[LIMPEZA] Faxina seletiva concluída.");
     };
 
-    // 2. DECISÃO DE FLUXO
+    // 2. EXECUÇÃO DO PEDIDO
     if (pedido.somenteLimpar === true) {
-      // APENAS EXCLUI E SAI
       await realizarLimpeza();
       pedido.status = "ok";
-      console.log(`[FINALIZADO] Limpeza concluída para ${pedido.mac}`);
     } else {
-      // FLUXO NORMAL DE ATIVAÇÃO
-      await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-      
-      // Verifica se a playlist específica já existe
-      const existe = await page.evaluate(nome => {
-        return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
-      }, pedido.nome);
+      // Fluxo de ADICIONAR
+      await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
+      const existe = await page.evaluate(n => document.body.innerText.toUpperCase().includes(n), pedido.nome);
 
       if (existe) {
-        console.log(`[PULO] Playlist ${pedido.nome} já existe no painel.`);
         pedido.status = "ok";
       } else {
         // Clica em "Add Playlist"
         await page.evaluate(() => {
-          const btn = Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
+          const btn = Array.from(document.querySelectorAll("button, a")).find(el => el.innerText.includes("Add Playlist"));
           if (btn) btn.click();
         });
         
         await new Promise(r => setTimeout(r, 4000));
         const inputs = await page.$$("input");
-        
         if (inputs.length >= 2) {
           await inputs[0].type(pedido.nome);
           await inputs[1].type(pedido.m3u);
 
-          // Ativa proteção por PIN
-          await page.evaluate(() => {
-            const check = document.querySelector('input[type="checkbox"]');
-            if (check) check.click();
-          });
+          // Proteção por PIN
+          const checkbox = await page.$('input[type="checkbox"]');
+          if (checkbox) await checkbox.click();
           
           await new Promise(r => setTimeout(r, 2000));
           const camposSenha = await page.$$('input[type="password"]');
@@ -135,14 +116,13 @@ async function executarBot(pedidos) {
 
           await new Promise(r => setTimeout(r, 10000));
           pedido.status = "ok";
-          console.log(`[SUCESSO] Playlist ${pedido.nome} adicionada.`);
         }
       }
     }
 
   } catch (err) {
-    console.log("[ERRO NO BOT]:", err.message);
-    pedido.status = "pendente"; // Joga de volta para a fila em caso de erro técnico
+    console.log("[ERRO]:", err.message);
+    pedido.status = "pendente";
   } finally {
     if (browser) await browser.close();
   }
