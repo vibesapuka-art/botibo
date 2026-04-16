@@ -8,6 +8,12 @@ async function executarBot(pedidos) {
   pedido.status = "processando";
   const PIN_PADRAO = "123321";
 
+  // Lista exata das suas playlists para exclusão seletiva
+  const NOSSAS_PLAYLISTS = [
+    "XW", "MEUSRV", "PRD", "SOLAR", "ATBX", "ATN", "OD", "ECPS", 
+    "TITA", "VR766", "HADES", "IFX", "NTB", "FLASH", "OLYMPUS"
+  ];
+
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -32,63 +38,79 @@ async function executarBot(pedidos) {
     await new Promise(r => setTimeout(r, 8000));
 
     if (page.url().includes("login")) {
-      console.log(`[ERRO] Login falhou: ${pedido.mac}`);
+      console.log(`[ERRO] Login inválido para: ${pedido.mac}`);
       pedido.status = "erro_login";
       return;
     }
 
-    // 2. LIMPEZA TOTAL (CORRIGIDA PARA O MODAL DAS FOTOS)
+    // 2. LOGICA DE LIMPEZA SELETIVA (Apaga apenas as nossas listas)
     if (pedido.limpar === true) {
-      console.log(`[LIMPEZA] Iniciando faxina no MAC: ${pedido.mac}`);
+      console.log(`[LIMPEZA] Iniciando faxina seletiva no MAC: ${pedido.mac}`);
       await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-      
-      // Tenta encontrar o botão amarelo "Delete" que aparece na sua foto
-      let temBotaoDelete = await page.$('.btn-warning.delete_playlist');
+      await new Promise(r => setTimeout(r, 3000));
 
-      while (temBotaoDelete) {
-        console.log("[LIMPEZA] Clicando no botão Delete amarelo...");
-        
-        await page.click('.btn-warning.delete_playlist');
-        
-        // Espera o modal de PIN (da sua segunda foto) aparecer
-        await new Promise(r => setTimeout(r, 2500));
+      // Função para encontrar a próxima playlist nossa na lista
+      const encontrarNossaPlaylist = async () => {
+        return await page.evaluate((nomes) => {
+          const linhas = Array.from(document.querySelectorAll('tr'));
+          for (let linha of linhas) {
+            const colunaNome = linha.querySelector('td:first-child');
+            if (colunaNome && nomes.includes(colunaNome.innerText.trim().toUpperCase())) {
+              const btnDelete = linha.querySelector('.btn-warning.delete_playlist');
+              if (btnDelete) return true;
+            }
+          }
+          return false;
+        }, NOSSAS_PLAYLISTS);
+      };
 
-        // Digita o PIN no campo que aparece no modal
+      let temNossaParaApagar = await encontrarNossaPlaylist();
+
+      while (temNossaParaApagar) {
+        console.log("[LIMPEZA] Removendo uma playlist do sistema...");
+        
+        // Clica no botão delete da primeira linha que for "nossa"
+        await page.evaluate((nomes) => {
+          const linhas = Array.from(document.querySelectorAll('tr'));
+          for (let linha of linhas) {
+            const colunaNome = linha.querySelector('td:first-child');
+            if (colunaNome && nomes.includes(colunaNome.innerText.trim().toUpperCase())) {
+              const btnDelete = linha.querySelector('.btn-warning.delete_playlist');
+              if (btnDelete) { btnDelete.click(); return; }
+            }
+          }
+        }, NOSSAS_PLAYLISTS);
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Digita o PIN no Modal
         const inputsModal = await page.$$('input[type="password"]');
         for (let input of inputsModal) {
-            const visivel = await input.boundingBox();
-            if (visivel) {
-                await input.type(PIN_PADRAO);
-                console.log("[LIMPEZA] PIN inserido no modal.");
-            }
+            const box = await input.boundingBox();
+            if (box) await input.type(PIN_PADRAO);
         }
 
-        // Clica no botão "Ok" verde do modal
+        // Clica no OK verde
         await page.evaluate(() => {
-            const botoes = Array.from(document.querySelectorAll('button'));
-            const btnOk = botoes.find(b => b.innerText.trim() === 'Ok' && b.classList.contains('btn-success'));
+            const btnOk = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Ok' && b.classList.contains('btn-success'));
             if (btnOk) btnOk.click();
         });
 
-        // Espera apagar e recarrega a lista
         await new Promise(r => setTimeout(r, 5000));
         await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-        
-        // Verifica se ainda restam mais playlists
-        temBotaoDelete = await page.$('.btn-warning.delete_playlist');
+        temNossaParaApagar = await encontrarNossaPlaylist();
       }
-      console.log("[LIMPEZA] Painel totalmente limpo!");
+      console.log("[LIMPEZA] Faxina seletiva concluída.");
     }
 
-    // 3. ADICIONAR NOVA PLAYLIST (O restante do código continua igual)
+    // 3. ADICIONAR NOVA PLAYLIST
     await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-    
-    // Verifica se já existe para não duplicar
     const existe = await page.evaluate(nome => {
       return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
     }, pedido.nome);
 
     if (existe) {
+      console.log(`[PULO] ${pedido.nome} já existe.`);
       pedido.status = "ok";
       return;
     }
@@ -123,7 +145,7 @@ async function executarBot(pedidos) {
 
       await new Promise(r => setTimeout(r, 10000));
       pedido.status = "ok";
-      console.log(`[SUCESSO] Playlist ${pedido.nome} adicionada.`);
+      console.log(`[OK] ${pedido.nome} Adicionada.`);
     }
 
   } catch (err) {
