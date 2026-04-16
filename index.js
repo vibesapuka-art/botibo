@@ -7,8 +7,9 @@ const executarBot = require("./bot");
 const app = express();
 app.use(bodyParser.json());
 
-// Força o uso da pasta public (minúsculo) para evitar o erro Not Found
-app.use(express.static(path.join(__dirname, "public")));
+// Força a leitura da pasta public correta
+const pastaPublic = fs.existsSync(path.join(__dirname, "public")) ? "public" : "Public";
+app.use(express.static(path.join(__dirname, pastaPublic)));
 
 let pedidos = [];
 let botOcupado = false;
@@ -22,15 +23,14 @@ const SERVIDORES = [
 ];
 
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.sendFile(path.join(__dirname, pastaPublic, "index.html"));
 });
 
-// Recebe a ativação do painel
 app.post("/ativar", (req, res) => {
     const { mac, key, user, pass, limparTudo } = req.body;
     if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
 
-    // Limpa pedidos antigos desse MAC se o cliente reenviar
+    // Remove qualquer pedido pendente antigo deste mesmo MAC para evitar duplicados na fila
     pedidos = pedidos.filter(p => p.mac !== mac);
 
     SERVIDORES.forEach((servidor, index) => {
@@ -45,20 +45,18 @@ app.post("/ativar", (req, res) => {
             m3u: `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`,
             nome: nomePl,
             status: "pendente",
-            limpar: (limparTudo === true && index === 0) // Só o primeiro da fila executa a limpeza
+            limpar: (limparTudo === true && index === 0) 
         });
     });
 
-    console.log(`[FILA] Pedido recebido para o MAC ${mac}. Limpeza: ${limparTudo}`);
+    console.log(`[FILA] MAC ${mac} adicionado. Limpeza seletiva: ${limparTudo}`);
     res.send({ ok: true });
 });
 
-// Rota que a barrinha de carregamento consulta
 app.get("/status", (req, res) => {
     const { mac } = req.query;
     const total = SERVIDORES.length;
     
-    // Verifica se houve erro de login
     const erroLogin = pedidos.find(p => p.mac === mac && p.status === "erro_login");
     const restantes = pedidos.filter(p => p.mac === mac).length;
     const concluidos = total - restantes;
@@ -70,7 +68,6 @@ app.get("/status", (req, res) => {
     });
 });
 
-// Loop que chama o bot a cada 25 segundos
 setInterval(async () => {
     if (!botOcupado) {
         const proximo = pedidos.find(p => p.status === "pendente");
@@ -78,16 +75,13 @@ setInterval(async () => {
             botOcupado = true;
             try {
                 await executarBot(pedidos);
-            } catch (e) {
-                console.log("[SISTEMA] Erro no loop:", e.message);
             } finally {
-                // Remove quem deu sucesso
                 pedidos = pedidos.filter(p => p.status !== "ok");
                 botOcupado = false;
             }
         }
     }
-}, 25000);
+}, 20000);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor pronto na porta ${PORT}`));
