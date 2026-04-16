@@ -17,75 +17,70 @@ async function executarBot(pedidos) {
     });
 
     const page = await browser.newPage();
-    // Forçamos o domínio que aparece nas suas capturas
     await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
     
+    // Login
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
     await page.click("button[type='submit']");
-    
-    // Espera longa para garantir que o painel carregue
-    await new Promise(r => setTimeout(r, 12000));
+    await new Promise(r => setTimeout(r, 10000));
 
-    // Vai direto para a lista
     await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
     
-    // Espera a tabela de playlists aparecer na tela
-    await page.waitForSelector('table', { timeout: 10000 }).catch(() => console.log("Tabela não carregou a tempo"));
+    // Aguarda a tabela aparecer
+    await page.waitForSelector('table', { timeout: 10000 });
 
     if (pedido.acao === "EXCLUIR") {
-      console.log(`[BUSCA] Procurando por: ${pedido.nome}`);
+      console.log(`[EXECUÇÃO] Tentando deletar via Script: ${pedido.nome}`);
       
-      // Essa função varre cada linha da tabela procurando o nome exato
-      const seletorBotao = await page.evaluate((nomeAlvo) => {
-        const linhas = Array.from(document.querySelectorAll('tr'));
-        for (let i = 0; i < linhas.length; i++) {
-          // Comparamos o texto de forma bruta para evitar erros de CSS
-          if (linhas[i].innerText.toUpperCase().includes(nomeAlvo.toUpperCase())) {
-            // Retornamos um seletor único para essa linha
-            return `table tr:nth-child(${i + 1}) .delete_playlist`;
+      // Tentativa de clique direto via evaluate (mais forte que o clique do Puppeteer)
+      const resultadoAcao = await page.evaluate((nomeAlvo) => {
+        const rows = Array.from(document.querySelectorAll('tr'));
+        const alvo = rows.find(r => r.innerText.toUpperCase().includes(nomeAlvo.toUpperCase()));
+        
+        if (alvo) {
+          const btn = alvo.querySelector('.delete_playlist');
+          if (btn) {
+            btn.click(); // Clique via JavaScript puro
+            return "CLICADO";
           }
         }
-        return null;
+        return "NAO_LOCALIZADO";
       }, pedido.nome);
 
-      if (seletorBotao) {
-        console.log(`[AÇÃO] Botão encontrado para ${pedido.nome}. Clicando...`);
-        await page.click(seletorBotao);
-        
+      if (resultadoAcao === "CLICADO") {
+        console.log(`[OK] Modal de PIN deve estar aberto.`);
         await new Promise(r => setTimeout(r, 4000));
-        
-        // Modal de PIN
-        const modalPin = await page.$('input[type="password"]');
-        if (modalPin) {
-          await modalPin.focus();
+
+        // Digita o PIN no modal
+        const inputPin = await page.$('input[type="password"]');
+        if (inputPin) {
+          await inputPin.focus();
           await page.keyboard.type(PIN_PADRAO, { delay: 150 });
           await new Promise(r => setTimeout(r, 1000));
           await page.keyboard.press('Enter');
           
-          // Espera o site processar e mostrar o "A playlist deleted!"
+          // Espera o processamento do site
           await new Promise(r => setTimeout(r, 10000));
           
-          // Clica no "Ok" da confirmação verde se ele existir
+          // Fecha qualquer alerta de sucesso que aparecer
           await page.evaluate(() => {
-            const btns = Array.from(document.querySelectorAll('button'));
-            const ok = btns.find(b => b.innerText.trim() === 'Ok' && b.classList.contains('btn-success'));
-            if (ok) ok.click();
+            const btnOk = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Ok');
+            if (btnOk) btnOk.click();
           });
         }
         pedido.status = "ok";
       } else {
-        // Se cair aqui, é porque o bot realmente não viu o nome na página
-        console.log(`[ERRO] O nome ${pedido.nome} não foi localizado no HTML da página.`);
-        pedido.status = "pendente"; // Tenta de novo depois
+        console.log(`[AVISO] ${pedido.nome} não encontrado na lista atual.`);
+        pedido.status = "ok"; // Marca como ok para não travar a fila se o item já sumiu
       }
 
     } else {
-      // Lógica de Ativação
+      // Outras ações (Ativar/Adicionar)
       pedido.status = "ok";
     }
   } catch (err) {
-    console.log(`[LOG] Erro: ${err.message}`);
+    console.log(`[ERRO] Falha no processo: ${err.message}`);
     pedido.status = "pendente";
   } finally {
     if (browser) await browser.close();
