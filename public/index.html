@@ -5,117 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ativador IBO Player</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e1e1e; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; }
-        h2 { color: #00ff88; margin-bottom: 20px; }
-        .form-group { margin-bottom: 12px; }
-        input { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
-        button:disabled { background: #444; color: #888; }
-        
-        /* Área de Progresso */
-        #progressArea { margin-top: 25px; display: none; }
-        .bar-bg { width: 100%; height: 16px; background: #333; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 1px solid #444; }
-        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.5s ease; }
-        #status-txt { font-size: 0.95rem; color: #00ff88; font-weight: bold; margin-bottom: 10px; }
-        
-        /* Mensagem de Aviso */
-        .aviso-app { 
-            background: rgba(0, 255, 136, 0.15); 
-            border: 1px solid #00ff88; 
-            padding: 12px; 
-            border-radius: 10px; 
-            font-size: 0.9rem; 
-            color: #00ff88; 
-            display: none; 
-            margin-top: 15px;
-            line-height: 1.4;
-        }
+        body { font-family: sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; padding: 25px; border-radius: 15px; width: 100%; max-width: 380px; text-align: center; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #252525; color: white; box-sizing: border-box; }
+        .btn-ativar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-limpar { width: 100%; padding: 15px; background: #ff4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #progressArea { display: none; margin-top: 20px; }
+        .bar-bg { width: 100%; height: 12px; background: #333; border-radius: 6px; overflow: hidden; }
+        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: 0.5s; }
+        .aviso { background: rgba(0,255,136,0.1); border: 1px solid #00ff88; padding: 10px; border-radius: 8px; color: #00ff88; font-size: 0.85rem; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Ativador Digital</h2>
-        
-        <div id="formContainer">
-            <div class="form-group"><input type="text" id="mac" placeholder="MAC (00:00:00:00:00:00)"></div>
-            <div class="form-group"><input type="text" id="key" placeholder="Device Key"></div>
-            <div class="form-group"><input type="text" id="user" placeholder="Usuário"></div>
-            <div class="form-group"><input type="password" id="pass" placeholder="Senha"></div>
-            <button id="btnAtivar" onclick="iniciar()">ATIVAR PLAYLISTS</button>
+        <h2 style="color: #00ff88">Ativador Digital</h2>
+        <div id="form">
+            <input type="text" id="mac" placeholder="MAC Address">
+            <input type="text" id="key" placeholder="Device Key">
+            <input type="text" id="user" placeholder="Usuário">
+            <input type="password" id="pass" placeholder="Senha">
+            <button class="btn-ativar" onclick="enviar(false)">APENAS ATIVAR</button>
+            <button class="btn-limpar" onclick="enviar(true)">LIMPAR E ATUALIZAR</button>
         </div>
-
         <div id="progressArea">
-            <div id="status-txt">Aguardando servidor...</div>
-            <div class="bar-bg">
-                <div class="bar-fill" id="bar"></div>
-            </div>
-            <div class="aviso-app" id="msgAviso">
-                ✅ <b>Ótima notícia!</b><br>A primeira playlist já foi enviada. Você já pode abrir o seu App para conferir! O restante entrará em instantes.
-            </div>
+            <p id="txt-status">Processando...</p>
+            <div class="bar-bg"><div class="bar-fill" id="bar"></div></div>
+            <div class="aviso" id="aviso">✅ Já pode abrir o App! A primeira playlist foi adicionada.</div>
         </div>
     </div>
-
     <script>
-        async function iniciar() {
-            const mac = document.getElementById('mac').value;
-            const key = document.getElementById('key').value;
-            const user = document.getElementById('user').value;
-            const pass = document.getElementById('pass').value;
-
-            if(!mac || !key || !user || !pass) return alert("Por favor, preencha todos os campos!");
-
-            // Esconde o formulário e mostra o progresso
-            document.getElementById('formContainer').style.display = 'none';
+        async function enviar(limpar) {
+            const data = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                user: document.getElementById('user').value,
+                pass: document.getElementById('pass').value,
+                limparTudo: limpar
+            };
+            if(!data.mac || !data.key) return alert("Preencha os dados!");
+            document.getElementById('form').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
-
-            // Envia para o servidor
-            try {
-                const res = await fetch('/ativar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mac, key, user, pass })
-                });
-
-                if (res.ok) {
-                    monitorarStatus(mac);
-                } else {
-                    alert("Erro ao iniciar ativação.");
-                }
-            } catch (e) {
-                alert("Erro de conexão com o servidor.");
-            }
+            await fetch('/ativar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            monitorar(data.mac);
         }
-
-        async function monitorarStatus(mac) {
-            const bar = document.getElementById('bar');
-            const txt = document.getElementById('status-txt');
-            const aviso = document.getElementById('msgAviso');
-
+        function monitorar(mac) {
             const timer = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const data = await res.json();
-                    
-                    // Calcula progresso
-                    const percent = (data.concluidos / data.total) * 100;
-                    bar.style.width = percent + '%';
-                    txt.innerText = `Processando Playlist: ${data.concluidos} / ${data.total}`;
-
-                    // Mostra o aviso se pelo menos 1 estiver concluído
-                    if(data.concluidos >= 1) {
-                        aviso.style.display = 'block';
-                    }
-
-                    // Se terminou tudo
-                    if(data.concluidos >= data.total && data.total > 0) {
-                        clearInterval(timer);
-                        txt.innerText = "✅ TODAS AS PLAYLISTS FORAM ADICIONADAS!";
-                    }
-                } catch (e) {
-                    console.error("Erro na consulta de status");
+                const res = await fetch(`/status?mac=${mac}`);
+                const d = await res.json();
+                if(d.status === "erro_login") {
+                    clearInterval(timer);
+                    document.getElementById('txt-status').innerText = "❌ ERRO: MAC OU KEY INVÁLIDOS!";
+                    document.getElementById('txt-status').style.color = "red";
+                    return;
                 }
-            }, 5000); // Checa a cada 5 segundos
+                const p = (d.concluidos / d.total) * 100;
+                document.getElementById('bar').style.width = p + '%';
+                document.getElementById('txt-status').innerText = `Playlist: ${d.concluidos} / ${d.total}`;
+                if(d.concluidos >= 1) document.getElementById('aviso').style.display = 'block';
+                if(d.concluidos >= d.total) {
+                    clearInterval(timer);
+                    document.getElementById('txt-status').innerText = "✅ FINALIZADO COM SUCESSO!";
+                }
+            }, 5000);
         }
     </script>
 </body>
