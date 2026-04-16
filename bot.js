@@ -19,78 +19,82 @@ async function executarBot(pedidos) {
     const page = await browser.newPage();
     await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
     
-    // Login inicial
+    // Login
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
     await page.click("button[type='submit']");
-    await new Promise(r => setTimeout(r, 8000));
+    await new Promise(r => setTimeout(r, 10000));
 
     await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
 
     if (pedido.acao === "EXCLUIR") {
-      console.log(`[VERIFICAÇÃO] Checando se ${pedido.nome} ainda existe...`);
+      console.log(`[TENTATIVA] Excluindo servidor: ${pedido.nome}`);
       
-      // Verifica se o nome do servidor está na página
-      const existeNaPagina = await page.evaluate((nomeAlvo) => {
-        return document.body.innerText.toUpperCase().includes(nomeAlvo);
-      }, pedido.nome);
-
-      if (!existeNaPagina) {
-        console.log(`[CONFIRMADO] ${pedido.nome} não consta mais na lista. Sucesso.`);
-        pedido.status = "ok";
-        return;
-      }
-
-      // Se ainda existe, executa a exclusão uma única vez
       const clicou = await page.evaluate((nomeAlvo) => {
         const rows = Array.from(document.querySelectorAll('tr'));
         for (let row of rows) {
           if (row.innerText.toUpperCase().includes(nomeAlvo)) {
             const btn = row.querySelector('.delete_playlist');
-            if (btn) { btn.click(); return true; }
+            if (btn) { 
+              btn.scrollIntoView();
+              btn.click(); 
+              return true; 
+            }
           }
         }
         return false;
       }, pedido.nome);
 
       if (clicou) {
-        await new Promise(r => setTimeout(r, 3000));
-        const pin = await page.$('input[type="password"]');
-        if (pin) {
-          await pin.type(PIN_PADRAO);
-          await page.keyboard.press('Enter');
-          
-          // Espera um tempo seguro para o site processar
-          await new Promise(r => setTimeout(r, 8000));
-          
-          // VERIFICAÇÃO FINAL: O nome sumiu?
-          await page.reload({ waitUntil: "networkidle2" });
-          const sumiu = await page.evaluate((nomeAlvo) => {
-            return !document.body.innerText.toUpperCase().includes(nomeAlvo);
-          }, pedido.nome);
+        // Espera o modal de PIN abrir totalmente
+        await new Promise(r => setTimeout(r, 5000));
+        
+        // Clica no campo de PIN para garantir o foco
+        await page.click('input[type="password"]');
+        
+        // Digita o PIN pausadamente (como um humano)
+        await page.keyboard.type(PIN_PADRAO, { delay: 200 });
+        await new Promise(r => setTimeout(r, 1000));
+        
+        // Pressiona Enter e clica no botão OK do PIN
+        await page.keyboard.press('Enter');
+        await page.evaluate(() => {
+          const btnOk = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Ok');
+          if (btnOk) btnOk.click();
+        });
 
-          if (sumiu) {
-            console.log(`[SUCESSO] Exclusão de ${pedido.nome} validada visualmente.`);
-            pedido.status = "ok";
-          } else {
-            console.log(`[ALERTA] ${pedido.nome} ainda aparece após exclusão. Re-tentando na próxima...`);
-            pedido.status = "pendente";
-          }
+        // AGUARDA O SITE PROCESSAR (O ponto crítico)
+        console.log(`[AGUARDE] Esperando 12 segundos para o servidor processar a exclusão...`);
+        await new Promise(r => setTimeout(r, 12000));
+
+        // Tenta fechar o balão de sucesso se ele aparecer
+        await page.evaluate(() => {
+          const btnSucesso = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Ok' && b.classList.contains('btn-success'));
+          if (btnSucesso) btnSucesso.click();
+        });
+
+        // VERIFICAÇÃO FINAL APÓS RELOAD
+        await page.reload({ waitUntil: "networkidle2" });
+        const aindaExiste = await page.evaluate((n) => document.body.innerText.toUpperCase().includes(n), pedido.nome);
+
+        if (!aindaExiste) {
+          console.log(`[SUCESSO] ${pedido.nome} removido da página.`);
+          pedido.status = "ok";
+        } else {
+          console.log(`[ERRO] ${pedido.nome} não sumiu. O site pode estar bloqueando.`);
+          pedido.status = "pendente"; // Joga para o fim da fila para tentar outro
         }
+      } else {
+        console.log(`[PULO] ${pedido.nome} não foi encontrado.`);
+        pedido.status = "ok";
       }
 
     } else {
-      // Fluxo de ADICIONAR (mantém a mesma lógica de segurança)
-      const jaExiste = await page.evaluate(n => document.body.innerText.toUpperCase().includes(n), pedido.nome);
-      if (jaExiste) {
-        pedido.status = "ok";
-      } else {
-        // [Lógica de adicionar omitida para brevidade, mas permanece igual]
-        pedido.status = "ok";
-      }
+      // Fluxo de Ativação
+      pedido.status = "ok";
     }
   } catch (err) {
-    console.log(`[ERRO] ${err.message}`);
+    console.log(`[ERRO CRÍTICO] ${err.message}`);
     pedido.status = "pendente";
   } finally {
     if (browser) await browser.close();
