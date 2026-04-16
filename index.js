@@ -7,7 +7,6 @@ const executarBot = require("./bot");
 const app = express();
 app.use(bodyParser.json());
 
-// Força a leitura da pasta public correta
 const pastaPublic = fs.existsSync(path.join(__dirname, "public")) ? "public" : "Public";
 app.use(express.static(path.join(__dirname, pastaPublic)));
 
@@ -22,50 +21,46 @@ const SERVIDORES = [
     "http://ntb.blc-atena.com", "http://flash.netpl4y.com", "http://olympus.netpl4y.com"
 ];
 
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, pastaPublic, "index.html"));
-});
-
 app.post("/ativar", (req, res) => {
     const { mac, key, user, pass, limparTudo } = req.body;
-    if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
-
-    // Remove qualquer pedido pendente antigo deste mesmo MAC para evitar duplicados na fila
+    
     pedidos = pedidos.filter(p => p.mac !== mac);
 
-    SERVIDORES.forEach((servidor, index) => {
-        let nomePl = "";
-        try {
-            nomePl = servidor.replace("http://", "").replace("https://", "").split('.')[0].toUpperCase();
-        } catch (e) { nomePl = "IPTV"; }
-
+    if (limparTudo) {
+        // Se for LIMPAR, adicionamos apenas UM comando na fila
         pedidos.push({
             mac: mac.trim(),
             key: key.trim(),
-            m3u: `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`,
-            nome: nomePl,
             status: "pendente",
-            limpar: (limparTudo === true && index === 0) 
+            somenteLimpar: true // Marca especial para o bot saber que não deve adicionar nada
         });
-    });
-
-    console.log(`[FILA] MAC ${mac} adicionado. Limpeza seletiva: ${limparTudo}`);
+    } else {
+        // Se for APENAS ATIVAR, segue o fluxo normal de 15 itens
+        SERVIDORES.forEach((servidor) => {
+            let nomePl = servidor.replace("http://", "").replace("https://", "").split('.')[0].toUpperCase();
+            pedidos.push({
+                mac: mac.trim(),
+                key: key.trim(),
+                m3u: `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`,
+                nome: nomePl,
+                status: "pendente",
+                somenteLimpar: false
+            });
+        });
+    }
     res.send({ ok: true });
 });
 
 app.get("/status", (req, res) => {
     const { mac } = req.query;
-    const total = SERVIDORES.length;
+    const pedidoLimpeza = pedidos.find(p => p.mac === mac && p.somenteLimpar === true);
     
-    const erroLogin = pedidos.find(p => p.mac === mac && p.status === "erro_login");
-    const restantes = pedidos.filter(p => p.mac === mac).length;
-    const concluidos = total - restantes;
+    if (pedidoLimpeza) {
+        return res.json({ concluidos: 0, total: 1, status: "limpando" });
+    }
 
-    res.json({
-        concluidos: concluidos >= 0 ? concluidos : 0,
-        total: total,
-        status: erroLogin ? "erro_login" : "processando"
-    });
+    const restantes = pedidos.filter(p => p.mac === mac).length;
+    res.json({ concluidos: 15 - restantes, total: 15, status: "processando" });
 });
 
 setInterval(async () => {
@@ -73,9 +68,8 @@ setInterval(async () => {
         const proximo = pedidos.find(p => p.status === "pendente");
         if (proximo) {
             botOcupado = true;
-            try {
-                await executarBot(pedidos);
-            } finally {
+            try { await executarBot(pedidos); } 
+            finally {
                 pedidos = pedidos.filter(p => p.status !== "ok");
                 botOcupado = false;
             }
@@ -83,5 +77,4 @@ setInterval(async () => {
     }
 }, 20000);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor pronto na porta ${PORT}`));
+app.listen(process.env.PORT || 3000);
