@@ -6,86 +6,116 @@
     <title>Ativador IBO Player</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e1e1e; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; }
-        h2 { text-align: center; color: #00ff88; margin-top: 0; }
-        .form-group { margin-bottom: 1rem; }
-        input { width: 100%; padding: 0.8rem; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 1rem; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .card { background: #1e1e1e; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #00ff88; margin-bottom: 20px; }
+        .form-group { margin-bottom: 12px; }
+        input { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
         button:disabled { background: #444; color: #888; }
         
-        .progress-area { margin-top: 25px; display: none; text-align: center; }
-        .bar-bg { width: 100%; height: 14px; background: #333; border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
-        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.8s ease; }
-        #status-txt { font-size: 0.9rem; color: #00ff88; margin-bottom: 15px; }
-        .aviso-app { background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; padding: 10px; border-radius: 8px; font-size: 0.85rem; color: #00ff88; display: none; animation: fadeIn 1s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Área de Progresso */
+        #progressArea { margin-top: 25px; display: none; }
+        .bar-bg { width: 100%; height: 16px; background: #333; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 1px solid #444; }
+        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.5s ease; }
+        #status-txt { font-size: 0.95rem; color: #00ff88; font-weight: bold; margin-bottom: 10px; }
+        
+        /* Mensagem de Aviso */
+        .aviso-app { 
+            background: rgba(0, 255, 136, 0.15); 
+            border: 1px solid #00ff88; 
+            padding: 12px; 
+            border-radius: 10px; 
+            font-size: 0.9rem; 
+            color: #00ff88; 
+            display: none; 
+            margin-top: 15px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Ativador Digital</h2>
-        <div id="form">
+        
+        <div id="formContainer">
             <div class="form-group"><input type="text" id="mac" placeholder="MAC (00:00:00:00:00:00)"></div>
             <div class="form-group"><input type="text" id="key" placeholder="Device Key"></div>
             <div class="form-group"><input type="text" id="user" placeholder="Usuário"></div>
             <div class="form-group"><input type="password" id="pass" placeholder="Senha"></div>
-            <button id="btn" onclick="ativar()">ATIVAR PLAYLISTS</button>
+            <button id="btnAtivar" onclick="iniciar()">ATIVAR PLAYLISTS</button>
         </div>
 
-        <div class="progress-area" id="progressArea">
-            <div id="status-txt">Iniciando processamento...</div>
-            <div class="bar-bg"><div class="bar-fill" id="bar"></div></div>
+        <div id="progressArea">
+            <div id="status-txt">Aguardando servidor...</div>
+            <div class="bar-bg">
+                <div class="bar-fill" id="bar"></div>
+            </div>
             <div class="aviso-app" id="msgAviso">
-                ✅ <b>Já pode abrir seu App!</b><br>A primeira playlist foi adicionada. O restante aparecerá automaticamente em instantes.
+                ✅ <b>Ótima notícia!</b><br>A primeira playlist já foi enviada. Você já pode abrir o seu App para conferir! O restante entrará em instantes.
             </div>
         </div>
     </div>
 
     <script>
-        async function ativar() {
+        async function iniciar() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
             const user = document.getElementById('user').value;
             const pass = document.getElementById('pass').value;
 
-            if(!mac || !key || !user || !pass) return alert("Preencha todos os campos!");
+            if(!mac || !key || !user || !pass) return alert("Por favor, preencha todos os campos!");
 
-            document.getElementById('form').style.display = 'none';
+            // Esconde o formulário e mostra o progresso
+            document.getElementById('formContainer').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            await fetch('/ativar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac, key, user, pass })
-            });
+            // Envia para o servidor
+            try {
+                const res = await fetch('/ativar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mac, key, user, pass })
+                });
 
-            checarStatus(mac);
+                if (res.ok) {
+                    monitorarStatus(mac);
+                } else {
+                    alert("Erro ao iniciar ativação.");
+                }
+            } catch (e) {
+                alert("Erro de conexão com o servidor.");
+            }
         }
 
-        async function checarStatus(mac) {
+        async function monitorarStatus(mac) {
             const bar = document.getElementById('bar');
             const txt = document.getElementById('status-txt');
             const aviso = document.getElementById('msgAviso');
 
-            const loop = setInterval(async () => {
+            const timer = setInterval(async () => {
                 try {
                     const res = await fetch(`/status?mac=${mac}`);
                     const data = await res.json();
                     
+                    // Calcula progresso
                     const percent = (data.concluidos / data.total) * 100;
                     bar.style.width = percent + '%';
                     txt.innerText = `Processando Playlist: ${data.concluidos} / ${data.total}`;
 
+                    // Mostra o aviso se pelo menos 1 estiver concluído
                     if(data.concluidos >= 1) {
                         aviso.style.display = 'block';
                     }
 
-                    if(data.concluidos >= data.total) {
-                        clearInterval(loop);
+                    // Se terminou tudo
+                    if(data.concluidos >= data.total && data.total > 0) {
+                        clearInterval(timer);
                         txt.innerText = "✅ TODAS AS PLAYLISTS FORAM ADICIONADAS!";
                     }
-                } catch (e) { console.error("Erro ao checar status"); }
-            }, 6000);
+                } catch (e) {
+                    console.error("Erro na consulta de status");
+                }
+            }, 5000); // Checa a cada 5 segundos
         }
     </script>
 </body>
