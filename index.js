@@ -1,43 +1,56 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const dnsConfig = require("./dns");
+const fs = require("fs");
 const executarBot = require("./bot");
 
 const app = express();
 
-// Middleware para entender JSON e servir a pasta do Painel Web
+// Middleware para JSON
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public")));
 
-// Variáveis de controle da fila
+/**
+ * 1. SOLUÇÃO PARA O ERRO "SENDSTREAM.ERROR":
+ * Vamos garantir que o caminho da pasta esteja correto independente do sistema.
+ * Verificamos se a pasta se chama "Public" ou "public".
+ */
+const pastaPublic = fs.existsSync(path.join(__dirname, "Public")) ? "Public" : "public";
+app.use(express.static(path.join(__dirname, pastaPublic)));
+
 let pedidos = [];
 let botOcupado = false;
 
-// Rota principal para carregar o Painel Web (Front-end)
+// Rota principal (Painel do Cliente)
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  const file = path.join(__dirname, pastaPublic, "index.html");
+  res.sendFile(file, (err) => {
+    if (err) {
+      console.error("Erro ao enviar index.html:", err.message);
+      res.status(404).send("Erro: Arquivo index.html não encontrado. Verifique a pasta Public.");
+    }
+  });
 });
 
-// Rota que recebe os dados do formulário do cliente
+// Rota de ativação
 app.post("/ativar", (req, res) => {
   const { mac, key, user, pass } = req.body;
+  if (!mac || !key || !user || !pass) return res.status(400).send({ erro: "Dados incompletos" });
 
-  // Validação básica de entrada
-  if (!mac || !key || !user || !pass) {
-    return res.status(400).send({ erro: "Dados incompletos. Preencha todos os campos." });
-  }
+  // Lista de URLs que você enviou
+  const servidores = [
+    "http://xw.pluss.fun", "http://meusrv.top:80", "http://prd.blc-atena.com",
+    "http://solar.playblc.work", "http://atbx.blc-atena.com", "http://atn.blc-atena.com",
+    "http://od.blc-atena.com", "http://ecps.blc-atena.com", "http://tita.playblc.work",
+    "http://vr766.com", "http://hades.blcplay2.work", "http://ifx.blc-atena.com",
+    "http://ntb.blc-atena.com", "http://flash.netpl4y.com", "http://olympus.netpl4y.com"
+  ];
 
-  // Adiciona todos os servidores da lista DNS para este pedido
-  dnsConfig.servidores.forEach((servidor) => {
-    // Extrai o nome do servidor (ex: cbr) para usar na playlist
+  servidores.forEach((servidor) => {
     let nomeSugerido = "IPTV";
     try {
       const urlLimpa = servidor.replace("http://", "").replace("https://", "");
       nomeSugerido = urlLimpa.split('.')[0].toUpperCase();
-    } catch (e) {
-      nomeSugerido = user;
-    }
+    } catch (e) { nomeSugerido = user; }
 
     const m3u = `${servidor}/get.php?username=${user}&password=${pass}&type=m3u_plus`;
     
@@ -50,52 +63,41 @@ app.post("/ativar", (req, res) => {
     });
   });
 
-  console.log(`[FILA] Novo pedido adicionado para o MAC: ${mac} (${dnsConfig.servidores.length} DNS)`);
-  res.send({ ok: true, mensagem: "Pedido enviado para a fila de processamento." });
+  console.log(`[FILA] Novo pedido para MAC: ${mac} (${servidores.length} Playlists)`);
+  res.send({ ok: true });
 });
 
-/**
- * Loop de processamento inteligente
- * Roda a cada 30 segundos verificando se há pedidos pendentes.
- */
+// Rota de Status para a Barra de Carregamento
+app.get("/status", (req, res) => {
+  const { mac } = req.query;
+  const totalPlaylists = 15; // Quantidade fixa baseada na sua lista acima
+  const pendentesParaEsseMac = pedidos.filter(p => p.mac === mac).length;
+  const concluidos = totalPlaylists - pendentesParaEsseMac;
+
+  res.json({
+    concluidos: concluidos >= 0 ? concluidos : 0,
+    total: totalPlaylists
+  });
+});
+
+// Loop do Bot
 setInterval(async () => {
-  // Só inicia se o bot não estiver ocupado e houver algo na fila
   if (!botOcupado) {
     const proximo = pedidos.find(p => p.status === "pendente");
-
     if (proximo) {
       botOcupado = true;
-      
-      // MUDA O STATUS IMEDIATAMENTE
-      // Isso impede que o loop selecione o mesmo pedido antes do bot terminar
       proximo.status = "processando"; 
-      
-      console.log(`[EXECUTOR] Iniciando bot para: ${proximo.nome} no MAC ${proximo.mac}`);
-
       try {
-        // Passa a lista de pedidos para o bot processar o atual
         await executarBot(pedidos);
       } catch (e) {
-        console.log("[ERRO] Falha crítica no ciclo do bot:", e.message);
-        // Em caso de falha grave, volta para pendente para tentar novamente
-        if (proximo.status === "processando") {
-            proximo.status = "pendente";
-        }
+        console.log("[ERRO BOT]:", e.message);
       } finally {
-        // Limpa da memória apenas os pedidos que foram concluídos com sucesso (status "ok")
         pedidos = pedidos.filter(p => p.status !== "ok");
         botOcupado = false;
-        console.log(`[FILA] Processamento finalizado. Pedidos restantes na fila: ${pedidos.length}`);
       }
     }
   }
-}, 30000); 
+}, 30000);
 
-// Inicialização do Servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("-----------------------------------------");
-  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORT}`);
-  console.log(`💻 ACESSE O PAINEL: http://localhost:${PORT}`);
-  console.log("-----------------------------------------");
-});
+app.listen(PORT, () => console.log(`🚀 Servidor Ativo na porta ${PORT}`));
