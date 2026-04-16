@@ -8,14 +8,6 @@ async function executarBot(pedidos) {
   pedido.status = "processando";
   const PIN_PADRAO = "123321";
 
-  // Lista de Proxies Gratuitos (Pode ser que alguns falhem, o bot vai testar)
-  const PROXY_LIST = [
-    "http://45.160.88.50:8080",
-    "http://189.126.108.162:8080",
-    "http://168.197.64.12:3128"
-  ];
-  const randomProxy = PROXY_LIST[Math.floor(Math.random() * PROXY_LIST.length)];
-
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -23,8 +15,9 @@ async function executarBot(pedidos) {
         ...chromium.args,
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled",
-        `--proxy-server=${randomProxy}`, // AQUI ESTÁ A MÁSCARA DE IP
+        "--disable-blink-features=AutomationControlled", // Remove a bandeira de "sou um bot"
+        "--disable-infobars",
+        "--window-size=1920,1080",
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
       ],
       executablePath: await chromium.executablePath(),
@@ -33,53 +26,68 @@ async function executarBot(pedidos) {
 
     const page = await browser.newPage();
     
-    // Deixa o bot com "cara" de navegador de celular, já que o seu celular entra e o PC não
-    await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    // Configurações para parecer um humano
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9' });
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt'] });
+    });
 
-    console.log(`[BOT] Usando IP Mascarado: ${randomProxy}`);
+    console.log(`[BOT] Iniciando acesso direto (Modo Furtivo) para ${pedido.nome}`);
 
+    // Tenta acessar o login
     await page.goto("https://iboproapp.com/manage-playlists/login/", { 
       waitUntil: "networkidle2",
       timeout: 60000 
     });
 
-    // Se aparecer o erro de Login, o bot vai tentar de novo sem o proxy
+    // Se o site der "Invalid Request", o bot vai esperar um pouco e tentar um reload
     const isInvalid = await page.evaluate(() => document.body.innerText.includes("Invalid request"));
     if (isInvalid) {
-        throw new Error("O IP Mascarado também foi bloqueado. Tentando próxima rodada.");
+        console.log("[AVISO] Detectado Invalid Request. Aguardando 10s para tentar reload...");
+        await new Promise(r => setTimeout(r, 10000));
+        await page.reload({ waitUntil: "networkidle2" });
     }
 
-    // Login
-    await page.type("input[name='mac_address']", pedido.mac);
-    await page.type("input[name='password']", pedido.key);
+    // Preenche login (simulando digitação humana)
+    await page.type("input[name='mac_address']", pedido.mac, { delay: 100 });
+    await page.type("input[name='password']", pedido.key, { delay: 100 });
     await page.click("button[type='submit']");
+    
     await new Promise(r => setTimeout(r, 12000));
 
+    // Vai para a lista e segue a lógica de exclusão
     await page.goto("https://iboproapp.com/manage-playlists/list/", { waitUntil: "networkidle2" });
     
-    if (pedido.acao === "EXCLUIR") {
-      // ... [Mesma lógica de exclusão por Script que fizemos antes]
-      const clicou = await page.evaluate((nomeAlvo) => {
-        const rows = Array.from(document.querySelectorAll('tr'));
-        const alvo = rows.find(r => r.innerText.toUpperCase().includes(nomeAlvo.toUpperCase()));
-        if (alvo) {
-          const btn = alvo.querySelector('.delete_playlist');
-          if (btn) { btn.click(); return true; }
-        }
-        return false;
-      }, pedido.nome);
-
-      if (clicou) {
-        await new Promise(r => setTimeout(r, 4000));
-        await page.keyboard.type(PIN_PADRAO, { delay: 150 });
-        await page.keyboard.press('Enter');
-        await new Promise(r => setTimeout(r, 10000));
+    const clicou = await page.evaluate((nomeAlvo) => {
+      const rows = Array.from(document.querySelectorAll('tr'));
+      const alvo = rows.find(r => r.innerText.toUpperCase().includes(nomeAlvo.toUpperCase()));
+      if (alvo) {
+        const btn = alvo.querySelector('.delete_playlist');
+        if (btn) { btn.click(); return true; }
       }
-      pedido.status = "ok";
+      return false;
+    }, pedido.nome);
+
+    if (clicou) {
+      console.log(`[OK] Abrindo modal de PIN para ${pedido.nome}`);
+      await new Promise(r => setTimeout(r, 4000));
+      await page.keyboard.type(PIN_PADRAO, { delay: 150 });
+      await page.keyboard.press('Enter');
+      await new Promise(r => setTimeout(r, 10000));
+      
+      // Fecha o OK da confirmação
+      await page.evaluate(() => {
+        const btnOk = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Ok');
+        if (btnOk) btnOk.click();
+      });
     }
-    
+
+    pedido.status = "ok";
+    console.log(`[SUCESSO] Processo finalizado para ${pedido.nome}`);
+
   } catch (err) {
-    console.log(`[ERRO COM IP MASCARADO] ${err.message}`);
+    console.log(`[ERRO FINAL] ${err.message}`);
     pedido.status = "pendente";
   } finally {
     if (browser) await browser.close();
