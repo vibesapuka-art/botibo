@@ -5,71 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ativador IBO Player</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { text-align: center; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #00ff88; margin-top: 0; }
         .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: .5rem; color: #666; }
-        input { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 1rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
-        button:hover { background: #218838; }
-        #status { margin-top: 1rem; text-align: center; font-weight: bold; }
+        input { width: 100%; padding: 0.8rem; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 1rem; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:disabled { background: #444; color: #888; }
+        
+        .progress-area { margin-top: 25px; display: none; text-align: center; }
+        .bar-bg { width: 100%; height: 14px; background: #333; border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.8s ease; }
+        #status-txt { font-size: 0.9rem; color: #00ff88; margin-bottom: 15px; }
+        .aviso-app { background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; padding: 10px; border-radius: 8px; font-size: 0.85rem; color: #00ff88; display: none; animation: fadeIn 1s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Ativar Playlists</h2>
-        <div class="form-group">
-            <label>MAC Address</label>
-            <input type="text" id="mac" placeholder="00:00:00:00:00:00">
+        <h2>Ativador Digital</h2>
+        <div id="form">
+            <div class="form-group"><input type="text" id="mac" placeholder="MAC (00:00:00:00:00:00)"></div>
+            <div class="form-group"><input type="text" id="key" placeholder="Device Key"></div>
+            <div class="form-group"><input type="text" id="user" placeholder="Usuário"></div>
+            <div class="form-group"><input type="password" id="pass" placeholder="Senha"></div>
+            <button id="btn" onclick="ativar()">ATIVAR PLAYLISTS</button>
         </div>
-        <div class="form-group">
-            <label>Device Key</label>
-            <input type="text" id="key" placeholder="123456">
+
+        <div class="progress-area" id="progressArea">
+            <div id="status-txt">Iniciando processamento...</div>
+            <div class="bar-bg"><div class="bar-fill" id="bar"></div></div>
+            <div class="aviso-app" id="msgAviso">
+                ✅ <b>Já pode abrir seu App!</b><br>A primeira playlist foi adicionada. O restante aparecerá automaticamente em instantes.
+            </div>
         </div>
-        <div class="form-group">
-            <label>Usuário IPTV</label>
-            <input type="text" id="user" placeholder="Seu usuário">
-        </div>
-        <div class="form-group">
-            <label>Senha IPTV</label>
-            <input type="password" id="pass" placeholder="Sua senha">
-        </div>
-        <button onclick="enviar()">Ativar Agora</button>
-        <div id="status"></div>
     </div>
 
     <script>
-        async function enviar() {
-            const status = document.getElementById('status');
-            const data = {
-                mac: document.getElementById('mac').value,
-                key: document.getElementById('key').value,
-                user: document.getElementById('user').value,
-                pass: document.getElementById('pass').value
-            };
+        async function ativar() {
+            const mac = document.getElementById('mac').value;
+            const key = document.getElementById('key').value;
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
 
-            status.innerText = "Enviando para a fila...";
-            status.style.color = "blue";
+            if(!mac || !key || !user || !pass) return alert("Preencha todos os campos!");
 
-            try {
-                const res = await fetch('/ativar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
+            document.getElementById('form').style.display = 'none';
+            document.getElementById('progressArea').style.display = 'block';
 
-                if (res.ok) {
-                    status.innerText = "Sucesso! Aguarde alguns minutos.";
-                    status.style.color = "green";
-                } else {
-                    status.innerText = "Erro ao enviar dados.";
-                    status.style.color = "red";
-                }
-            } catch (err) {
-                status.innerText = "Erro de conexão.";
-                status.style.color = "red";
-            }
+            await fetch('/ativar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, key, user, pass })
+            });
+
+            checarStatus(mac);
+        }
+
+        async function checarStatus(mac) {
+            const bar = document.getElementById('bar');
+            const txt = document.getElementById('status-txt');
+            const aviso = document.getElementById('msgAviso');
+
+            const loop = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status?mac=${mac}`);
+                    const data = await res.json();
+                    
+                    const percent = (data.concluidos / data.total) * 100;
+                    bar.style.width = percent + '%';
+                    txt.innerText = `Processando Playlist: ${data.concluidos} / ${data.total}`;
+
+                    if(data.concluidos >= 1) {
+                        aviso.style.display = 'block';
+                    }
+
+                    if(data.concluidos >= data.total) {
+                        clearInterval(loop);
+                        txt.innerText = "✅ TODAS AS PLAYLISTS FORAM ADICIONADAS!";
+                    }
+                } catch (e) { console.error("Erro ao checar status"); }
+            }, 6000);
         }
     </script>
 </body>
