@@ -2,7 +2,6 @@ const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
 async function executarBot(pedidos) {
-    // Busca apenas pedidos que ainda não falharam e não terminaram
     const pedido = pedidos.find(p => p.status === "pendente" || p.status === "processando");
     if (!pedido) return;
 
@@ -11,41 +10,50 @@ async function executarBot(pedidos) {
 
     try {
         browser = await puppeteer.launch({
-            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+            args: [
+                ...chromium.args,
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage", // Essencial para o plano gratuito do Render
+                "--single-process"
+            ],
             executablePath: await chromium.executablePath(),
             headless: true
         });
 
         const page = await browser.newPage();
-        await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2", timeout: 60000 });
+        await page.setDefaultNavigationTimeout(60000);
 
+        // 1. LOGIN
+        await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
         await page.type("input[name='mac_address']", pedido.mac);
         await page.type("input[name='password']", pedido.key);
         await page.click("button[type='submit']");
+        
+        await new Promise(r => setTimeout(r, 10000));
 
-        await new Promise(r => setTimeout(r, 10000)); // Tempo para o site processar o login
-
-        // VERIFICAÇÃO CRUCIAL
-        const erroDetectado = await page.evaluate(() => {
-            const corpo = document.body.innerText;
-            return corpo.includes("Invalid request") || 
-                   corpo.includes("Wrong") || 
+        // VERIFICAÇÃO DE DADOS INCORRETOS
+        const erroLogin = await page.evaluate(() => {
+            return document.body.innerText.includes("Invalid request") || 
                    document.querySelector("input[name='mac_address']") !== null;
         });
 
-        if (erroDetectado) {
-            console.log(`[PAINEL] Enviando erro de login para o MAC: ${pedido.mac}`);
-            pedido.status = "erro_login"; // O index.html vai ler isso no próximo fetch
-            return; 
+        if (erroLogin) {
+            console.log(`[AVISO] Dados inválidos para MAC: ${pedido.mac}`);
+            pedido.status = "erro_login"; // Envia para o painel do cliente
+            return;
         }
 
-        // Se passar daqui, continua a criação normal...
-        pedido.status = "ok"; 
+        // 2. ADIÇÃO DE PLAYLIST (Exemplo simplificado)
+        await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+        // ... sua lógica de preenchimento ...
+        
+        pedido.status = "ok";
         pedido.concluidos = 15;
 
     } catch (err) {
-        console.log("[ERRO BOT]:", err.message);
-        // Não muda para erro_login aqui para o bot poder tentar de novo se for erro de internet
+        console.log("[ERRO SISTEMA]:", err.message);
+        pedido.status = "erro_sistema"; // Notifica instabilidade no painel
     } finally {
         if (browser) await browser.close();
     }
