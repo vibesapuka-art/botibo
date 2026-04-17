@@ -10,22 +10,19 @@
         h2 { color: #00ff88; margin-bottom: 20px; }
         .form-group { margin-bottom: 12px; position: relative; display: flex; align-items: center; }
         input { width: 100%; padding: 12px; padding-right: 85px; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; font-size: 1rem; }
+        .toggle-pass { position: absolute; right: 8px; padding: 6px 12px; background: #00ff88; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.75rem; }
+        button#btnAtivar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px; }
         
-        /* Botão VER ajustado para Mobile */
-        .toggle-pass { position: absolute; right: 8px; width: auto; padding: 6px 12px; background: #00ff88; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.75rem; }
-        
-        button#btnAtivar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; margin-top: 10px; }
-        
-        /* Modal de Confirmação */
+        /* Modal */
         #confirmModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
         .modal-content { background: #252525; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; border: 1px solid #00ff88; }
         .modal-content p { font-size: 0.9rem; margin: 10px 0; text-align: left; border-bottom: 1px solid #333; padding-bottom: 5px; }
 
-        /* Área de Progresso e Erros */
+        /* Progress Area */
         #progressArea { margin-top: 25px; display: none; }
         .bar-bg { width: 100%; height: 16px; background: #333; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 1px solid #444; }
-        .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.5s ease; }
-        #status-txt { font-size: 0.95rem; color: #00ff88; font-weight: bold; margin-bottom: 10px; }
+        .bar-fill { width: 0%; height: 100%; transition: width 0.5s ease; }
+        #status-txt { font-size: 1rem; color: #00ff88; font-weight: bold; margin-bottom: 15px; }
         .aviso-app { background: rgba(0, 255, 136, 0.15); border: 1px solid #00ff88; padding: 12px; border-radius: 10px; font-size: 0.85rem; color: #00ff88; display: none; margin-top: 15px; }
     </style>
 </head>
@@ -35,10 +32,9 @@
         <div class="modal-content">
             <h3 style="color: #00ff88; margin-top: 0;">Confirme os Dados</h3>
             <div id="resumoDados"></div>
-            <p style="border: none; color: #ffbb33; font-weight: bold; text-align: center; font-size: 0.8rem;">Se os dados estiverem errados, o bot não conseguirá logar!</p>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button style="width:50%; padding:12px; background:#ff4444; border:none; border-radius:8px; color:white; cursor:pointer;" onclick="fecharModal()">CORRIGIR</button>
-                <button style="width:50%; padding:12px; background:#00ff88; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="enviarDados()">TUDO OK!</button>
+                <button style="width:50%; padding:12px; background:#ff4444; border:none; border-radius:8px; color:white;" onclick="fecharModal()">CORRIGIR</button>
+                <button style="width:50%; padding:12px; background:#00ff88; border:none; border-radius:8px; font-weight:bold;" onclick="enviarDados()">TUDO OK!</button>
             </div>
         </div>
     </div>
@@ -58,30 +54,31 @@
 
         <div id="progressArea">
             <div id="status-txt">Iniciando...</div>
-            <div class="bar-bg"><div class="bar-fill" id="bar"></div></div>
-            <div class="aviso-app" id="msgAviso">✅ Playlist enviada! Já pode conferir no seu App.</div>
+            
+            <div id="step-verificacao">
+                <div style="font-size: 0.85rem; color: #ffbb33; margin-bottom: 5px;">🔍 Verificando MAC no painel...</div>
+                <div class="bar-bg"><div class="bar-fill" id="bar-check" style="width: 50%; background: #ffbb33;"></div></div>
+            </div>
+
+            <div id="step-playlists" style="display: none;">
+                <div style="font-size: 0.85rem; color: #00ff88; margin-bottom: 5px;">🚀 Adicionando Playlists...</div>
+                <div class="bar-bg"><div class="bar-fill" id="bar-playlists" style="width: 0%; background: #00ff88;"></div></div>
+            </div>
+
+            <div class="aviso-app" id="msgAviso">✅ Playlist enviada! Verifique seu App.</div>
         </div>
     </div>
 
     <script>
         function toggleSenha() {
             const p = document.getElementById('pass');
-            const b = document.querySelector('.toggle-pass');
             p.type = p.type === "password" ? "text" : "password";
-            b.innerText = p.type === "password" ? "VER" : "OCULTAR";
         }
 
         function abrirConfirmacao() {
-            const mac = document.getElementById('mac').value, key = document.getElementById('key').value;
-            const user = document.getElementById('user').value, pass = document.getElementById('pass').value;
-            if(!mac || !key || !user || !pass) return alert("Preencha tudo!");
-
-            document.getElementById('resumoDados').innerHTML = `
-                <p><b>MAC:</b> ${mac}</p>
-                <p><b>Key:</b> ${key}</p>
-                <p><b>Login:</b> ${user}</p>
-                <p><b>Senha:</b> ${pass}</p>
-            `;
+            const mac = document.getElementById('mac').value;
+            if(!mac) return alert("Preencha os dados!");
+            document.getElementById('resumoDados').innerHTML = `<p><b>MAC:</b> ${mac}</p>`;
             document.getElementById('confirmModal').style.display = 'flex';
         }
 
@@ -89,44 +86,55 @@
 
         async function enviarDados() {
             fecharModal();
-            const mac = document.getElementById('mac').value, key = document.getElementById('key').value;
-            const user = document.getElementById('user').value, pass = document.getElementById('pass').value;
+            const dados = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                user: document.getElementById('user').value,
+                pass: document.getElementById('pass').value
+            };
             document.getElementById('formContainer').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            try {
-                await fetch('/ativar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mac, key, user, pass })
-                });
-                monitorarStatus(mac);
-            } catch (e) { alert("Erro de rede."); }
+            fetch('/ativar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(dados)
+            });
+            monitorarStatus(dados.mac);
         }
 
         async function monitorarStatus(mac) {
-            const bar = document.getElementById('bar'), txt = document.getElementById('status-txt'), aviso = document.getElementById('msgAviso');
+            const txt = document.getElementById('status-txt');
+            const barCheck = document.getElementById('bar-check');
+            const barPlay = document.getElementById('bar-playlists');
+            const step1 = document.getElementById('step-verificacao');
+            const step2 = document.getElementById('step-playlists');
+            const aviso = document.getElementById('msgAviso');
+
             const timer = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const data = await res.json();
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
 
-                    if (data.status === "erro_login") {
-                        clearInterval(timer);
-                        txt.style.color = "#ff4444";
-                        txt.innerText = "❌ MAC OU DEVICE KEY INCORRETOS!";
-                        bar.style.backgroundColor = "#ff4444";
-                        alert("O bot não conseguiu logar no painel do IBO Pro. Verifique seus dados.");
-                        return;
-                    }
+                if (data.status === "erro_login") {
+                    clearInterval(timer);
+                    txt.style.color = "#ff4444";
+                    txt.innerText = "❌ DADOS INCORRETOS";
+                    barCheck.style.width = "100%";
+                    barCheck.style.background = "#ff4444";
+                    return;
+                }
 
+                if (data.status === "processando" || data.status === "ok") {
+                    step1.style.display = "none";
+                    step2.style.display = "block";
                     const percent = (data.concluidos / data.total) * 100;
-                    bar.style.width = percent + '%';
+                    barPlay.style.width = percent + '%';
                     txt.innerText = `Processando: ${data.concluidos} / ${data.total}`;
+                    
                     if(data.concluidos >= 1) aviso.style.display = 'block';
                     if(data.status === "ok") { clearInterval(timer); txt.innerText = "✅ FINALIZADO!"; }
-                } catch (e) {}
-            }, 5000);
+                }
+            }, 4000);
         }
     </script>
 </body>
