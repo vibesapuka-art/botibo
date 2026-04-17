@@ -6,24 +6,23 @@
     <title>Ativador Digital</title>
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #151515; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; position: relative; }
+        .card { background: #151515; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; }
         input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
         .btn-ativar { background: #00ff88; color: #000; margin-top: 10px; font-size: 1rem; }
-        .btn-ativar:hover { background: #00cc6e; }
 
-        /* Modal de Conferência */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 10; }
-        .modal-content { background: #1a1a1a; padding: 25px; border-radius: 15px; border: 1px solid #00ff88; width: 85%; max-width: 300px; text-align: left; }
-        .modal-content h3 { color: #00ff88; margin-top: 0; text-align: center; }
-        .modal-item { margin: 10px 0; font-size: 0.9rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        
-        /* Área de Progresso */
+        /* Modal de Conferência Atualizado */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #1a1a1a; padding: 25px; border-radius: 15px; border: 1px solid #00ff88; width: 85%; max-width: 320px; text-align: left; }
+        .modal-content h3 { color: #00ff88; text-align: center; margin-top: 0; }
+        .modal-item { margin: 12px 0; font-size: 0.95rem; border-bottom: 1px solid #333; padding-bottom: 6px; word-break: break-all; }
+        .modal-item b { color: #00ff88; margin-right: 5px; }
+
+        /* Status */
         #progressArea { display: none; margin-top: 25px; }
         .bar-bg { width: 100%; height: 14px; background: #222; border-radius: 10px; overflow: hidden; margin: 15px 0; }
         .bar-fill { height: 100%; width: 0%; transition: 0.5s; }
         #main-status { font-weight: bold; color: #00ff88; font-size: 1.1rem; }
-        #label-msg { font-size: 0.85rem; color: #aaa; }
     </style>
 </head>
 <body>
@@ -34,9 +33,9 @@
             <div id="conf-mac" class="modal-item"></div>
             <div id="conf-key" class="modal-item"></div>
             <div id="conf-user" class="modal-item"></div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button style="background: #444; color: #fff;" onclick="fecharModal()">CORRIGIR</button>
-                <button style="background: #00ff88; color: #000;" onclick="confirmarEEnviar()">CONFIRMAR</button>
+            <div id="conf-pass" class="modal-item"></div> <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button style="background: #444; color: #fff; flex: 1;" onclick="fecharModal()">CORRIGIR</button>
+                <button style="background: #00ff88; color: #000; flex: 1;" onclick="confirmarEEnviar()">CONFIRMAR</button>
             </div>
         </div>
     </div>
@@ -57,7 +56,7 @@
             <div class="bar-bg">
                 <div id="bar" class="bar-fill" style="background: #ffbb33; width: 30%;"></div>
             </div>
-            <div id="label-msg">Verificando MAC no painel...</div>
+            <div id="label-msg" style="font-size: 0.85rem; color: #aaa;">Verificando no sistema...</div>
         </div>
     </div>
 
@@ -65,11 +64,16 @@
         function abrirModal() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
-            if(!mac || !key) return alert("Preencha o MAC e a Key primeiro!");
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+
+            if(!mac || !key || !user || !pass) return alert("Por favor, preencha todos os campos!");
 
             document.getElementById('conf-mac').innerHTML = `<b>MAC:</b> ${mac}`;
             document.getElementById('conf-key').innerHTML = `<b>Key:</b> ${key}`;
-            document.getElementById('conf-user').innerHTML = `<b>User:</b> ${document.getElementById('user').value}`;
+            document.getElementById('conf-user').innerHTML = `<b>User:</b> ${user}`;
+            document.getElementById('conf-pass').innerHTML = `<b>Pass:</b> ${pass}`; // Mostra a senha no modal
+            
             document.getElementById('modal').style.display = 'flex';
         }
 
@@ -84,7 +88,6 @@
             document.getElementById('form-container').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            // Envia para o servidor
             await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -107,42 +110,29 @@
 
                     const statusTxt = document.getElementById('main-status');
                     const bar = document.getElementById('bar');
-                    const label = document.getElementById('label-msg');
 
-                    // CASO DE ERRO DE LOGIN OU SISTEMA
                     if (data.status === "erro_login" || data.status === "erro_sistema") {
                         clearInterval(monitor);
                         bar.style.width = "100%";
                         bar.style.background = "#ff4444";
+                        statusTxt.innerText = data.status === "erro_login" ? "❌ DADOS INCORRETOS" : "⚠️ ERRO TÉCNICO";
                         statusTxt.style.color = "#ff4444";
-
-                        if (data.status === "erro_login") {
-                            statusTxt.innerText = "❌ DADOS INCORRETOS";
-                            label.innerText = "MAC ou Key não conferem. Recarregue e tente de novo.";
-                            alert("Dados Inválidos! Por favor, recarregue a página e preencha novamente.");
-                        } else {
-                            statusTxt.innerText = "⚠️ FALHA NO SERVIDOR";
-                            label.innerText = "Ocorreu um erro técnico. Recarregue a página.";
-                            alert("Erro de Sistema (ETXTBSY). Por favor, recarregue a página para limpar o processo.");
-                        }
+                        alert("Algo deu errado. Verifique os dados e recarregue a página.");
                         return;
                     }
 
-                    // CASO DE SUCESSO / PROCESSANDO
                     if (data.status === "processando" || data.status === "ok") {
                         bar.style.background = "#00ff88";
                         const p = (data.concluidos / data.total) * 100;
                         bar.style.width = p + "%";
                         statusTxt.innerText = `Processando: ${data.concluidos}/${data.total}`;
-                        label.innerText = "🚀 Enviando Playlists...";
-
+                        
                         if (data.status === "ok") {
                             clearInterval(monitor);
                             statusTxt.innerText = "✅ FINALIZADO!";
-                            label.innerText = "Playlist enviada com sucesso!";
                         }
                     }
-                } catch (e) { console.log("Erro de conexão"); }
+                } catch (e) { console.log("Erro de rede"); }
             }, 4000);
         }
     </script>
