@@ -8,41 +8,58 @@
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #1e1e1e; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; }
         h2 { color: #00ff88; margin-bottom: 20px; }
-        .form-group { margin-bottom: 12px; }
+        .form-group { margin-bottom: 12px; position: relative; }
         input { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #252525; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
-        button:disabled { background: #444; color: #888; }
         
-        /* Área de Progresso */
+        /* Botão Mostrar Senha */
+        .toggle-pass { position: absolute; right: 10px; top: 10px; cursor: pointer; color: #00ff88; font-size: 0.8rem; background: none; border: none; padding: 5px; }
+        
+        button { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
+        button:hover { background: #00cc6e; }
+
+        /* Estilo do Modal de Confirmação */
+        #confirmModal { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 999; 
+        }
+        .modal-content { background: #252525; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; border: 1px solid #00ff88; }
+        .modal-content p { font-size: 0.9rem; margin: 10px 0; text-align: left; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background: #ff4444; color: white; }
+
         #progressArea { margin-top: 25px; display: none; }
         .bar-bg { width: 100%; height: 16px; background: #333; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 1px solid #444; }
         .bar-fill { width: 0%; height: 100%; background: #00ff88; transition: width 0.5s ease; }
         #status-txt { font-size: 0.95rem; color: #00ff88; font-weight: bold; margin-bottom: 10px; }
-        
-        /* Mensagem de Aviso */
-        .aviso-app { 
-            background: rgba(0, 255, 136, 0.15); 
-            border: 1px solid #00ff88; 
-            padding: 12px; 
-            border-radius: 10px; 
-            font-size: 0.9rem; 
-            color: #00ff88; 
-            display: none; 
-            margin-top: 15px;
-            line-height: 1.4;
-        }
+        .aviso-app { background: rgba(0, 255, 136, 0.15); border: 1px solid #00ff88; padding: 12px; border-radius: 10px; font-size: 0.9rem; color: #00ff88; display: none; margin-top: 15px; line-height: 1.4; }
     </style>
 </head>
 <body>
+
+    <div id="confirmModal">
+        <div class="modal-content">
+            <h3 style="color: #00ff88; margin-top: 0;">Confira os Dados</h3>
+            <div id="resumoDados"></div>
+            <p style="border: none; color: #ffbb33; font-weight: bold; text-align: center;">Se os dados estiverem errados, a lista não funcionará!</p>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="fecharModal()">CORRIGIR</button>
+                <button onclick="enviarDados()">TUDO OK!</button>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
         <h2>Ativador Digital</h2>
         
         <div id="formContainer">
-            <div class="form-group"><input type="text" id="mac" placeholder="MAC (00:00:00:00:00:00)"></div>
+            <div class="form-group"><input type="text" id="mac" placeholder="MAC (Ex: 00:00:00:00:00:00)"></div>
             <div class="form-group"><input type="text" id="key" placeholder="Device Key"></div>
-            <div class="form-group"><input type="text" id="user" placeholder="Usuário"></div>
-            <div class="form-group"><input type="password" id="pass" placeholder="Senha"></div>
-            <button id="btnAtivar" onclick="iniciar()">ATIVAR PLAYLISTS</button>
+            <div class="form-group"><input type="text" id="user" placeholder="Usuário IPTV"></div>
+            <div class="form-group">
+                <input type="password" id="pass" placeholder="Senha IPTV">
+                <button class="toggle-pass" onclick="toggleSenha()">VER</button>
+            </div>
+            <button id="btnAtivar" onclick="abrirConfirmacao()">ATIVAR AGORA</button>
         </div>
 
         <div id="progressArea">
@@ -51,25 +68,57 @@
                 <div class="bar-fill" id="bar"></div>
             </div>
             <div class="aviso-app" id="msgAviso">
-                ✅ <b>Ótima notícia!</b><br>A primeira playlist já foi enviada. Você já pode abrir o seu App para conferir! O restante entrará em instantes.
+                ✅ <b>Ótima notícia!</b><br>A primeira playlist já foi enviada. Você já pode abrir o seu App para conferir!
             </div>
         </div>
     </div>
 
     <script>
-        async function iniciar() {
+        // Função para mostrar/esconder senha
+        function toggleSenha() {
+            const passInput = document.getElementById('pass');
+            const btn = document.querySelector('.toggle-pass');
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                btn.innerText = "ESCONDER";
+            } else {
+                passInput.type = "password";
+                btn.innerText = "VER";
+            }
+        }
+
+        // Abre o modal com o resumo dos dados
+        function abrirConfirmacao() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
             const user = document.getElementById('user').value;
             const pass = document.getElementById('pass').value;
 
-            if(!mac || !key || !user || !pass) return alert("Por favor, preencha todos os campos!");
+            if(!mac || !key || !user || !pass) return alert("Preencha todos os campos!");
 
-            // Esconde o formulário e mostra o progresso
+            document.getElementById('resumoDados').innerHTML = `
+                <p><b>MAC:</b> ${mac}</p>
+                <p><b>Key:</b> ${key}</p>
+                <p><b>Usuário:</b> ${user}</p>
+                <p><b>Senha:</b> ${pass}</p>
+            `;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function fecharModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        async function enviarDados() {
+            fecharModal();
+            const mac = document.getElementById('mac').value;
+            const key = document.getElementById('key').value;
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+
             document.getElementById('formContainer').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            // Envia para o servidor
             try {
                 const res = await fetch('/ativar', {
                     method: 'POST',
@@ -80,10 +129,11 @@
                 if (res.ok) {
                     monitorarStatus(mac);
                 } else {
-                    alert("Erro ao iniciar ativação.");
+                    alert("Erro ao iniciar. Tente novamente.");
+                    location.reload();
                 }
             } catch (e) {
-                alert("Erro de conexão com o servidor.");
+                alert("Erro de conexão.");
             }
         }
 
@@ -96,26 +146,18 @@
                 try {
                     const res = await fetch(`/status?mac=${mac}`);
                     const data = await res.json();
-                    
-                    // Calcula progresso
                     const percent = (data.concluidos / data.total) * 100;
                     bar.style.width = percent + '%';
-                    txt.innerText = `Processando Playlist: ${data.concluidos} / ${data.total}`;
+                    txt.innerText = `Processando: ${data.concluidos} / ${data.total}`;
 
-                    // Mostra o aviso se pelo menos 1 estiver concluído
-                    if(data.concluidos >= 1) {
-                        aviso.style.display = 'block';
-                    }
+                    if(data.concluidos >= 1) aviso.style.display = 'block';
 
-                    // Se terminou tudo
                     if(data.concluidos >= data.total && data.total > 0) {
                         clearInterval(timer);
-                        txt.innerText = "✅ TODAS AS PLAYLISTS FORAM ADICIONADAS!";
+                        txt.innerText = "✅ TUDO PRONTO!";
                     }
-                } catch (e) {
-                    console.error("Erro na consulta de status");
-                }
-            }, 5000); // Checa a cada 5 segundos
+                } catch (e) { console.error("Erro status"); }
+            }, 5000);
         }
     </script>
 </body>
