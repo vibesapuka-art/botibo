@@ -10,14 +10,23 @@ let botOcupado = false;
 
 app.post('/ativar', (req, res) => {
     const { mac, key, user, pass } = req.body;
-    // Limpa pedidos antigos do mesmo MAC para evitar conflito
+    
+    // Monte aqui o DNS que você quer enviar para o IBO
+    // Se o cliente digita o DNS, adicione um campo no HTML e mude aqui
+    const dnsPadrao = "http://seu-dns-aqui.com:8080"; 
+    const linkM3U = `${dnsPadrao}/get.php?username=${user}&password=${pass}&type=m3u_plus&output=ts`;
+
     pedidos = pedidos.filter(p => p.mac !== mac);
     
     pedidos.push({
-        mac, key, user, pass,
+        mac, 
+        key, 
+        user, 
+        pass,
+        m3u: linkM3U, // Agora o bot recebe o link preenchido
         status: "pendente",
         concluidos: 0,
-        total: 15
+        total: 1
     });
     res.json({ success: true });
 });
@@ -27,17 +36,13 @@ app.get('/status', (req, res) => {
     res.json(pedido || { status: "nao_encontrado" });
 });
 
-// Loop controlado para não sobrecarregar o processador do Render
 setInterval(async () => {
     if (botOcupado) return;
     botOcupado = true;
     try {
         await executarBot(pedidos);
-    } catch (e) {
-        console.log("Erro no loop principal");
-    }
+    } catch (e) { console.log("Erro loop"); }
     botOcupado = false;
 }, 8000);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor na porta ${PORT}`));
+app.listen(10000, () => console.log("Servidor Rodando"));
