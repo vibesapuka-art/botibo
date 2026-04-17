@@ -1,42 +1,78 @@
-async function iniciar() {
-    const mac = document.getElementById('mac').value;
-    // ... restante do código de envio via fetch ...
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ativador Digital</title>
+    <style>
+        body { font-family: sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #111; padding: 25px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-ativar { background: #00ff88; color: #000; margin-top: 10px; }
+        #progressArea { display: none; margin-top: 20px; }
+        .bar-bg { width: 100%; height: 12px; background: #222; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .bar-fill { height: 100%; width: 0%; transition: 0.5s; }
+    </style>
+</head>
+<body>
 
-    const monitor = setInterval(async () => {
-        const res = await fetch(`/status?mac=${mac}`);
-        const data = await res.json();
+    <div class="card">
+        <h2 style="color:#00ff88">Ativador Digital</h2>
+        <div id="form">
+            <input type="text" id="mac" placeholder="MAC (00:00:00:00:00:00)">
+            <input type="text" id="key" placeholder="Device Key">
+            <input type="text" id="user" placeholder="Usuário IPTV">
+            <input type="text" id="pass" placeholder="Senha IPTV">
+            <button class="btn-ativar" onclick="iniciar()">ATIVAR AGORA</button>
+        </div>
 
-        // LOGICA DE ERRO NO PAINEL
-        if (data.status === "erro_login") {
-            clearInterval(monitor);
-            
-            // Estilização de Erro
-            const statusTxt = document.getElementById('main-status');
-            const barCheck = document.getElementById('bar-check');
-            
-            statusTxt.innerText = "❌ DADOS INCORRETOS!";
-            statusTxt.style.color = "#ff4444"; // Vermelho
-            
-            barCheck.style.width = "100%";
-            barCheck.style.background = "#ff4444";
-            
-            alert("Ocorreu um erro: MAC Address ou Device Key são inválidos. Verifique os dados no seu aplicativo e tente novamente.");
-            return;
+        <div id="progressArea">
+            <div id="status-main" style="font-weight:bold; color:#00ff88">Verificando MAC...</div>
+            <div class="bar-bg">
+                <div id="bar" class="bar-fill" style="background:#ffbb33; width:40%"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function iniciar() {
+            const mac = document.getElementById('mac').value;
+            const key = document.getElementById('key').value;
+            if(!mac || !key) return alert("Preencha os dados!");
+
+            document.getElementById('form').style.display = 'none';
+            document.getElementById('progressArea').style.display = 'block';
+
+            await fetch('/ativar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, key, user: document.getElementById('user').value, pass: document.getElementById('pass').value })
+            });
+
+            const monitor = setInterval(async () => {
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
+
+                if (data.status === "erro_login") {
+                    clearInterval(monitor);
+                    const txt = document.getElementById('status-main');
+                    const bar = document.getElementById('bar');
+                    txt.innerText = "❌ DADOS INCORRETOS!";
+                    txt.style.color = "#ff4444";
+                    bar.style.width = "100%";
+                    bar.style.background = "#ff4444";
+                    alert("MAC ou Key inválidos!");
+                }
+
+                if (data.status === "ok") {
+                    clearInterval(monitor);
+                    document.getElementById('status-main').innerText = "✅ FINALIZADO!";
+                    document.getElementById('bar').style.width = "100%";
+                    document.getElementById('bar').style.background = "#00ff88";
+                }
+            }, 5000);
         }
-
-        // LOGICA DE SUCESSO
-        if (data.status === "processando" || data.status === "ok") {
-            document.getElementById('status-check').style.display = 'none';
-            document.getElementById('status-play').style.display = 'block';
-            
-            const p = (data.concluidos / data.total) * 100;
-            document.getElementById('bar-play').style.width = p + "%";
-            document.getElementById('main-status').innerText = `Processando: ${data.concluidos}/${data.total}`;
-            
-            if (data.status === "ok") {
-                clearInterval(monitor);
-                document.getElementById('main-status').innerText = "✅ FINALIZADO COM SUCESSO!";
-            }
-        }
-    }, 4000);
-}
+    </script>
+</body>
+</html>
