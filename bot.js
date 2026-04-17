@@ -8,27 +8,20 @@ async function executarBot(pedidos) {
   pedido.status = "processando";
   const PIN_PADRAO = "123321";
 
-  // Lógica para extrair o nome do servidor (ex: de http://cbr.inft2... extrai "cbr")
   let nomePlaylist = "IPTV"; 
   try {
     const urlLimpa = pedido.m3u.replace("http://", "").replace("https://", "");
-    nomePlaylist = urlLimpa.split('.')[0].toUpperCase(); // Extrai "CBR"
+    nomePlaylist = urlLimpa.split('.')[0].toUpperCase(); 
   } catch (e) {
-    nomePlaylist = pedido.nome; // Fallback para o nome do usuário se falhar
+    nomePlaylist = pedido.nome; 
   }
 
-  console.log(`PROCESSANDO DNS: ${pedido.m3u} | NOME: ${nomePlaylist}`);
+  console.log(`[BOT] INICIANDO DNS: ${pedido.m3u} | NOME: ${nomePlaylist}`);
 
   let browser;
   try {
     browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--single-process"
-      ],
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--single-process"],
       executablePath: await chromium.executablePath(),
       headless: true
     });
@@ -45,80 +38,82 @@ async function executarBot(pedidos) {
       const btn = document.querySelector("button[type='submit']");
       if (btn) { btn.disabled = false; btn.click(); }
     });
+    
+    // Aguarda o tempo de resposta do servidor
     await new Promise(r => setTimeout(r, 8000));
 
-    // 2. LISTA E VERIFICAÇÃO (Agora pelo NOME da playlist)
+    // --- NOVA TRAVA DE SEGURANÇA: VERIFICAÇÃO DE LOGIN ---
+    const loginInvalido = await page.evaluate(() => {
+      // Verifica se a mensagem de "Invalid request" apareceu ou se ainda estamos na tela de login
+      return document.body.innerText.includes("Invalid request") || 
+             document.querySelector("input[name='mac_address']") !== null;
+    });
+
+    if (loginInvalido) {
+      console.log(`[ERRO] MAC ou KEY inválidos para: ${pedido.mac}. Parando bot.`);
+      pedido.status = "erro_login"; // Marca como erro para o seu index.html avisar o cliente
+      return; 
+    }
+    // -----------------------------------------------------
+
+    console.log(`[LOGIN OK] Iniciando processamento para ${pedido.mac}`);
+
+    // 2. LISTA E VERIFICAÇÃO
     await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
     const existe = await page.evaluate(nome => {
       return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
     }, nomePlaylist);
 
     if (existe) {
-      console.log(`Playlist "${nomePlaylist}" já cadastrada. Pulando.`);
+      console.log(`[PULO] Playlist "${nomePlaylist}" já existe.`);
       pedido.status = "ok";
       return;
     }
 
-    // 3. CLICAR EM ADD PLAYLIST
+    // 3. ADICIONAR PLAYLIST
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
       if (btn) btn.click();
     });
     await new Promise(r => setTimeout(r, 4000));
 
-    // 4. PREENCHER DADOS BÁSICOS
+    // 4. PREENCHER DADOS
     const inputs = await page.$$("input");
     if (inputs.length >= 2) {
-      await inputs[0].type(nomePlaylist, { delay: 50 }); // Nome extraído (CBR)
+      await inputs[0].type(nomePlaylist, { delay: 50 });
       await inputs[1].type(pedido.m3u, { delay: 50 });
 
-      // 5. ATIVAR O PIN
-      console.log("Ativando proteção por PIN...");
+      // 5. PIN PROTEÇÃO
       await page.evaluate(() => {
         const check = document.querySelector('input[type="checkbox"]');
         if (check) check.click();
       });
       await new Promise(r => setTimeout(r, 2000));
 
-      // 6. PREENCHER PIN E CONFIRMAÇÃO
+      // 6. PREENCHER PIN
       const todosInputs = await page.$$("input");
       if (todosInputs.length >= 5) {
         await todosInputs[3].type(PIN_PADRAO, { delay: 100 });
         await todosInputs[4].type(PIN_PADRAO, { delay: 100 });
       }
 
-      // 7. FINALIZAR (SUBMIT)
+      // 7. SUBMIT
       await page.evaluate(() => {
         const btn = document.querySelector('button[type="submit"]');
         if (btn) btn.click();
       });
 
-      // Aguarda o site processar o salvamento
       await new Promise(r => setTimeout(r, 12000));
-      
-      // 8. VERIFICAÇÃO FINAL POR NOME
-      await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-      const salvo = await page.evaluate(nome => {
-          return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
-      }, nomePlaylist);
-      
-      if (salvo) {
-        pedido.status = "ok";
-        console.log(`SUCESSO TOTAL: Playlist "${nomePlaylist}" criada.`);
-      } else {
-        // Se ainda não aparecer, marcamos como OK de qualquer forma para não looper, 
-        // já que você confirmou que no manual ela aparece depois.
-        console.log("Aviso: Nome não apareceu na lista ainda, mas o comando foi enviado.");
-        pedido.status = "ok"; 
-      }
+      pedido.status = "ok";
+      console.log(`[SUCESSO] Playlist "${nomePlaylist}" enviada.`);
     }
 
   } catch (err) {
-    console.log("FALHA:", err.message);
+    console.log("[FALHA]", err.message);
     pedido.status = "pendente"; 
   } finally {
     if (browser) await browser.close();
   }
 }
 
-module.exports = executarBot;
+module.exports = { executarBot };
