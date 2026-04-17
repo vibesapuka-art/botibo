@@ -7,21 +7,17 @@ async function executarBot(pedidos) {
 
   pedido.status = "processando";
   const PIN_PADRAO = "123321";
-
+  
+  // Extrai nome do servidor para a playlist
   let nomePlaylist = "IPTV"; 
   try {
-    const urlLimpa = pedido.m3u.replace("http://", "").replace("https://", "");
-    nomePlaylist = urlLimpa.split('.')[0].toUpperCase(); 
-  } catch (e) {
-    nomePlaylist = pedido.nome; 
-  }
-
-  console.log(`[BOT] INICIANDO DNS: ${pedido.m3u} | NOME: ${nomePlaylist}`);
+    nomePlaylist = pedido.m3u.replace(/(^\w+:|^)\/\//, '').split('.')[0].toUpperCase();
+  } catch (e) { nomePlaylist = "LISTA"; }
 
   let browser;
   try {
     browser = await puppeteer.launch({
-      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--single-process"],
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
       executablePath: await chromium.executablePath(),
       headless: true
     });
@@ -29,91 +25,68 @@ async function executarBot(pedidos) {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(60000);
 
-    // 1. LOGIN
+    // PASSO 1: LOGIN (Barra Laranja no Painel)
     await page.goto("https://iboplayer.pro/manage-playlists/login/", { waitUntil: "networkidle2" });
     await page.type("input[name='mac_address']", pedido.mac);
     await page.type("input[name='password']", pedido.key);
+    await page.click("button[type='submit']");
     
-    await page.evaluate(() => {
-      const btn = document.querySelector("button[type='submit']");
-      if (btn) { btn.disabled = false; btn.click(); }
-    });
-    
-    // Aguarda o tempo de resposta do servidor
     await new Promise(r => setTimeout(r, 8000));
 
-    // --- NOVA TRAVA DE SEGURANÇA: VERIFICAÇÃO DE LOGIN ---
-    const loginInvalido = await page.evaluate(() => {
-      // Verifica se a mensagem de "Invalid request" apareceu ou se ainda estamos na tela de login
+    // VERIFICAÇÃO DE LOGIN
+    const loginFalhou = await page.evaluate(() => {
       return document.body.innerText.includes("Invalid request") || 
              document.querySelector("input[name='mac_address']") !== null;
     });
 
-    if (loginInvalido) {
-      console.log(`[ERRO] MAC ou KEY inválidos para: ${pedido.mac}. Parando bot.`);
-      pedido.status = "erro_login"; // Marca como erro para o seu index.html avisar o cliente
-      return; 
-    }
-    // -----------------------------------------------------
-
-    console.log(`[LOGIN OK] Iniciando processamento para ${pedido.mac}`);
-
-    // 2. LISTA E VERIFICAÇÃO
-    await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
-    const existe = await page.evaluate(nome => {
-      return document.body.innerText.toUpperCase().includes(nome.toUpperCase());
-    }, nomePlaylist);
-
-    if (existe) {
-      console.log(`[PULO] Playlist "${nomePlaylist}" já existe.`);
-      pedido.status = "ok";
+    if (loginFalhou) {
+      pedido.status = "erro_login"; // Isso faz a barra ficar vermelha no painel
       return;
     }
 
-    // 3. ADICIONAR PLAYLIST
+    // PASSO 2: CRIAR PLAYLIST (Barra Verde no Painel)
+    await page.goto("https://iboplayer.pro/manage-playlists/list/", { waitUntil: "networkidle2" });
+    
+    const existe = await page.evaluate(n => document.body.innerText.toUpperCase().includes(n), nomePlaylist);
+    if (existe) { 
+        pedido.status = "ok"; 
+        return; 
+    }
+
     await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll("button")).find(el => el.innerText.includes("Add Playlist"));
       if (btn) btn.click();
     });
     await new Promise(r => setTimeout(r, 4000));
 
-    // 4. PREENCHER DADOS
     const inputs = await page.$$("input");
     if (inputs.length >= 2) {
-      await inputs[0].type(nomePlaylist, { delay: 50 });
-      await inputs[1].type(pedido.m3u, { delay: 50 });
+      await inputs[0].type(nomePlaylist);
+      await inputs[1].type(pedido.m3u);
 
-      // 5. PIN PROTEÇÃO
       await page.evaluate(() => {
-        const check = document.querySelector('input[type="checkbox"]');
-        if (check) check.click();
+        const c = document.querySelector('input[type="checkbox"]');
+        if (c) c.click();
       });
       await new Promise(r => setTimeout(r, 2000));
 
-      // 6. PREENCHER PIN
-      const todosInputs = await page.$$("input");
-      if (todosInputs.length >= 5) {
-        await todosInputs[3].type(PIN_PADRAO, { delay: 100 });
-        await todosInputs[4].type(PIN_PADRAO, { delay: 100 });
+      const pins = await page.$$("input");
+      if (pins.length >= 5) {
+        await pins[3].type(PIN_PADRAO);
+        await pins[4].type(PIN_PADRAO);
       }
 
-      // 7. SUBMIT
-      await page.evaluate(() => {
-        const btn = document.querySelector('button[type="submit"]');
-        if (btn) btn.click();
-      });
-
+      await page.evaluate(() => document.querySelector('button[type="submit"]').click());
       await new Promise(r => setTimeout(r, 12000));
       pedido.status = "ok";
-      console.log(`[SUCESSO] Playlist "${nomePlaylist}" enviada.`);
     }
 
   } catch (err) {
-    console.log("[FALHA]", err.message);
     pedido.status = "pendente"; 
   } finally {
     if (browser) await browser.close();
   }
 }
 
-module.exports = { executarBot };
+// ESSA LINHA É A MAIS IMPORTANTE PARA NÃO DAR ERRO NO RENDER
+module.exports = executarBot; 
