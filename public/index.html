@@ -3,152 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ativador Digital IBO</title>
+    <title>Ativador Digital</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #151515; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h2 { color: #00ff88; margin-bottom: 20px; }
-        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; font-size: 1rem; }
-        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        body { font-family: sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #151515; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; }
+        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
         .btn-ativar { background: #00ff88; color: #000; margin-top: 10px; font-size: 1rem; }
-        .btn-ativar:hover { background: #00cc6e; }
         
-        /* Modal de Conferência */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 100; }
-        .modal-box { background: #1a1a1a; padding: 25px; border-radius: 15px; border: 1px solid #00ff88; width: 85%; max-width: 320px; }
-        .modal-box h3 { color: #00ff88; margin-top: 0; }
-        .resumo-item { text-align: left; font-size: 0.9rem; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
-
-        /* Área de Progresso */
         #progressArea { display: none; margin-top: 25px; }
-        #main-status { font-weight: bold; color: #00ff88; margin-bottom: 15px; font-size: 1.1rem; }
-        .bar-bg { width: 100%; height: 14px; background: #222; border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid #333; }
-        .bar-fill { height: 100%; width: 0%; transition: 0.5s ease; }
-        
-        .status-label { font-size: 0.85rem; margin-top: 10px; display: block; }
-        #label-check { color: #ffbb33; } /* Laranja para verificação */
-        #label-play { color: #00ff88; }  /* Verde para playlists */
+        .bar-bg { width: 100%; height: 14px; background: #222; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .bar-fill { height: 100%; width: 0%; transition: 0.5s; }
+        #main-status { font-weight: bold; color: #00ff88; }
     </style>
 </head>
 <body>
 
-    <div id="modal">
-        <div class="modal-box">
-            <h3>Confirme os Dados</h3>
-            <div id="resumoContas"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button style="background:#444; color:#fff" onclick="fecharModal()">CORRIGIR</button>
-                <button style="background:#00ff88; color:#000" onclick="iniciarProcesso()">CONFIRMAR</button>
-            </div>
-        </div>
-    </div>
-
     <div class="card">
-        <h2>Ativador Digital</h2>
-        
-        <div id="inputsContainer">
-            <input type="text" id="mac" placeholder="MAC (Ex: 00:00:00:00:00:00)">
+        <h2 style="color:#00ff88">Ativador Digital</h2>
+        <div id="inputs">
+            <input type="text" id="mac" placeholder="MAC Address">
             <input type="text" id="key" placeholder="Device Key">
-            <input type="text" id="user" placeholder="Usuário IPTV">
-            <input type="password" id="pass" placeholder="Senha IPTV">
-            <button class="btn-ativar" onclick="abrirModal()">ATIVAR AGORA</button>
+            <input type="text" id="user" placeholder="Usuário">
+            <input type="password" id="pass" placeholder="Senha">
+            <button class="btn-ativar" onclick="ativar()">ATIVAR AGORA</button>
         </div>
 
         <div id="progressArea">
             <div id="main-status">Iniciando...</div>
-            
-            <div id="step-check">
-                <span class="status-label" id="label-check">🔍 Verificando MAC no painel...</span>
-                <div class="bar-bg"><div id="bar-check" class="bar-fill" style="background: #ffbb33; width: 45%;"></div></div>
+            <div class="bar-bg">
+                <div id="bar" class="bar-fill" style="background: #ffbb33; width: 30%;"></div>
             </div>
-
-            <div id="step-play" style="display:none">
-                <span class="status-label" id="label-play">🚀 Enviando Playlists...</span>
-                <div class="bar-bg"><div id="bar-play" class="bar-fill" style="background: #00ff88;"></div></div>
-            </div>
+            <div id="label-msg" style="font-size: 0.8rem; color: #aaa;">Verificando MAC no painel...</div>
         </div>
     </div>
 
     <script>
-        function abrirModal() {
+        async function ativar() {
             const mac = document.getElementById('mac').value;
-            const key = document.getElementById('key').value;
-            if(!mac || !key) return alert("Por favor, preencha o MAC e a Key.");
+            if(!mac) return alert("Preencha os dados!");
 
-            document.getElementById('resumoContas').innerHTML = `
-                <div class="resumo-item"><b>MAC:</b> ${mac}</div>
-                <div class="resumo-item"><b>KEY:</b> ${key}</div>
-                <div class="resumo-item"><b>USER:</b> ${document.getElementById('user').value}</div>
-            `;
-            document.getElementById('modal').style.display = 'flex';
-        }
-
-        function fecharModal() { document.getElementById('modal').style.display = 'none'; }
-
-        async function iniciarProcesso() {
-            fecharModal();
-            const dados = {
-                mac: document.getElementById('mac').value,
-                key: document.getElementById('key').value,
-                user: document.getElementById('user').value,
-                pass: document.getElementById('pass').value
-            };
-
-            document.getElementById('inputsContainer').style.display = 'none';
+            document.getElementById('inputs').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            // Envia para o servidor
-            fetch('/ativar', {
+            await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(dados)
+                body: JSON.stringify({
+                    mac: mac,
+                    key: document.getElementById('key').value,
+                    user: document.getElementById('user').value,
+                    pass: document.getElementById('pass').value
+                })
             });
 
-            // Inicia monitoramento em tempo real
-            monitorarStatus(dados.mac);
-        }
+            const monitor = setInterval(async () => {
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
 
-        function monitorarStatus(mac) {
-            const statusTxt = document.getElementById('main-status');
-            const barCheck = document.getElementById('bar-check');
-            const barPlay = document.getElementById('bar-play');
-            const stepCheck = document.getElementById('step-check');
-            const stepPlay = document.getElementById('step-play');
+                // CASO DE ERRO (DADOS OU SISTEMA)
+                if (data.status === "erro_login" || data.status === "erro_sistema") {
+                    clearInterval(monitor);
+                    const statusTxt = document.getElementById('main-status');
+                    const bar = document.getElementById('bar');
+                    
+                    statusTxt.innerText = data.status === "erro_login" ? "❌ DADOS INCORRETOS" : "⚠️ ERRO DE CONEXÃO";
+                    statusTxt.style.color = "#ff4444";
+                    bar.style.width = "100%";
+                    bar.style.background = "#ff4444";
+                    
+                    alert(data.status === "erro_login" ? 
+                        "MAC ou Key inválidos. Verifique os dados no App." : 
+                        "O servidor está instável. Tente novamente em instantes.");
+                    return;
+                }
 
-            const poll = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const data = await res.json();
-
-                    // TRATAMENTO DE ERRO DE LOGIN (DADOS INCORRETOS)
-                    if (data.status === "erro_login") {
-                        clearInterval(poll);
-                        statusTxt.innerText = "❌ DADOS INCORRETOS";
-                        statusTxt.style.color = "#ff4444";
-                        barCheck.style.width = "100%";
-                        barCheck.style.background = "#ff4444";
-                        document.getElementById('label-check').innerText = "⚠️ MAC ou Key inválidos!";
-                        document.getElementById('label-check').style.color = "#ff4444";
-                        alert("Ocorreu um erro: O MAC ou a Device Key não foram aceites pelo site. Verifique os dados.");
-                        return;
+                // SUCESSO E PROGRESSO
+                if (data.status === "processando" || data.status === "ok") {
+                    document.getElementById('bar').style.background = "#00ff88";
+                    const p = (data.concluidos / data.total) * 100;
+                    document.getElementById('bar').style.width = p + "%";
+                    document.getElementById('main-status').innerText = `Processando: ${data.concluidos}/${data.total}`;
+                    
+                    if(data.status === "ok") {
+                        clearInterval(monitor);
+                        document.getElementById('main-status').innerText = "✅ FINALIZADO!";
                     }
-
-                    // EVOLUÇÃO PARA ETAPA DE PLAYLISTS
-                    if (data.status === "processando" || data.status === "ok") {
-                        stepCheck.style.display = "none";
-                        stepPlay.style.display = "block";
-                        
-                        const progresso = (data.concluidos / data.total) * 100;
-                        barPlay.style.width = progresso + "%";
-                        statusTxt.innerText = `Processando: ${data.concluidos} / ${data.total}`;
-
-                        if (data.status === "ok") {
-                            clearInterval(poll);
-                            statusTxt.innerText = "✅ FINALIZADO COM SUCESSO!";
-                            barPlay.style.width = "100%";
-                        }
-                    }
-                } catch (e) { console.error("Erro na consulta:", e); }
+                }
             }, 4000);
         }
     </script>
