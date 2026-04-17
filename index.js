@@ -1,33 +1,42 @@
 const express = require('express');
-const path = require('path');
-const executarBot = require('./bot'); // Importa a função do bot.js
+const executarBot = require('./bot');
 const app = express();
 
 app.use(express.json());
 app.use(express.static('public'));
 
-let pedidos = [];
+let pedidos = []; // Esta lista armazena o status que o HTML consulta
 
-// Rota para receber o formulário
 app.post('/ativar', (req, res) => {
     const { mac, key, user, pass } = req.body;
-    const m3u = `http://dns-exemplo.com:80/get.php?username=${user}&password=${pass}&type=m3u_plus&output=ts`;
+    // Evita duplicados e limpa pedidos antigos do mesmo MAC
+    pedidos = pedidos.filter(p => p.mac !== mac);
     
-    const novoPedido = { mac, key, m3u, status: "pendente", concluidos: 0, total: 15 };
+    const novoPedido = { 
+        mac, 
+        key, 
+        user, 
+        pass, 
+        status: "pendente", 
+        concluidos: 0, 
+        total: 15 
+    };
     pedidos.push(novoPedido);
-    res.json({ msg: "Pedido recebido" });
+    res.json({ success: true });
 });
 
-// Rota para o index.html consultar o progresso
 app.get('/status', (req, res) => {
     const pedido = pedidos.find(p => p.mac === req.query.mac);
-    res.json(pedido || { status: "nao_encontrado" });
+    if (pedido) {
+        res.json(pedido);
+    } else {
+        res.status(404).json({ status: "nao_encontrado" });
+    }
 });
 
-// Loop que chama o bot constantemente
+// O loop deve passar a lista completa para o bot poder alterar o status lá dentro
 setInterval(() => {
-    executarBot(pedidos);
+    executarBot(pedidos); 
 }, 5000);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(10000, () => console.log("Servidor Online"));
