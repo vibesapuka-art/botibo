@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ativador Digital</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            background: #0b0b0b; 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .card { 
+            background: #151515; 
+            padding: 30px; 
+            border-radius: 20px; 
+            width: 90%; 
+            max-width: 380px; 
+            text-align: center; 
+            border: 1px solid #222; 
+        }
+        input { 
+            width: 100%; 
+            padding: 14px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+            background: #1a1a1a; 
+            color: #fff; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            border-radius: 10px; 
+            border: none; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        .btn-ativar { 
+            background: #00ff88; 
+            color: #000; 
+            margin-top: 10px; 
+            font-size: 1rem; 
+        }
+
+        /* Modal de Conferência */
+        #modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 100; 
+        }
+        .modal-content { 
+            background: #1a1a1a; 
+            padding: 25px; 
+            border-radius: 15px; 
+            border: 1px solid #00ff88; 
+            width: 85%; 
+            max-width: 320px; 
+            text-align: left; 
+        }
+        .modal-content h3 { 
+            color: #00ff88; 
+            text-align: center; 
+            margin-top: 0; 
+        }
+        .modal-item { 
+            margin: 12px 0; 
+            font-size: 0.95rem; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 6px; 
+            word-break: break-all; 
+        }
+        .modal-item b { 
+            color: #00ff88; 
+            margin-right: 5px; 
+        }
+
+        /* Status de Progresso */
+        #progressArea { 
+            display: none; 
+            margin-top: 25px; 
+        }
+        .bar-bg { 
+            width: 100%; 
+            height: 14px; 
+            background: #222; 
+            border-radius: 10px; 
+            overflow: hidden; 
+            margin: 15px 0; 
+        }
+        .bar-fill { 
+            height: 100%; 
+            width: 0%; 
+            transition: 0.5s; 
+            background: #00ff88;
+        }
+        #main-status { 
+            font-weight: bold; 
+            color: #00ff88; 
+            font-size: 1.1rem; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="modal">
+        <div class="modal-content">
+            <h3>Confirme os Dados</h3>
+            <div id="conf-mac" class="modal-item"></div>
+            <div id="conf-key" class="modal-item"></div>
+            <div id="conf-user" class="modal-item"></div>
+            <div id="conf-pass" class="modal-item"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button style="background: #444; color: #fff; flex: 1;" onclick="fecharModal()">CORRIGIR</button>
+                <button style="background: #00ff88; color: #000; flex: 1;" onclick="confirmarEEnviar()">CONFIRMAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="color:#00ff88">Ativador Digital</h2>
+        
+        <div id="form-container">
+            <input type="text" id="mac" placeholder="MAC Address">
+            <input type="text" id="key" placeholder="Device Key">
+            <input type="text" id="user" placeholder="Usuário IPTV">
+            <input type="password" id="pass" placeholder="Senha IPTV">
+            <button class="btn-ativar" onclick="abrirModal()">ATIVAR AGORA</button>
+        </div>
+
+        <div id="progressArea">
+            <div id="main-status">Iniciando...</div>
+            <div class="bar-bg">
+                <div id="bar" class="bar-fill"></div>
+            </div>
+            <div id="label-msg" style="font-size: 0.85rem; color: #aaa;">O robô está trabalhando, aguarde...</div>
+        </div>
+    </div>
+
+    <script>
+        function abrirModal() {
+            const mac = document.getElementById('mac').value.trim();
+            const key = document.getElementById('key').value.trim();
+            const user = document.getElementById('user').value.trim();
+            const pass = document.getElementById('pass').value.trim();
+
+            if(!mac || !key || !user || !pass) {
+                return alert("Por favor, preencha todos os campos!");
+            }
+
+            document.getElementById('conf-mac').innerHTML = `<b>MAC:</b> ${mac}`;
+            document.getElementById('conf-key').innerHTML = `<b>Key:</b> ${key}`;
+            document.getElementById('conf-user').innerHTML = `<b>User:</b> ${user}`;
+            document.getElementById('conf-pass').innerHTML = `<b>Pass:</b> ${pass}`;
+            
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function fecharModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        async function confirmarEEnviar() {
+            fecharModal();
+            const mac = document.getElementById('mac').value.trim();
+            
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('progressArea').style.display = 'block';
+
+            try {
+                await fetch('/ativar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        mac: mac,
+                        key: document.getElementById('key').value.trim(),
+                        user: document.getElementById('user').value.trim(),
+                        pass: document.getElementById('pass').value.trim()
+                    })
+                });
+                iniciarMonitoramento(mac);
+            } catch (e) {
+                alert("Erro ao conectar com o servidor.");
+            }
+        }
+
+        function iniciarMonitoramento(mac) {
+            const monitor = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status?mac=${mac}`);
+                    const data = await res.json();
+
+                    const statusTxt = document.getElementById('main-status');
+                    const bar = document.getElementById('bar');
+
+                    if (data.status === "nao_encontrado") return;
+
+                    if (data.status === "pendente") {
+                        statusTxt.innerText = "Na fila de espera...";
+                        bar.style.width = "20%";
+                        bar.style.background = "#ffbb33";
+                    }
+
+                    if (data.status === "processando") {
+                        statusTxt.innerText = "Robô acessando site...";
+                        bar.style.width = "60%";
+                        bar.style.background = "#00ff88";
+                    }
+
+                    if (data.status === "ok") {
+                        clearInterval(monitor);
+                        bar.style.width = "100%";
+                        statusTxt.innerText = "✅ FINALIZADO!";
+                        statusTxt.style.color = "#00ff88";
+                        document.getElementById('label-msg').innerText = "Playlist enviada com sucesso.";
+                    }
+                } catch (e) { 
+                    console.log("Erro de rede ao monitorar"); 
+                }
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
