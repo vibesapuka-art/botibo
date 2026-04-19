@@ -3,101 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ativador Digital Pro</title>
+    <title>Ativador Mult-IBO</title>
     <style>
-        body { font-family: sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #151515; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #222; }
-        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; background: #00ff88; color: #000; }
+        body { font-family: sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #151515; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #222; }
         
-        #progressArea { display: none; margin-top: 25px; }
-        #main-status { font-weight: bold; color: #00ff88; font-size: 1.1rem; }
-        .bar-bg { width: 100%; height: 14px; background: #222; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        .apps-container { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; }
+        .app-option { 
+            border: 2px solid #333; padding: 10px; border-radius: 15px; cursor: pointer; 
+            transition: 0.3s; width: 110px; opacity: 0.5; background: #1a1a1a;
+        }
+        .app-option img { width: 100%; border-radius: 8px; margin-bottom: 5px; }
+        .app-option p { margin: 0; font-size: 0.8rem; font-weight: bold; }
+        .app-option.active { border-color: #00ff88; opacity: 1; transform: scale(1.05); background: #222; }
+
+        input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00ff88; color: #000; }
+        
+        #progressArea, #captchaArea { display: none; margin-top: 20px; }
+        .bar-bg { width: 100%; height: 12px; background: #222; border-radius: 10px; overflow: hidden; margin: 10px 0; }
         .bar-fill { height: 100%; width: 0%; transition: 0.5s; background: #00ff88; }
-        
-        #log-real { font-size: 0.85rem; color: #888; margin-top: 10px; font-style: italic; }
-        .error-status { color: #ff4444 !important; }
-        .error-bar { background: #ff4444 !important; }
+        #log-msg { font-size: 0.85rem; color: #888; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2 id="titulo" style="color:#00ff88">Ativador Digital</h2>
+        <h2 style="color:#00ff88; margin-bottom:20px;">Ativador Digital</h2>
         
-        <div id="form-container">
+        <p>1. Selecione o App da sua TV:</p>
+        <div class="apps-container">
+            <div class="app-option active" id="opt-pro" onclick="selectApp('ibopro')">
+                <img src="https://iboproapp.com/logo.png"> <p>IBO PRO</p>
+            </div>
+            <div class="app-option" id="opt-com" onclick="selectApp('ibocom')">
+                <img src="https://iboplayer.com/logo.png"> <p>IBO PLAYER</p>
+            </div>
+        </div>
+
+        <div id="form-ativacao">
             <input type="text" id="mac" placeholder="MAC Address">
             <input type="text" id="key" placeholder="Device Key">
             <input type="text" id="user" placeholder="Usuário IPTV">
             <input type="password" id="pass" placeholder="Senha IPTV">
-            <button onclick="iniciarAtivacao()">ATIVAR AGORA</button>
+            <button onclick="iniciar()">ATIVAR AGORA</button>
+        </div>
+
+        <div id="captchaArea">
+            <p style="color:#ffbb33">Responda o Captcha do Site:</p>
+            <img id="img-captcha" src="" style="width:180px; border-radius:5px; margin-bottom:10px; border: 1px solid #444;">
+            <input type="text" id="input-captcha" placeholder="Digite o código acima">
+            <button onclick="enviarCaptcha()" style="background:#fff">CONFIRMAR CÓDIGO</button>
         </div>
 
         <div id="progressArea">
-            <div id="main-status">Aguardando...</div>
-            <div class="bar-bg">
-                <div id="bar" class="bar-fill"></div>
-            </div>
-            <div id="log-real">O robô está iniciando...</div>
+            <div id="status-main" style="font-weight:bold; color:#00ff88;">Processando...</div>
+            <div class="bar-bg"><div id="bar" class="bar-fill"></div></div>
+            <div id="log-msg">Iniciando robô...</div>
         </div>
     </div>
 
     <script>
-        async function iniciarAtivacao() {
+        let selectedTipo = 'ibopro';
+
+        function selectApp(tipo) {
+            selectedTipo = tipo;
+            document.getElementById('opt-pro').classList.toggle('active', tipo === 'ibopro');
+            document.getElementById('opt-com').classList.toggle('active', tipo === 'ibocom');
+        }
+
+        async function iniciar() {
             const mac = document.getElementById('mac').value.trim();
-            const key = document.getElementById('key').value.trim();
-            const user = document.getElementById('user').value.trim();
-            const pass = document.getElementById('pass').value.trim();
+            if(!mac) return alert("Digite o MAC");
 
-            if(!mac || !key || !user || !pass) return alert("Preencha tudo!");
-
-            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('form-ativacao').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
 
-            // Envia o pedido para a fila
             await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac, key, user, pass })
+                body: JSON.stringify({
+                    mac, 
+                    key: document.getElementById('key').value,
+                    user: document.getElementById('user').value,
+                    pass: document.getElementById('pass').value,
+                    tipo: selectedTipo
+                })
             });
 
-            // Inicia o monitoramento
-            const monitor = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const data = await res.json();
+            monitorar(mac);
+        }
 
-                    const statusTxt = document.getElementById('main-status');
-                    const logTxt = document.getElementById('log-real');
-                    const bar = document.getElementById('bar');
+        function monitorar(mac) {
+            const timer = setInterval(async () => {
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
 
-                    if (data.status === "nao_encontrado") return;
+                if(data.status === "aguardando_captcha") {
+                    document.getElementById('progressArea').style.display = 'none';
+                    document.getElementById('captchaArea').style.display = 'block';
+                    document.getElementById('img-captcha').src = data.captchaBase64;
+                } else {
+                    document.getElementById('captchaArea').style.display = 'none';
+                    document.getElementById('progressArea').style.display = 'block';
+                }
 
-                    // Atualiza o Log Real com a mensagem do robô
-                    logTxt.innerText = data.mensagem || "Processando...";
+                document.getElementById('status-main').innerText = data.status.toUpperCase();
+                document.getElementById('log-msg').innerText = data.mensagem;
+                
+                if(data.status === "ok") {
+                    clearInterval(timer);
+                    document.getElementById('bar').style.width = "100%";
+                }
+            }, 4000);
+        }
 
-                    if (data.status === "processando") {
-                        statusTxt.innerText = "ROBÔ EM AÇÃO";
-                        bar.style.width = "50%";
-                    }
-
-                    if (data.status === "erro") {
-                        clearInterval(monitor);
-                        statusTxt.innerText = "❌ FALHA";
-                        statusTxt.classList.add("error-status");
-                        bar.style.width = "100%";
-                        bar.classList.add("error-bar");
-                        logTxt.innerText = data.mensagem; // Exibe o motivo do erro (ex: MAC inválido)
-                    }
-
-                    if (data.status === "ok") {
-                        clearInterval(monitor);
-                        statusTxt.innerText = "✅ FINALIZADO!";
-                        bar.style.width = "100%";
-                        logTxt.innerText = "Tudo pronto! Reinicie o aplicativo.";
-                    }
-                } catch (e) { console.log("Erro de conexão."); }
-            }, 3000);
+        async function enviarCaptcha() {
+            const mac = document.getElementById('mac').value;
+            const texto = document.getElementById('input-captcha').value;
+            await fetch('/resolver-captcha', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, texto })
+            });
+            document.getElementById('captchaArea').style.display = 'none';
+            document.getElementById('progressArea').style.display = 'block';
         }
     </script>
 </body>
