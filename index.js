@@ -1,20 +1,23 @@
 const express = require('express');
-const botPro = require('./src/bot/bot');        // Seu bot IBO Pro atual
-const botCom = require('./src/bot/bot_ibocom'); // O novo bot para o site .com
-const dnsConfig = require('./src/config/dns');
+const path = require('path');
+
+// IMPORTANTE: Se os arquivos estiverem na raiz, deixe apenas './nome'
+// Se estiverem em pastas, use './caminho/completo/nome'
+const botPro = require('./bot');        
+const botCom = require('./bot_ibocom'); 
+const dnsConfig = require('./dns');
+
 const app = express();
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 let pedidos = [];
 let botOcupado = false;
 
-// Rota para iniciar a ativação
 app.post('/ativar', (req, res) => {
     const { mac, key, user, pass, tipo } = req.body;
     
-    // Filtra para não duplicar o mesmo MAC na fila
     pedidos = pedidos.filter(p => p.mac !== mac);
     
     const novoPedido = {
@@ -24,20 +27,19 @@ app.post('/ativar', (req, res) => {
         captchaBase64: null,
         captchaDigitado: null,
         indiceAtual: 0,
-        total: dnsConfig.servidores.length
+        total: dnsConfig.servidores ? dnsConfig.servidores.length : 1
     };
 
     pedidos.push(novoPedido);
     res.json({ success: true });
 });
 
-// Rota para o cliente enviar o texto do Captcha
 app.post('/resolver-captcha', (req, res) => {
     const { mac, texto } = req.body;
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
         pedido.captchaDigitado = texto;
-        pedido.status = "pendente"; // Faz o robô tentar logar novamente
+        pedido.status = "pendente";
         pedido.mensagem = "Captcha recebido! Retomando...";
         res.json({ success: true });
     } else {
@@ -45,13 +47,12 @@ app.post('/resolver-captcha', (req, res) => {
     }
 });
 
-// Consulta de status para o Painel
 app.get('/status', (req, res) => {
     const pedido = pedidos.find(p => p.mac === req.query.mac);
     res.json(pedido || { status: "nao_encontrado" });
 });
 
-// Loop de execução
+// Loop de execução simplificado
 setInterval(async () => {
     if (botOcupado) return;
     
@@ -61,16 +62,18 @@ setInterval(async () => {
     botOcupado = true;
     try {
         if (pedido.tipo === "ibopro") {
-            await botPro(pedidos); // Chama sua lógica atual
+            await botPro(pedidos); 
         } else if (pedido.tipo === "ibocom") {
-            await botCom(pedido);  // Chama a nova lógica do .com
+            await botCom(pedido);  
         }
     } catch (e) {
-        console.log("Erro no loop:", e.message);
+        console.log("Erro no processamento:", e.message);
+        pedido.status = "erro";
+        pedido.mensagem = e.message;
     } finally {
         botOcupado = false;
     }
-}, 5000);
+}, 8000);
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor Ativo na porta ${PORT}`));
