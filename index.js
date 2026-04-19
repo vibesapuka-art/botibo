@@ -1,11 +1,10 @@
 const express = require('express');
 const path = require('path');
 
-// IMPORTANTE: Se os arquivos estiverem na raiz, deixe apenas './nome'
-// Se estiverem em pastas, use './caminho/completo/nome'
-const botPro = require('./bot');        
-const botCom = require('./bot_ibocom'); 
-const dnsConfig = require('./dns');
+// Importando os robôs dos caminhos corretos conforme suas fotos
+const enginePro = require('./src/bot/engine');      // Para o iboproapp.com
+const botIboCom = require('./src/bot/bot_ibocom'); // Para o iboplayer.com
+const dnsConfig = require('./src/config/dns');    // Ajustado para a pasta config
 
 const app = express();
 
@@ -15,9 +14,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 let pedidos = [];
 let botOcupado = false;
 
+// Rota de Ativação
 app.post('/ativar', (req, res) => {
     const { mac, key, user, pass, tipo } = req.body;
     
+    // Evita duplicados
     pedidos = pedidos.filter(p => p.mac !== mac);
     
     const novoPedido = {
@@ -34,16 +35,17 @@ app.post('/ativar', (req, res) => {
     res.json({ success: true });
 });
 
+// Rota para o Captcha
 app.post('/resolver-captcha', (req, res) => {
     const { mac, texto } = req.body;
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
         pedido.captchaDigitado = texto;
         pedido.status = "pendente";
-        pedido.mensagem = "Captcha recebido! Retomando...";
+        pedido.mensagem = "Retomando com o Captcha...";
         res.json({ success: true });
     } else {
-        res.status(404).json({ error: "Pedido não encontrado" });
+        res.status(404).json({ error: "Não encontrado" });
     }
 });
 
@@ -52,7 +54,7 @@ app.get('/status', (req, res) => {
     res.json(pedido || { status: "nao_encontrado" });
 });
 
-// Loop de execução simplificado
+// Loop de Processamento
 setInterval(async () => {
     if (botOcupado) return;
     
@@ -62,18 +64,20 @@ setInterval(async () => {
     botOcupado = true;
     try {
         if (pedido.tipo === "ibopro") {
-            await botPro(pedidos); 
+            // Chama o seu engine.js atual
+            await enginePro(pedidos); 
         } else if (pedido.tipo === "ibocom") {
-            await botCom(pedido);  
+            // Chama o novo bot_ibocom.js
+            await botIboCom(pedido);  
         }
     } catch (e) {
-        console.log("Erro no processamento:", e.message);
+        console.error("Erro no Robô:", e.message);
         pedido.status = "erro";
-        pedido.mensagem = e.message;
+        pedido.mensagem = "Erro: " + e.message;
     } finally {
         botOcupado = false;
     }
 }, 8000);
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Servidor Ativo na porta ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor ativo na porta ${PORT}`));
