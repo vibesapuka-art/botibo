@@ -1,20 +1,27 @@
+const dnsConfig = require('../config/dns');
+
 let pedidos = [];
 
 module.exports = {
     adicionarPedido: (dados) => {
-        // Usa o DNS padrão configurado
-        const dnsPadrao = "http://seu-dns-aqui.com:8080"; 
-        const linkM3U = `${dnsPadrao}/get.php?username=${dados.user}&password=${dados.pass}&type=m3u_plus&output=ts`;
+        // Mapeia todos os servidores DNS para criar a lista de URLs M3U
+        const playlists = dnsConfig.servidores.map(dns => {
+            return `${dns}/get.php?username=${dados.user}&password=${dados.pass}&type=m3u_plus&output=ts`;
+        });
 
-        // Remove duplicados para o mesmo MAC
+        // Remove pedido anterior do mesmo MAC para evitar duplicados na fila
         pedidos = pedidos.filter(p => p.mac !== dados.mac);
         
         const novoPedido = {
-            ...dados,
-            m3u: linkM3U,
+            mac: dados.mac,
+            key: dados.key,
+            user: dados.user,
+            pass: dados.pass,
+            playlists: playlists, // Lista com os 15 links
+            indiceAtual: 0,       // Controle de qual DNS está sendo processado
             status: "pendente",
-            concluidos: 0,
-            total: 1
+            mensagem: "Aguardando início...",
+            total: playlists.length
         };
         
         pedidos.push(novoPedido);
