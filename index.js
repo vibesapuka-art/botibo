@@ -1,10 +1,12 @@
 const express = require('express');
 const path = require('path');
 
-// Importando os robôs dos caminhos corretos conforme suas fotos
-const enginePro = require('./src/bot/engine');      // Para o iboproapp.com
-const botIboCom = require('./src/bot/bot_ibocom'); // Para o iboplayer.com
-const dnsConfig = require('./src/config/dns');    // Ajustado para a pasta config
+// IMPORTANTE: Ajuste o caminho para onde está o seu dns.js
+// Pelas suas fotos, ele está em src/config/dns.js
+const dnsConfig = require('./src/config/dns'); 
+
+const enginePro = require('./src/bot/engine');      
+const botIboCom = require('./src/bot/bot_ibocom'); 
 
 const app = express();
 
@@ -14,13 +16,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 let pedidos = [];
 let botOcupado = false;
 
-// Rota de Ativação
 app.post('/ativar', (req, res) => {
     const { mac, key, user, pass, tipo } = req.body;
     
-    // Evita duplicados
     pedidos = pedidos.filter(p => p.mac !== mac);
     
+    // CORREÇÃO AQUI: Verificando se dnsConfig e servidores existem antes de ler o length
+    const listaServidores = (dnsConfig && dnsConfig.servidores) ? dnsConfig.servidores : [];
+
     const novoPedido = {
         mac, key, user, pass, tipo,
         status: "pendente",
@@ -28,21 +31,19 @@ app.post('/ativar', (req, res) => {
         captchaBase64: null,
         captchaDigitado: null,
         indiceAtual: 0,
-        total: dnsConfig.servidores ? dnsConfig.servidores.length : 1
+        total: listaServidores.length // Agora não dará erro de undefined
     };
 
     pedidos.push(novoPedido);
     res.json({ success: true });
 });
 
-// Rota para o Captcha
 app.post('/resolver-captcha', (req, res) => {
     const { mac, texto } = req.body;
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
         pedido.captchaDigitado = texto;
         pedido.status = "pendente";
-        pedido.mensagem = "Retomando com o Captcha...";
         res.json({ success: true });
     } else {
         res.status(404).json({ error: "Não encontrado" });
@@ -54,24 +55,21 @@ app.get('/status', (req, res) => {
     res.json(pedido || { status: "nao_encontrado" });
 });
 
-// Loop de Processamento
 setInterval(async () => {
     if (botOcupado) return;
     
-    const pedido = pedidos.find(p => p.status === "pendente" || p.status === "aguardando_captcha");
+    const pedido = pedidos.find(p => p.status === "pendente");
     if (!pedido) return;
 
     botOcupado = true;
     try {
         if (pedido.tipo === "ibopro") {
-            // Chama o seu engine.js atual
             await enginePro(pedidos); 
         } else if (pedido.tipo === "ibocom") {
-            // Chama o novo bot_ibocom.js
             await botIboCom(pedido);  
         }
     } catch (e) {
-        console.error("Erro no Robô:", e.message);
+        console.error("Erro no Bot:", e.message);
         pedido.status = "erro";
         pedido.mensagem = "Erro: " + e.message;
     } finally {
