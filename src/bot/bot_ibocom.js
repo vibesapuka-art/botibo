@@ -1,4 +1,4 @@
- const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
 async function executarIboCom(pedido, atualizarStatus) {
@@ -11,46 +11,56 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        // Viewport estendido para garantir que o formulário apareça
-        await page.setViewport({ width: 1280, height: 1200 });
+        // Definindo uma tela grande para evitar que elementos fiquem escondidos
+        await page.setViewport({ width: 1280, height: 1600 });
         page.setDefaultNavigationTimeout(60000);
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
-        // 1. Aceitar termos (com scroll forçado)
+        // --- LÓGICA REFORÇADA PARA OS TERMOS ---
         try {
-            const btnAceitar = "button.btn-danger, #cookie_action_close_header";
-            await page.waitForSelector(btnAceitar, { timeout: 5000 });
+            const seletorAceitar = "button.btn-danger, #cookie_action_close_header, .btn-accept";
+            await page.waitForSelector(seletorAceitar, { timeout: 10000 });
+
+            // Rola e clica usando JavaScript puro para ignorar bloqueios visuais
             await page.evaluate((sel) => {
-                const el = document.querySelector(sel);
-                if (el) el.click();
-            }, btnAceitar);
-            await new Promise(r => setTimeout(r, 2000));
+                const btn = document.querySelector(sel);
+                if (btn) {
+                    btn.scrollIntoView({ behavior: 'instant', block: 'center' });
+                    btn.click(); 
+                }
+            }, seletorAceitar);
+            
+            console.log("Botão de termos clicado.");
+            await new Promise(r => setTimeout(r, 3000)); // Espera a tela de termos sumir
         } catch (e) {
-            console.log("Botão de aceitar não encontrado ou já clicado.");
+            console.log("Aviso de termos não encontrado ou já aceito.");
         }
+        // -------------------------------------------------------------
 
-        // 2. Posicionamento para o Print Fixo
-        atualizarStatus(pedido.mac, "carregando_captcha", "Preparando captura de tela...");
-        
-        // Rola a página para uma posição onde o formulário geralmente reside
-        await page.evaluate(() => {
-            window.scrollTo(0, 400); 
-        });
-        await new Promise(r => setTimeout(r, 1500));
+        atualizarStatus(pedido.mac, "carregando_captcha", "Localizando formulário de login...");
 
-        // Tira um print de uma região fixa (clip) onde o captcha costuma aparecer
-        const captchaBase64 = await page.screenshot({
-            encoding: 'base64',
-            clip: { x: 400, y: 450, width: 480, height: 350 } // Área central do formulário
-        });
+        // Garante que o formulário apareceu após aceitar os termos
+        const seletorImg = 'form img[src*="captcha"], .captcha-img img';
+        await page.waitForSelector(seletorImg, { timeout: 20000 });
 
-        atualizarStatus(pedido.mac, "aguardando_captcha", "Veja o código no print abaixo:", {
+        // Rola até o captcha para garantir que ele não saia cortado no print
+        await page.evaluate((sel) => {
+            const img = document.querySelector(sel);
+            if (img) img.scrollIntoView({ behavior: 'instant', block: 'center' });
+        }, seletorImg);
+
+        await new Promise(r => setTimeout(r, 1000));
+
+        const captchaElement = await page.$(seletorImg);
+        const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
+
+        atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código do Captcha:", {
             captchaBase64: `data:image/png;base64,${captchaBase64}`
         });
 
-        // 3. Loop de processamento do envio
+        // Loop de espera pela digitação do usuário
         let resolvido = false;
         let tempoInicio = Date.now();
         while (!resolvido) {
@@ -60,13 +70,12 @@ async function executarIboCom(pedido, atualizarStatus) {
             if (pedido.captchaDigitado) {
                 atualizarStatus(pedido.mac, "processando", "Enviando dados de ativação...");
                 
-                // Preenchimento com pequenos delays para simular humano
-                await page.type("input[name='mac']", pedido.mac, { delay: 30 });
+                await page.type("input[name='mac']", pedido.mac, { delay: 50 });
+                // Verifica se o campo de Key existe antes de digitar
+                const temKey = await page.$("input[name='key']");
+                if (temKey && pedido.key) await page.type("input[name='key']", pedido.key, { delay: 50 });
                 
-                const inputKey = await page.$("input[name='key']");
-                if (inputKey && pedido.key) await page.type("input[name='key']", pedido.key, { delay: 30 });
-                
-                await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 30 });
+                await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 50 });
                 
                 await Promise.all([
                     page.click("button[type='submit']"),
@@ -75,10 +84,10 @@ async function executarIboCom(pedido, atualizarStatus) {
                 resolvido = true;
             }
         }
-        atualizarStatus(pedido.mac, "ok", "✅ Comando enviado com sucesso!");
+        atualizarStatus(pedido.mac, "ok", "✅ Ativado com sucesso!");
 
     } catch (error) {
-        atualizarStatus(pedido.mac, "erro", "Erro na execução: " + error.message);
+        atualizarStatus(pedido.mac, "erro", "Falha: " + error.message);
     } finally {
         if (browser) await browser.close();
     }
