@@ -1,15 +1,20 @@
 const express = require('express');
 const path = require('path');
 
-// Proteção para o servidor não cair se o arquivo do bot não for encontrado
+// Módulos dos robôs
 let executarIboCom;
+let adicionarPlaylistIbo; // Novo robô
+
 try {
-    const botModule = require('./src/bot/bot_ibocom');
-    executarIboCom = botModule.executarIboCom;
-    console.log("✅ Módulo do robô carregado com sucesso.");
+    const botLogin = require('./src/bot/bot_ibocom');
+    const botPlaylist = require('./src/bot/bot_ibom_playlist');
+    
+    executarIboCom = botLogin.executarIboCom;
+    adicionarPlaylistIbo = botPlaylist.adicionarPlaylistIbo;
+    
+    console.log("✅ Módulos do robô IBO carregados.");
 } catch (err) {
-    console.error("❌ ERRO CRÍTICO: Não foi possível encontrar ./src/bot/bot_ibocom.js");
-    console.error("Verifique se as pastas src e bot existem no seu GitHub.");
+    console.error("❌ Erro ao carregar módulos. Verifique se os arquivos existem em ./src/bot/");
 }
 
 const app = express();
@@ -18,12 +23,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let pedidos = [];
 
-function atualizarStatus(mac, status, mensagem, extras = {}) {
+// Função de status melhorada para encadear os robôs
+async function atualizarStatus(mac, status, mensagem, extras = {}) {
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
         pedido.status = status;
         pedido.mensagem = mensagem;
         Object.assign(pedido, extras);
+
+        // PONTE AUTOMÁTICA: Se o login deu OK, chama o bot de Playlist
+        if (status === 'ok' && mensagem.includes("Logado com sucesso") && pedido.tipo === 'ibocom') {
+            console.log(`Iniciando segunda etapa para MAC: ${mac}`);
+            // Chamamos o bot de playlist sem travar o servidor
+            adicionarPlaylistIbo(pedido, atualizarStatus).catch(e => {
+                atualizarStatus(mac, 'erro', 'Erro na Playlist: ' + e.message);
+            });
+        }
     }
 }
 
@@ -38,6 +53,7 @@ app.post('/ativar', (req, res) => {
             atualizarStatus(mac, 'erro', 'Erro no robô: ' + e.message);
         });
     }
+    // O IBO Pro ou outros tipos continuam funcionando normalmente aqui sem mudanças
     res.json({ success: true });
 });
 
@@ -57,7 +73,6 @@ app.get('/status', (req, res) => {
     res.json(pedido || { status: 'aguardando', mensagem: 'Aguardando comando...' });
 });
 
-// Rota raiz para o Render saber que o app está vivo
 app.get('/', (req, res) => res.send('Bot IBO Ativo!'));
 
 const PORT = process.env.PORT || 3000;
