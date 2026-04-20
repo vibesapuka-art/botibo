@@ -13,10 +13,10 @@ async function executarIboCom(pedido, atualizarStatus) {
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 1600 });
         
-        atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
+        atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2', timeout: 60000 });
 
-        // 1. ACEITAR TERMOS
+        // 1. ACEITAR TERMOS (Usando a classe que você encontrou)
         try {
             const seletorBotao = 'button.bg-main';
             await page.waitForSelector(seletorBotao, { timeout: 10000 });
@@ -29,7 +29,7 @@ async function executarIboCom(pedido, atualizarStatus) {
             });
         }
 
-        // 2. CAPTURA DO FORMULÁRIO
+        // 2. CAPTURA DO FORMULÁRIO PARA PRINT
         const seletorForm = '#login-form, form'; 
         await page.waitForSelector(seletorForm, { visible: true, timeout: 20000 });
         const formElement = await page.$(seletorForm);
@@ -45,7 +45,7 @@ async function executarIboCom(pedido, atualizarStatus) {
             captchaBase64: `data:image/jpeg;base64,${captchaBase64}`
         });
 
-        // 3. PREENCHIMENTO DOS CAMPOS
+        // 3. PREENCHIMENTO DOS CAMPOS COM OS NOMES REAIS
         let resolvido = false;
         let tempoInicio = Date.now();
         
@@ -56,36 +56,39 @@ async function executarIboCom(pedido, atualizarStatus) {
             if (pedido.captchaDigitado) {
                 atualizarStatus(pedido.mac, "processando", "Enviando dados...");
 
-                // Espera o campo MAC estar pronto
-                await page.waitForSelector("input[name='max-address']", { visible: true, timeout: 15000 });
-                
-                // Preenche MAC e KEY com os nomes que você achou
+                // Preenche MAC e KEY (Nomes confirmados por você)
+                await page.waitForSelector("input[name='max-address']", { visible: true, timeout: 10000 });
                 await page.type("input[name='max-address']", pedido.mac, { delay: 50 });
+                
                 if (pedido.key) {
                     await page.type("input[name='device-key']", pedido.key, { delay: 50 });
                 }
                 
-                // --- CORREÇÃO DO CAPTCHA ---
-                // Se o name='captcha' falhou, vamos tentar pelo seletor genérico do terceiro input
-                const preencheuCaptcha = await page.evaluate((valor) => {
-                    // Busca todos os inputs de texto ou número dentro do form
-                    const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"])'));
-                    // O captcha geralmente é o último campo antes do botão
-                    const inputCaptcha = inputs.find(i => i.name.includes('captcha') || i.placeholder?.toLowerCase().includes('captcha') || i.name === 'default_real_captcha');
-                    
-                    if (inputCaptcha) {
-                        inputCaptcha.value = valor;
-                        return true;
+                // --- NOVA LÓGICA PARA O CAMPO DO CAPTCHA ---
+                // Vamos tentar preencher qualquer campo que pareça ser o do captcha
+                await page.evaluate((valor) => {
+                    const inputs = Array.from(document.querySelectorAll('input'));
+                    // Procura por ID ou Name que contenha 'captcha'
+                    const target = inputs.find(i => 
+                        i.name.toLowerCase().includes('captcha') || 
+                        i.id.toLowerCase().includes('captcha') ||
+                        i.placeholder?.toLowerCase().includes('captcha')
+                    );
+                    if (target) {
+                        target.focus();
+                        target.value = valor;
                     }
-                    return false;
                 }, pedido.captchaDigitado);
 
-                if (!preencheuCaptcha) {
-                    // Tentativa desesperada: se não achou por nome, digita no terceiro input visível
-                    await page.type("input:nth-of-type(3)", pedido.captchaDigitado, { delay: 50 });
+                // Tentativa direta via seletor comum do IBO
+                try {
+                    await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 50 });
+                } catch (e) {
+                    // Se falhar, tenta pelo name que costuma aparecer em scripts de captcha
+                    await page.type("input[name='default_real_captcha']", pedido.captchaDigitado, { delay: 50 }).catch(() => {});
                 }
                 
-                // Clique final
+                // Clique final no botão de Login
                 await Promise.all([
                     page.click("button[type='submit']"),
                     page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
