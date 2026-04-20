@@ -11,50 +11,49 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        // Ajustamos o tamanho para pegar o formulário e o captcha sem cortes
+        // Viewport ajustada para capturar o formulário de login e o captcha
         await page.setViewport({ width: 1280, height: 1200 });
         page.setDefaultNavigationTimeout(60000);
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
-        // 1. CLICAR NO BOTÃO VERMELHO
-        atualizarStatus(pedido.mac, "aceitando_termos", "Clicando no botão vermelho...");
+        // --- TÉCNICA DE LIMPEZA FORÇADA (DELETAR MODAL) ---
+        atualizarStatus(pedido.mac, "limpando_tela", "Removendo bloqueios visuais...");
         
-        try {
-            const seletorBotao = 'button.btn-danger';
-            await page.waitForSelector(seletorBotao, { timeout: 15000 });
-
-            await page.evaluate((sel) => {
-                const btn = document.querySelector(sel);
-                if (btn) {
-                    btn.scrollIntoView();
-                    btn.click();
-                }
-            }, seletorBotao);
+        await page.evaluate(() => {
+            // Seletores de tudo que pode estar na frente do captcha
+            const seletoresBloqueio = [
+                '.modal', '.modal-backdrop', '#cookie-law-info-bar', 
+                '.fade.show', 'div[role="dialog"]', '.btn-danger', '.btn-accept'
+            ];
             
-            console.log("Clique efetuado.");
-        } catch (e) {
-            console.log("Botão não encontrado, tentando prosseguir...");
-        }
+            seletoresBloqueio.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => el.remove());
+            });
 
-        // 2. AGUARDAR 5 SEGUNDOS E TIRAR PRINT DA TELA INTEIRA
-        atualizarStatus(pedido.mac, "carregando_captcha", "Aguardando 5 segundos para o print...");
+            // Destrava o scroll e a interação com o fundo da página
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            document.body.style.pointerEvents = 'auto';
+        });
+
+        // Espera 5 segundos para garantir que o formulário carregou atrás do aviso
         await new Promise(r => setTimeout(r, 5000));
 
-        // Rola um pouco para baixo para garantir que o formulário apareça no centro
-        await page.evaluate(() => window.scrollBy(0, 300));
+        // Rola um pouco para baixo para centralizar o formulário no print
+        await page.evaluate(() => window.scrollBy(0, 350));
 
-        const printTelaCheia = await page.screenshot({ 
+        const printTela = await page.screenshot({ 
             encoding: 'base64',
-            fullPage: false // Captura a área visível do viewport definido acima
+            fullPage: false 
         });
 
-        atualizarStatus(pedido.mac, "aguardando_captcha", "Veja o código na imagem abaixo:", {
-            captchaBase64: `data:image/png;base64,${printTelaCheia}`
+        atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código que aparece na imagem:", {
+            captchaBase64: `data:image/png;base64,${printTela}`
         });
 
-        // 3. ESPERA A RESPOSTA DO PAINEL
+        // --- ESPERA PELA RESPOSTA DO UTILIZADOR ---
         let resolvido = false;
         let tempoInicio = Date.now();
         while (!resolvido) {
@@ -62,22 +61,29 @@ async function executarIboCom(pedido, atualizarStatus) {
             await new Promise(r => setTimeout(r, 2000));
 
             if (pedido.captchaDigitado) {
-                atualizarStatus(pedido.mac, "processando", "Enviando dados...");
+                atualizarStatus(pedido.mac, "processando", "Enviando dados de ativação...");
                 
-                await page.type("input[name='mac']", pedido.mac);
+                // Preenchimento dos campos
+                await page.type("input[name='mac']", pedido.mac, { delay: 30 });
+                
                 const temKey = await page.$("input[name='key']");
-                if (temKey && pedido.key) await page.type("input[name='key']", pedido.key);
+                if (temKey && pedido.key) {
+                    await page.type("input[name='key']", pedido.key, { delay: 30 });
+                }
                 
-                await page.type("input[name='captcha']", pedido.captchaDigitado);
+                await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 30 });
                 
+                // Clica no botão de login do site
                 await Promise.all([
                     page.click("button[type='submit']"),
                     page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
                 ]);
+                
+                // Aqui você pode adicionar a lógica para inserir os DNS após o login
+                atualizarStatus(pedido.mac, "ok", "✅ Ativado com sucesso!");
                 resolvido = true;
             }
         }
-        atualizarStatus(pedido.mac, "ok", "✅ Dispositivo Ativado!");
 
     } catch (error) {
         atualizarStatus(pedido.mac, "erro", "Erro: " + error.message);
