@@ -16,14 +16,26 @@ async function executarIboCom(pedido, atualizarStatus) {
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
+        // --- NOVO: Lógica para aceitar os Termos Legais ---
+        try {
+            const botaoAceitar = "button.btn-danger, .btn-accept, button:contains('Accept')";
+            await page.waitForSelector(botaoAceitar, { timeout: 5000 });
+            await page.click(botaoAceitar);
+            console.log("Termos aceitos automaticamente.");
+            await new Promise(r => setTimeout(r, 2000)); // Espera a transição
+        } catch (e) {
+            console.log("Aviso de termos não apareceu ou já foi aceito.");
+        }
+        // -----------------------------------------------------------------------
+
         atualizarStatus(pedido.mac, "carregando_captcha", "Aguardando imagem do Captcha...");
         
         try {
-            // Seletores múltiplos para garantir que encontra a imagem
-            const seletorImg = 'form img[src*="captcha"], img[src^="data:image"], .captcha-img img';
+            // Seletor específico para a imagem do formulário
+            const seletorImg = 'form#login-form img, .captcha-img img, img[src*="captcha"]';
             await page.waitForSelector(seletorImg, { timeout: 30000 });
 
-            // Verifica se a imagem carregou e tem conteúdo visual
+            // Garante que a imagem está visível e carregada
             await page.waitForFunction((sel) => {
                 const img = document.querySelector(sel);
                 return img && img.complete && img.naturalWidth > 0;
@@ -37,7 +49,7 @@ async function executarIboCom(pedido, atualizarStatus) {
                 captchaBase64: `data:image/png;base64,${captchaBase64}`
             });
 
-            // Loop de espera pela resposta do utilizador
+            // Espera a resposta do painel
             let resolvido = false;
             let tempoInicio = Date.now();
             while (!resolvido) {
@@ -59,7 +71,7 @@ async function executarIboCom(pedido, atualizarStatus) {
             }
             atualizarStatus(pedido.mac, "ok", "✅ Ativação concluída!");
         } catch (e) {
-            atualizarStatus(pedido.mac, "erro", "Erro ao localizar Captcha. Tente novamente.");
+            atualizarStatus(pedido.mac, "erro", "Erro ao localizar Captcha. Verifique se o site mudou.");
         }
     } catch (error) {
         atualizarStatus(pedido.mac, "erro", "Falha no robô: " + error.message);
