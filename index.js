@@ -1,98 +1,90 @@
-const express = require('express');
-const path = require('path');
-// Importa a função do robô (certifica-te que o caminho do ficheiro está correto)
-const { executarIboCom } = require('./src/bot/bot_ibocom');
-
-const app = express();
-
-// Configurações do Express
-app.use(express.json());
-app.use(express.static('public')); // Para servir o teu index.html e imagens
-
-// Base de dados temporária em memória para os pedidos
-let pedidos = [];
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 /**
- * Função para atualizar o estado de um pedido
- * @param {string} mac - O endereço MAC do dispositivo
- * @param {string} status - O novo status (ex: 'aguardando_captcha', 'ok', 'erro')
- * @param {string} mensagem - Mensagem amigável para o utilizador
- * @param {object} extras - Dados adicionais (como a imagem do captcha em base64)
+ * Função para automatizar o login no iboplayer.com
  */
-function atualizarStatus(mac, status, mensagem, extras = {}) {
-    const pedido = pedidos.find(p => p.mac === mac);
-    if (pedido) {
-        pedido.status = status;
-        pedido.mensagem = mensagem;
-        // Mescla dados extras (como o captchaBase64) no objeto do pedido
-        Object.assign(pedido, extras);
-        console.log(`[Status ${mac}]: ${status} - ${mensagem}`);
+async function executarIboCom(pedido, atualizarStatus) {
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+            executablePath: await chromium.executablePath(),
+            headless: true
+        });
+
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+
+        atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
+        await page.goto('https://iboplayer.com/device/login', { 
+            waitUntil: 'networkidle2',
+            timeout: 60000 
+        });
+
+        atualizarStatus(pedido.mac, "carregando_captcha", "Localizando verificação de segurança...");
+        
+        try {
+            // Seletor específico: busca a imagem que está logo após o label do Captcha
+            const captchaSelector = 'label[for="captcha"] + img';
+            await page.waitForSelector(captchaSelector, { timeout: 20000 });
+            
+            // Garante que a imagem carregou os dados
+            await page.waitForFunction((sel) => {
+                const img = document.querySelector(sel);
+                return img && img.src && img.src.length > 20;
+            }, { timeout: 10000 }, captchaSelector);
+
+            const captchaElement = await page.$(captchaSelector);
+            const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
+
+            // Envia a imagem para o seu index.html mostrar ao cliente
+            atualizarStatus(pedido.mac, "aguardando_captcha", "Por favor, digite o código da imagem", {
+                captchaBase64: `data:image/png;base64,${captchaBase64}`
+            });
+
+            // Loop de espera pela resposta do cliente através do painel
+            let resolvido = false;
+            let tempoInicio = Date.now();
+            
+            while (!resolvido) {
+                // Limite de 2 minutos para o cliente responder
+                if (Date.now() - tempoInicio > 120000) {
+                    throw new Error("Tempo esgotado para digitação do captcha.");
+                }
+
+                await new Promise(r => setTimeout(r, 2000));
+
+                if (pedido.captchaDigitado) {
+                    atualizarStatus(pedido.mac, "processando", "Validando dados no servidor...");
+                    
+                    // Preenche os campos conforme o site
+                    await page.type("input[name='mac']", pedido.mac);
+                    if (pedido.key) {
+                        await page.type("input[name='key']", pedido.key);
+                    }
+                    await page.type("input[name='captcha']", pedido.captchaDigitado);
+                    
+                    await page.click("button[type='submit']");
+                    resolvido = true;
+                }
+            }
+
+            // Aguarda a navegação após o login
+            await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
+            atualizarStatus(pedido.mac, "ok", "✅ Lista ImperiumTv enviada com sucesso!");
+
+        } catch (e) {
+            console.error("Erro no captcha:", e.message);
+            atualizarStatus(pedido.mac, "erro", "Falha ao processar Captcha: " + e.message);
+        }
+
+    } catch (error) {
+        console.error("Erro Geral:", error.message);
+        atualizarStatus(pedido.mac, "erro", "Erro técnico: " + error.message);
+    } finally {
+        if (browser) await browser.close();
     }
 }
 
-// ROTA: Iniciar a ativação
-app.post('/ativar', (req, res) => {
-    const { mac, key, user, pass, tipo } = req.body;
-
-    if (!mac) {
-        return res.status(400).json({ error: "MAC é obrigatório" });
-    }
-
-    // Cria ou atualiza o pedido na lista
-    let pedido = pedidos.find(p => p.mac === mac);
-    if (!pedido) {
-        pedido = { mac, key, user, pass, tipo, status: 'iniciando', mensagem: 'Preparando robô...', captchaDigitado: null };
-        pedidos.push(pedido);
-    } else {
-        // Reinicia o pedido se ele já existia
-        pedido.status = 'iniciando';
-        pedido.mensagem = 'Reiniciando processo...';
-        pedido.captchaDigitado = null;
-    }
-
-    // Dispara o robô específico conforme a seleção do painel
-    if (tipo === 'ibocom') {
-        // Chama o bot que lida com o site .com (com captcha)
-        executarIboCom(pedido, atualizarStatus);
-    } else {
-        // Aqui chamarias o teu bot do IBO PRO (caso tenhas um ficheiro separado)
-        // executarIboPro(pedido, atualizarStatus);
-        atualizarStatus(mac, 'erro', 'Bot IBO PRO não configurado neste ficheiro.');
-    }
-
-    res.json({ success: true, message: "Processo iniciado" });
-});
-
-// ROTA: Receber a solução do captcha vinda do cliente
-app.post('/resolver-captcha', (req, res) => {
-    const { mac, texto } = req.body;
-    const pedido = pedidos.find(p => p.mac === mac);
-
-    if (pedido) {
-        pedido.captchaDigitado = texto; // O robô que está em loop vai ler este valor
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: "Pedido não encontrado" });
-    }
-});
-
-// ROTA: Consultar o status (o teu HTML chama esta rota a cada 3 segundos)
-app.get('/status', (req, res) => {
-    const mac = req.query.mac;
-    const pedido = pedidos.find(p => p.mac === mac);
-
-    if (pedido) {
-        res.json(pedido);
-    } else {
-        res.json({ status: 'erro', mensagem: 'MAC não encontrado no servidor.' });
-    }
-});
-
-// Inicia o servidor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`=========================================`);
-    console.log(`Servidor de Ativação Digital Ativo!`);
-    console.log(`Porta: ${PORT}`);
-    console.log(`=========================================`);
-});
+module.exports = { executarIboCom };
