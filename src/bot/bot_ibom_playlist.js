@@ -13,49 +13,44 @@ async function adicionarPlaylistIbo(pedido, atualizarStatus) {
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 1600 });
         
-        // 1. ACESSA O DASHBOARD JÁ LOGADO
-        atualizarStatus(pedido.mac, "adicionando_playlist", "Acessando gerenciador de listas...");
-        await page.goto('https://iboplayer.com/dashboard', { waitUntil: 'networkidle2', timeout: 60000 });
+        // 1. ACESSA O DASHBOARD
+        atualizarStatus(pedido.mac, "adicionando_playlist", "Acessando gerenciador...");
+        // Aumentamos o tempo de espera para o carregamento inicial do dashboard
+        await page.goto('https://iboplayer.com/dashboard', { waitUntil: 'networkidle2', timeout: 90000 });
 
         // 2. CLICA NO BOTÃO "ADD PLAYLIST"
         const seletorBotaoAdd = "button.bg-main.text-white"; 
-        await page.waitForSelector(seletorBotaoAdd, { visible: true, timeout: 15000 });
+        await page.waitForSelector(seletorBotaoAdd, { visible: true, timeout: 30000 });
+        
+        // Forçamos um pequeno delay antes do clique para garantir que o JS do site carregou
+        await new Promise(r => setTimeout(r, 5000));
         await page.click(seletorBotaoAdd);
         
-        // Aguarda carregar o formulário
-        await new Promise(r => setTimeout(r, 2500));
-
         // 3. PREENCHIMENTO DOS CAMPOS
         atualizarStatus(pedido.mac, "processando", "Configurando dados da playlist...");
         
-        // Nome da Playlist (conforme seu código: id="playlist-name")
-        await page.waitForSelector("#playlist-name", { visible: true });
-        await page.type("#playlist-name", pedido.nome_lista || "Lista Canais", { delay: 60 });
+        // Usamos um tempo maior para o formulário aparecer
+        await page.waitForSelector("#playlist-name", { visible: true, timeout: 45000 });
         
-        // URL da Playlist (conforme seu código: id="playlist-url")
-        await page.type("#playlist-url", pedido.url_playlist, { delay: 60 });
+        await page.type("#playlist-name", pedido.nome_lista || "Lista Canais", { delay: 100 });
+        await page.type("#playlist-url", pedido.url_playlist, { delay: 100 });
 
         // 4. TRATAMENTO DO PIN (OPCIONAL)
         if (pedido.pin) {
-            // Clica na div do checkbox para liberar os campos de senha
-            const seletorCheck = "div.border-\\[\\#B4B4B4\\]"; // Escape para caracteres especiais do Tailwind
+            const seletorCheck = "div.border-\\[\\#B4B4B4\\]"; 
             await page.click(seletorCheck);
-            await new Promise(r => setTimeout(r, 800));
-            
-            // Preenche Pin e Confirmação (ids: pin e confirm-pin)
-            await page.type("#pin", pedido.pin, { delay: 60 });
-            await page.type("#confirm-pin", pedido.pin, { delay: 60 });
+            await new Promise(r => setTimeout(r, 2000));
+            await page.type("#pin", pedido.pin, { delay: 100 });
+            await page.type("#confirm-pin", pedido.pin, { delay: 100 });
         }
 
-        // 5. CLIQUE NO BOTÃO SAVE (USANDO O CÓDIGO QUE VOCÊ ENVIOU)
-        // Seletor baseado em type="submit" para ser único
+        // 5. CLIQUE NO BOTÃO SAVE
         const seletorSave = "button[type='submit'].flex.ml-auto";
-        await page.waitForSelector(seletorSave, { visible: true });
+        await page.waitForSelector(seletorSave, { visible: true, timeout: 20000 });
         
         await Promise.all([
             page.click(seletorSave),
-            // Aguarda o site processar o salvamento (geralmente recarrega a lista)
-            page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
+            page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 40000 }).catch(() => {})
         ]);
         
         atualizarStatus(pedido.mac, "ok", "✅ Playlist adicionada com sucesso!");
