@@ -3,45 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Ativação - ImperiumTv</title>
+    <title>Painel ImperiumTv</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: #151515; padding: 30px; border-radius: 20px; width: 95%; max-width: 420px; text-align: center; border: 1px solid #222; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { font-family: sans-serif; background: #0b0b0b; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #151515; padding: 25px; border-radius: 15px; width: 380px; text-align: center; border: 1px solid #222; }
         
-        .apps-container { display: flex; gap: 15px; justify-content: center; margin: 20px 0; }
-        .app-option { 
-            border: 2px solid #333; padding: 10px; border-radius: 15px; cursor: pointer; 
-            transition: 0.3s; width: 110px; opacity: 0.5; background: #1a1a1a;
-        }
-        .app-option img { width: 100%; border-radius: 10px; margin-bottom: 8px; }
-        .app-option p { margin: 0; font-size: 0.75rem; font-weight: bold; }
-        .app-option.active { border-color: #00ff88; opacity: 1; transform: scale(1.05); background: #222; box-shadow: 0 0 15px rgba(0,255,136,0.2); }
+        .apps-container { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
+        .app-option { border: 2px solid #333; padding: 8px; border-radius: 12px; cursor: pointer; opacity: 0.4; width: 100px; background: #1a1a1a; }
+        .app-option img { width: 100%; border-radius: 8px; }
+        .app-option.active { border-color: #00ff88; opacity: 1; transform: scale(1.05); }
 
-        input { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; outline: none; }
-        input:focus { border-color: #00ff88; }
-        button { width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #00ff88; color: #000; font-size: 1rem; transition: 0.2s; }
-        button:active { transform: scale(0.98); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00ff88; color: #000; margin-top: 10px; }
         
-        #progressArea, #captchaArea { display: none; margin-top: 25px; }
-        .bar-bg { width: 100%; height: 14px; background: #222; border-radius: 10px; overflow: hidden; margin: 12px 0; }
-        .bar-fill { height: 100%; width: 0%; transition: 0.5s ease-in-out; background: #00ff88; }
-        #log-msg { font-size: 0.85rem; color: #aaa; }
+        #progressArea, #captchaArea { display: none; margin-top: 20px; }
+        .bar-bg { width: 100%; height: 12px; background: #222; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .bar-fill { height: 100%; width: 0%; background: #00ff88; transition: 0.4s; }
+        #img-captcha { width: 180px; border: 2px solid #00ff88; border-radius: 8px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h2 style="color:#00ff88; margin:0;">Ativador Digital</h2>
-        <p style="color:#888; font-size: 0.9rem; margin-top: 10px;">1. Selecione o App da sua TV:</p>
+        <p style="color:#888; font-size: 0.8rem;">Selecione o Aplicativo:</p>
         
         <div class="apps-container">
             <div class="app-option active" id="opt-pro" onclick="selectApp('ibopro')">
-                <img src="/logo_pro.png" alt="IBO PLAYER PRO">
-                <p>IBO PRO</p>
+                <img src="/logo_pro.png">
+                <p style="font-size:10px; margin:5px 0 0 0;">IBO PRO</p>
             </div>
             <div class="app-option" id="opt-com" onclick="selectApp('ibocom')">
-                <img src="https://iboplayer.com/logo.png" alt="IBO PLAYER">
-                <p>IBO PLAYER</p>
+                <img src="https://iboplayer.com/logo.png">
+                <p style="font-size:10px; margin:5px 0 0 0;">IBO PLAYER</p>
             </div>
         </div>
 
@@ -50,20 +44,20 @@
             <input type="text" id="key" placeholder="Device Key / Password">
             <input type="text" id="user" placeholder="Usuário IPTV">
             <input type="password" id="pass" placeholder="Senha IPTV">
-            <button onclick="iniciar()">INICIAR ATIVAÇÃO</button>
+            <button onclick="iniciar()">INICIAR AGORA</button>
         </div>
 
         <div id="captchaArea">
-            <p style="color:#ffbb33; font-weight: bold;">Verificação de Segurança:</p>
-            <img id="img-captcha" src="" style="width:180px; border-radius:8px; margin-bottom:15px; border: 1px solid #444;">
-            <input type="text" id="input-captcha" placeholder="Digite o código da imagem">
-            <button onclick="enviarCaptcha()" style="background:#fff">CONFIRMAR</button>
+            <p style="color:#ffbb33; font-weight:bold; margin-bottom:10px;">Verificação de Segurança</p>
+            <img id="img-captcha" src="">
+            <input type="text" id="input-captcha" placeholder="Digite o código aqui" style="text-align:center; text-transform:uppercase;">
+            <button onclick="enviarCaptcha()" style="background:#fff">CONFIRMAR CÓDIGO</button>
         </div>
 
         <div id="progressArea">
-            <div id="status-main" style="font-weight:bold; color:#00ff88; margin-bottom: 5px;">Aguardando...</div>
+            <div id="status-main" style="color:#00ff88; font-weight:bold;">Aguardando...</div>
             <div class="bar-bg"><div id="bar" class="bar-fill"></div></div>
-            <div id="log-msg">Iniciando robô...</div>
+            <div id="log-msg" style="font-size:12px; color:#aaa;">Iniciando robô...</div>
         </div>
     </div>
 
@@ -78,7 +72,7 @@
 
         async function iniciar() {
             const mac = document.getElementById('mac').value.trim();
-            if(!mac) return alert("Por favor, preencha o MAC.");
+            if(!mac) return alert("Preencha o MAC");
 
             document.getElementById('form-ativacao').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
@@ -87,64 +81,58 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    mac, 
-                    key: document.getElementById('key').value,
+                    mac, key: document.getElementById('key').value,
                     user: document.getElementById('user').value,
                     pass: document.getElementById('pass').value,
                     tipo: selectedTipo
                 })
             });
-
             monitorar(mac);
         }
 
         function monitorar(mac) {
             const timer = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const data = await res.json();
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
 
-                    // Lógica para mostrar/esconder Captcha
-                    if(data.status === "aguardando_captcha") {
-                        document.getElementById('progressArea').style.display = 'none';
-                        document.getElementById('captchaArea').style.display = 'block';
-                        document.getElementById('img-captcha').src = data.captchaBase64;
-                    } else {
-                        document.getElementById('captchaArea').style.display = 'none';
-                        document.getElementById('progressArea').style.display = 'block';
-                    }
+                // LÓGICA DE EXIBIÇÃO DO CAPTCHA
+                if(data.status === "aguardando_captcha") {
+                    document.getElementById('progressArea').style.display = 'none';
+                    document.getElementById('captchaArea').style.display = 'block';
+                    document.getElementById('img-captcha').src = data.captchaBase64;
+                } else {
+                    document.getElementById('captchaArea').style.display = 'none';
+                    document.getElementById('progressArea').style.display = 'block';
+                }
 
-                    // Atualiza textos
-                    document.getElementById('status-main').innerText = data.status.toUpperCase();
-                    document.getElementById('log-msg').innerText = data.mensagem;
-                    
-                    // Cálculo da Barra de Progresso Real
-                    if (data.total > 0) {
-                        let percent = (data.indiceAtual / data.total) * 100;
-                        document.getElementById('bar').style.width = percent + "%";
-                    }
+                document.getElementById('status-main').innerText = data.status.toUpperCase();
+                document.getElementById('log-msg').innerText = data.mensagem;
+                
+                if (data.total > 0) {
+                    let p = (data.indiceAtual / data.total) * 100;
+                    document.getElementById('bar').style.width = p + "%";
+                }
 
-                    // Para o monitoramento ao finalizar
-                    if(data.status === "ok") {
-                        clearInterval(timer);
-                        document.getElementById('bar').style.width = "100%";
-                    }
-                    if(data.status === "erro") clearInterval(timer);
-
-                } catch (e) { console.error("Erro na conexão"); }
+                if(data.status === "ok" || data.status === "erro") {
+                    clearInterval(timer);
+                    if(data.status === "ok") document.getElementById('bar').style.width = "100%";
+                }
             }, 3000);
         }
 
         async function enviarCaptcha() {
             const mac = document.getElementById('mac').value;
             const texto = document.getElementById('input-captcha').value;
+            
             await fetch('/resolver-captcha', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ mac, texto })
             });
+
             document.getElementById('captchaArea').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
+            document.getElementById('log-msg').innerText = "Validando código...";
         }
     </script>
 </body>
