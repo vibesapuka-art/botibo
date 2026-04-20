@@ -11,76 +11,61 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 900 });
+        page.setDefaultNavigationTimeout(60000);
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
-        await page.goto('https://iboplayer.com/device/login', { 
-            waitUntil: 'networkidle2',
-            timeout: 60000 
-        });
+        await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
-        // Espera um pouco para o site carregar scripts internos
-        await new Promise(r => setTimeout(r, 5000));
-
-        atualizarStatus(pedido.mac, "carregando_captcha", "Localizando código de segurança...");
+        atualizarStatus(pedido.mac, "carregando_captcha", "Aguardando imagem do Captcha...");
         
         try {
-            // Tenta localizar a imagem pelo seletor que funcionou no print anterior
-            const seletores = [
-                'label[for="captcha"] + img',
-                'form img[src*="captcha"]',
-                'img[src^="data:image/png"]'
-            ];
+            // Seletores múltiplos para garantir que encontra a imagem
+            const seletorImg = 'form img[src*="captcha"], img[src^="data:image"], .captcha-img img';
+            await page.waitForSelector(seletorImg, { timeout: 30000 });
 
-            let captchaElement = null;
-            for (const sel of seletores) {
-                try {
-                    await page.waitForSelector(sel, { timeout: 10000 });
-                    captchaElement = await page.$(sel);
-                    if (captchaElement) break;
-                } catch (e) { continue; }
-            }
+            // Verifica se a imagem carregou e tem conteúdo visual
+            await page.waitForFunction((sel) => {
+                const img = document.querySelector(sel);
+                return img && img.complete && img.naturalWidth > 0;
+            }, { timeout: 15000 }, seletorImg);
 
-            if (!captchaElement) throw new Error("Captcha não encontrado na página.");
-
+            const captchaElement = await page.$(seletorImg);
             await captchaElement.scrollIntoView();
             const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
 
-            atualizarStatus(pedido.mac, "aguardando_captcha", "Digite as letras abaixo:", {
+            atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código abaixo:", {
                 captchaBase64: `data:image/png;base64,${captchaBase64}`
             });
 
-            // Espera resposta do painel
+            // Loop de espera pela resposta do utilizador
             let resolvido = false;
-            let inicio = Date.now();
+            let tempoInicio = Date.now();
             while (!resolvido) {
-                if (Date.now() - inicio > 180000) throw new Error("Tempo limite de 3 minutos esgotado.");
+                if (Date.now() - tempoInicio > 180000) throw new Error("Tempo esgotado.");
                 await new Promise(r => setTimeout(r, 2000));
 
                 if (pedido.captchaDigitado) {
-                    atualizarStatus(pedido.mac, "processando", "Validando acesso...");
-                    await page.type("input[name='mac']", pedido.mac);
-                    if (pedido.key) await page.type("input[name='key']", pedido.key);
-                    await page.type("input[name='captcha']", pedido.captchaDigitado);
+                    atualizarStatus(pedido.mac, "processando", "Enviando dados...");
+                    await page.type("input[name='mac']", pedido.mac, { delay: 100 });
+                    if (pedido.key) await page.type("input[name='key']", pedido.key, { delay: 100 });
+                    await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 100 });
                     
-                    await page.click("button[type='submit']");
+                    await Promise.all([
+                        page.click("button[type='submit']"),
+                        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 45000 }).catch(() => {})
+                    ]);
                     resolvido = true;
                 }
             }
-
-            await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
-            atualizarStatus(pedido.mac, "ok", "✅ Ativado com sucesso!");
-
+            atualizarStatus(pedido.mac, "ok", "✅ Ativação concluída!");
         } catch (e) {
-            console.error("Erro interno:", e.message);
-            atualizarStatus(pedido.mac, "erro", "Erro ao carregar Captcha: " + e.message);
+            atualizarStatus(pedido.mac, "erro", "Erro ao localizar Captcha. Tente novamente.");
         }
     } catch (error) {
-        atualizarStatus(pedido.mac, "erro", "Erro de conexão: " + error.message);
+        atualizarStatus(pedido.mac, "erro", "Falha no robô: " + error.message);
     } finally {
         if (browser) await browser.close();
     }
 }
 
-// Exportando exatamente com este nome para o index.js encontrar
 module.exports = { executarIboCom };
