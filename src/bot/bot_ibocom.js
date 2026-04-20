@@ -11,59 +11,49 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 1600 });
+        // Viewport grande para capturar o máximo da página
+        await page.setViewport({ width: 1280, height: 1800 });
         page.setDefaultNavigationTimeout(60000);
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
-        // --- NOVO MÉTODO DE ACEITE DE TERMOS ---
+        // 1. TENTA ACEITAR OS TERMOS
         try {
             const seletorAceitar = "button.btn-danger, #cookie_action_close_header, .btn-accept";
-            await page.waitForSelector(seletorAceitar, { timeout: 15000 });
-
-            // Executa um script direto no navegador para clicar e forçar o sumiço do modal
+            await page.waitForSelector(seletorAceitar, { timeout: 10000 });
             await page.evaluate((sel) => {
                 const btn = document.querySelector(sel);
-                if (btn) {
-                    btn.scrollIntoView();
-                    btn.click();
-                    // Força o fechamento removendo a classe de overlay se o clique falhar
-                    setTimeout(() => {
-                        const modal = document.querySelector('.modal-backdrop, #cookie-law-info-bar');
-                        if (modal) modal.style.display = 'none';
-                    }, 500);
-                }
+                if (btn) btn.click();
             }, seletorAceitar);
-            
-            console.log("Comando de aceite enviado.");
-            await new Promise(r => setTimeout(r, 3000)); // Espera a transição da tela
+            await new Promise(r => setTimeout(r, 3000));
         } catch (e) {
-            console.log("Modal de termos não detectado.");
+            console.log("Aviso de termos não encontrado.");
         }
-        // ----------------------------------------
 
         atualizarStatus(pedido.mac, "carregando_captcha", "Localizando Captcha...");
 
-        // Tenta encontrar a imagem do captcha por seletores variados
+        // 2. TENTA LOCALIZAR O ELEMENTO DO CAPTCHA
         const seletorImg = 'form img[src*="captcha"], .captcha-img img, #login-form img';
-        
-        // Espera o captcha aparecer. Se falhar aqui, o erro de Timeout é capturado.
-        await page.waitForSelector(seletorImg, { timeout: 30000 });
+        let captchaBase64;
 
-        // Garante que o elemento está visível para o print
-        await page.evaluate((sel) => {
-            document.querySelector(sel).scrollIntoView({block: "center"});
-        }, seletorImg);
+        try {
+            // Espera curta para não travar o processo se o site mudou
+            await page.waitForSelector(seletorImg, { timeout: 10000 });
+            const captchaElement = await page.$(seletorImg);
+            captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
+        } catch (e) {
+            // ESTRATÉGIA DE SEGURANÇA: Se não achar o captcha, tira print da tela toda
+            console.log("Captcha não localizado, tirando print da tela cheia.");
+            captchaBase64 = await page.screenshot({ encoding: 'base64', fullPage: false });
+        }
 
-        const captchaElement = await page.$(seletorImg);
-        const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
-
-        atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código:", {
+        // Envia o print (seja do captcha ou da tela de erro) para o seu painel
+        atualizarStatus(pedido.mac, "aguardando_captcha", "Confira a imagem abaixo:", {
             captchaBase64: `data:image/png;base64,${captchaBase64}`
         });
 
-        // Espera a digitação
+        // 3. LOOP DE ESPERA
         let resolvido = false;
         let tempoInicio = Date.now();
         while (!resolvido) {
@@ -71,9 +61,9 @@ async function executarIboCom(pedido, atualizarStatus) {
             await new Promise(r => setTimeout(r, 2000));
 
             if (pedido.captchaDigitado) {
-                atualizarStatus(pedido.mac, "processando", "Enviando...");
-                await page.type("input[name='mac']", pedido.mac);
+                atualizarStatus(pedido.mac, "processando", "Enviando dados...");
                 
+                await page.type("input[name='mac']", pedido.mac);
                 const temKey = await page.$("input[name='key']");
                 if (temKey && pedido.key) await page.type("input[name='key']", pedido.key);
                 
@@ -86,11 +76,11 @@ async function executarIboCom(pedido, atualizarStatus) {
                 resolvido = true;
             }
         }
-        atualizarStatus(pedido.mac, "ok", "✅ Sucesso!");
+        atualizarStatus(pedido.mac, "ok", "✅ Ativado!");
 
     } catch (error) {
-        // Exibe o erro de forma mais clara no seu painel
-        atualizarStatus(pedido.mac, "erro", "Falha técnica: " + error.message);
+        // Se der qualquer erro fatal, ele avisa no painel
+        atualizarStatus(pedido.mac, "erro", "Erro Geral: " + error.message);
     } finally {
         if (browser) await browser.close();
     }
