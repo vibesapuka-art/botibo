@@ -1,9 +1,7 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
-async function executarBotIboCom(pedido) {
-    if (!pedido || pedido.tipo !== "ibocom") return;
-
+module.exports = async (pedido) => {
     let browser;
     try {
         browser = await puppeteer.launch({
@@ -13,39 +11,75 @@ async function executarBotIboCom(pedido) {
         });
 
         const page = await browser.newPage();
+        
+        // 1. O BOT ENTRA NO SITE ASSIM QUE O CLIENTE CLICA EM CONFIRMAR
         await page.goto("https://iboplayer.com/device/login", { waitUntil: "networkidle2" });
 
-        // Se o cliente ainda não resolveu o captcha, tira o print
-        if (!pedido.captchaDigitado) {
-            const captchaImg = await page.$("img[src*='captcha']");
-            if (captchaImg) {
-                const buffer = await captchaImg.screenshot({ encoding: "base64" });
-                pedido.captchaBase64 = `data:image/png;base64,${buffer}`;
-                pedido.status = "aguardando_captcha";
-                pedido.mensagem = "Resolva o captcha da imagem.";
+        let captchaResolvido = false;
+
+        // 2. LOOP DE CAPTCHA (Fica renovando até o cliente digitar)
+        while (!captchaResolvido) {
+            pedido.mensagem = "Gerando imagem de verificação...";
+
+            // Espera a imagem do captcha carregar no site
+            await page.waitForSelector("img[src*='captcha']", { timeout: 10000 });
+            const captchaElement = await page.$("img[src*='captcha']");
+            
+            // Tira o print e envia para o seu painel (index.html)
+            const base64 = await captchaElement.screenshot({ encoding: "base64" });
+            pedido.captchaBase64 = `data:image/png;base64,${base64}`;
+            pedido.status = "aguardando_captcha";
+            pedido.mensagem = "Digite o código da imagem acima:";
+
+            // Aguarda 20 segundos pela resposta do cliente
+            let inicioEspera = Date.now();
+            while (!pedido.captchaDigitado && (Date.now() - inicioEspera < 20000)) {
+                await new Promise(r => setTimeout(r, 1000));
             }
-            return;
+
+            if (pedido.captchaDigitado) {
+                // Se o cliente digitou, saímos do loop para logar
+                captchaResolvido = true;
+            } else {
+                // Se não digitou em 20s, o bot dá um refresh para pegar um captcha novo
+                pedido.mensagem = "Atualizando imagem expirada...";
+                await page.reload({ waitUntil: "networkidle2" });
+            }
         }
 
-        // Se já tem o captcha, faz o login
+        // 3. O CLIENTE DIGITOU, AGORA O BOT FAZ O RESTANTE
         pedido.status = "processando";
-        await page.type("input[name='mac_address']", pedido.mac);
-        await page.type("input[name='device_key']", pedido.key);
-        await page.type("input[name='captcha']", pedido.captchaDigitado);
+        pedido.mensagem = "Autenticando e enviando lista...";
 
+        // Preenche os campos de login
+        await page.type("#mac", pedido.mac);
+        await page.type("#key", pedido.key);
+        await page.type("#captcha", pedido.captchaDigitado); // O campo onde digita o captcha
+        
         await page.click("button[type='submit']");
-        await new Promise(r => setTimeout(r, 6000));
+        
+        // Espera o login ser concluído
+        await page.waitForNavigation({ waitUntil: "networkidle2" });
 
-        // Lógica de adição de playlist (ajustar seletores conforme o site)
-        // ... (seu código de adicionar link M3U) ...
+        // 4. ADICIONA A LISTA IMPERIUMTV
+        // Aqui o bot navega para a página de adicionar e preenche usuário/senha
+        await page.goto("https://iboplayer.com/device/playlists/add", { waitUntil: "networkidle2" });
+        
+        await page.type("#playlist_name", "ImperiumTv");
+        await page.type("#username", pedido.user);
+        await page.type("#password", pedido.pass);
+        
+        await page.click("#save_button"); // Ajuste o ID se o botão de salvar for outro
 
+        // FINALIZAÇÃO
         pedido.status = "ok";
-    } catch (e) {
+        pedido.mensagem = "✅ IBO PLAYER ativado com sucesso!";
+
+    } catch (err) {
+        console.error("Erro no Bot IBO:", err.message);
         pedido.status = "erro";
-        pedido.mensagem = e.message;
+        pedido.mensagem = "Erro: " + err.message;
     } finally {
         if (browser) await browser.close();
     }
-}
-
-module.exports = executarBotIboCom;
+};
