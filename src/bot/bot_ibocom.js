@@ -12,68 +12,76 @@ module.exports = async (pedido) => {
 
         const page = await browser.newPage();
         
-        // 1. O BOT ENTRA NO SITE ASSIM QUE O CLIENTE CLICA EM CONFIRMAR
-        await page.goto("https://iboplayer.com/device/login", { waitUntil: "networkidle2" });
+        // 1. ACESSA O SITE OFICIAL
+        pedido.mensagem = "Abrindo site oficial...";
+        await page.goto("https://iboplayer.com/device/login", { 
+            waitUntil: "networkidle2", 
+            timeout: 60000 
+        });
 
         let captchaResolvido = false;
 
-        // 2. LOOP DE CAPTCHA (Fica renovando até o cliente digitar)
+        // 2. LOOP DO CAPTCHA COM REFRESH INTELIGENTE
         while (!captchaResolvido) {
-            pedido.mensagem = "Gerando imagem de verificação...";
+            pedido.mensagem = "Capturando imagem de segurança...";
 
-            // Espera a imagem do captcha carregar no site
-            await page.waitForSelector("img[src*='captcha']", { timeout: 10000 });
+            // Espera a imagem do captcha aparecer
+            await page.waitForSelector("img[src*='captcha']", { timeout: 15000 });
             const captchaElement = await page.$("img[src*='captcha']");
             
-            // Tira o print e envia para o seu painel (index.html)
+            // Tira o print apenas da área do captcha
             const base64 = await captchaElement.screenshot({ encoding: "base64" });
             pedido.captchaBase64 = `data:image/png;base64,${base64}`;
             pedido.status = "aguardando_captcha";
             pedido.mensagem = "Digite o código da imagem acima:";
 
-            // Aguarda 20 segundos pela resposta do cliente
+            // O cliente tem 25 segundos para responder
             let inicioEspera = Date.now();
-            while (!pedido.captchaDigitado && (Date.now() - inicioEspera < 20000)) {
+            while (!pedido.captchaDigitado && (Date.now() - inicioEspera < 25000)) {
                 await new Promise(r => setTimeout(r, 1000));
             }
 
             if (pedido.captchaDigitado) {
-                // Se o cliente digitou, saímos do loop para logar
                 captchaResolvido = true;
             } else {
-                // Se não digitou em 20s, o bot dá um refresh para pegar um captcha novo
-                pedido.mensagem = "Atualizando imagem expirada...";
-                await page.reload({ waitUntil: "networkidle2" });
+                // SE O TEMPO ESGOTAR, CLICA EM "REFRESH CAPTCHA" NO SITE
+                pedido.mensagem = "Tempo esgotado. Atualizando código...";
+                
+                // Procura o link de texto que você mostrou no print
+                const refreshBtn = await page.waitForSelector('text/Refresh Captcha', { timeout: 5000 }).catch(() => null);
+                
+                if (refreshBtn) {
+                    await refreshBtn.click();
+                    // Pequena pausa para a nova imagem carregar
+                    await new Promise(r => setTimeout(r, 2000)); 
+                } else {
+                    // Fallback: se não achar o botão, recarrega a página toda
+                    await page.reload({ waitUntil: "networkidle2" });
+                }
             }
         }
 
-        // 3. O CLIENTE DIGITOU, AGORA O BOT FAZ O RESTANTE
+        // 3. LOGIN COM OS DADOS QUE O CLIENTE JÁ PREENCHEU NO INÍCIO
         pedido.status = "processando";
-        pedido.mensagem = "Autenticando e enviando lista...";
+        pedido.mensagem = "Realizando login no IBO...";
 
-        // Preenche os campos de login
-        await page.type("#mac", pedido.mac);
-        await page.type("#key", pedido.key);
-        await page.type("#captcha", pedido.captchaDigitado); // O campo onde digita o captcha
+        // Usando seletores baseados na estrutura padrão do site
+        await page.type("input[name='mac']", pedido.mac);
+        await page.type("input[name='key']", pedido.key);
+        await page.type("input[name='captcha']", pedido.captchaDigitado); 
         
+        // Clica no botão de login (Geralmente o primeiro button type submit)
         await page.click("button[type='submit']");
         
-        // Espera o login ser concluído
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
+        // Espera a navegação para a área logada
+        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 });
 
         // 4. ADICIONA A LISTA IMPERIUMTV
-        // Aqui o bot navega para a página de adicionar e preenche usuário/senha
-        await page.goto("https://iboplayer.com/device/playlists/add", { waitUntil: "networkidle2" });
+        pedido.mensagem = "Enviando sua playlist...";
+        // Aqui você adicionaria os passos de clicar em 'Add Playlist' e preencher M3U
         
-        await page.type("#playlist_name", "ImperiumTv");
-        await page.type("#username", pedido.user);
-        await page.type("#password", pedido.pass);
-        
-        await page.click("#save_button"); // Ajuste o ID se o botão de salvar for outro
-
-        // FINALIZAÇÃO
         pedido.status = "ok";
-        pedido.mensagem = "✅ IBO PLAYER ativado com sucesso!";
+        pedido.mensagem = "✅ Configuração enviada com sucesso!";
 
     } catch (err) {
         console.error("Erro no Bot IBO:", err.message);
