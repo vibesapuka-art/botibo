@@ -1,7 +1,6 @@
 const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
-// A função deve ser definida e exportada corretamente
 async function executarIboCom(pedido, atualizarStatus) {
     let browser;
     try {
@@ -12,7 +11,7 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 });
+        await page.setViewport({ width: 1280, height: 900 });
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { 
@@ -20,26 +19,36 @@ async function executarIboCom(pedido, atualizarStatus) {
             timeout: 60000 
         });
 
-        atualizarStatus(pedido.mac, "carregando_captcha", "Localizando verificação de segurança...");
+        // --- NOVIDADE: ACEITAR OS TERMOS AUTOMATICAMENTE ---
+        try {
+            const botaoAceitar = "button.btn-danger"; // Seletor do botão 'Accept legal terms'
+            atualizarStatus(pedido.mac, "aceitando_termos", "Aceitando termos de uso...");
+            
+            // Espera o botão vermelho de termos aparecer e clica nele
+            await page.waitForSelector(botaoAceitar, { timeout: 10000 });
+            await page.click(botaoAceitar);
+            
+            // Espera um segundo para a tela sumir
+            await new Promise(r => setTimeout(r, 1500));
+        } catch (e) {
+            console.log("Aviso de termos não apareceu ou já foi aceito.");
+        }
+        // --------------------------------------------------
+
+        atualizarStatus(pedido.mac, "carregando_captcha", "Localizando código de segurança...");
         
         try {
-            // Seletor ajustado para encontrar a imagem do captcha no formulário
-            await page.waitForSelector('form img', { timeout: 20000 });
+            // Procura a imagem do captcha após fechar os termos
+            const captchaImgSelector = 'label[for="captcha"] + img';
+            await page.waitForSelector(captchaImgSelector, { timeout: 20000 });
             
-            await page.waitForFunction(() => {
-                const img = document.querySelector('form img');
-                return img && img.src && img.src.length > 10;
-            }, { timeout: 10000 });
-
-            const captchaElement = await page.$('form img');
+            const captchaElement = await page.$(captchaImgSelector);
             const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
 
-            // Envia a imagem para o painel
-            atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código da imagem", {
+            atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código da imagem abaixo:", {
                 captchaBase64: `data:image/png;base64,${captchaBase64}`
             });
 
-            // Loop de espera pela digitação do usuário
             let resolvido = false;
             let inicio = Date.now();
             while (!resolvido) {
@@ -47,10 +56,12 @@ async function executarIboCom(pedido, atualizarStatus) {
                 await new Promise(r => setTimeout(r, 2000));
 
                 if (pedido.captchaDigitado) {
-                    atualizarStatus(pedido.mac, "processando", "Enviando dados...");
+                    atualizarStatus(pedido.mac, "processando", "Finalizando ativação...");
+                    
                     await page.type("input[name='mac']", pedido.mac);
                     if (pedido.key) await page.type("input[name='key']", pedido.key);
                     await page.type("input[name='captcha']", pedido.captchaDigitado);
+                    
                     await page.click("button[type='submit']");
                     resolvido = true;
                 }
@@ -60,14 +71,13 @@ async function executarIboCom(pedido, atualizarStatus) {
             atualizarStatus(pedido.mac, "ok", "✅ Ativado com sucesso!");
 
         } catch (e) {
-            atualizarStatus(pedido.mac, "erro", "Erro no Captcha: " + e.message);
+            atualizarStatus(pedido.mac, "erro", "Erro ao carregar Captcha. Tente novamente.");
         }
     } catch (error) {
-        atualizarStatus(pedido.mac, "erro", "Erro técnico: " + error.message);
+        atualizarStatus(pedido.mac, "erro", "Erro de conexão: " + error.message);
     } finally {
         if (browser) await browser.close();
     }
 }
 
-// Exportação crucial para evitar erro de "not a function"
 module.exports = { executarIboCom };
