@@ -31,22 +31,22 @@
 <body>
 
     <div class="card">
-        <h2 style="color:#00ff88; margin:0;">ImperiumTv</h2>
-        <p style="color:#888; font-size: 0.9rem;">Selecione o App da sua TV</p>
+        <h2 style="color:#00ff88; margin:0;">Ativador Digital</h2>
+        <p style="color:#888; font-size: 0.9rem; margin-top: 10px;">1. Selecione o App da sua TV:</p>
         
         <div class="apps-container">
             <div class="app-option active" id="opt-pro" onclick="selectApp('ibopro')">
-                <img src="https://iboproapp.com/logo.png">
+                <img src="/logo_pro.png" alt="IBO PLAYER PRO">
                 <p>IBO PRO</p>
             </div>
             <div class="app-option" id="opt-com" onclick="selectApp('ibocom')">
-                <img src="https://iboplayer.com/logo.png">
+                <img src="https://iboplayer.com/logo.png" alt="IBO PLAYER">
                 <p>IBO PLAYER</p>
             </div>
         </div>
 
         <div id="form-ativacao">
-            <input type="text" id="mac" placeholder="MAC Address (Ex: 00:00:00...)">
+            <input type="text" id="mac" placeholder="MAC Address">
             <input type="text" id="key" placeholder="Device Key / Password">
             <input type="text" id="user" placeholder="Usuário IPTV">
             <input type="password" id="pass" placeholder="Senha IPTV">
@@ -63,7 +63,7 @@
         <div id="progressArea">
             <div id="status-main" style="font-weight:bold; color:#00ff88; margin-bottom: 5px;">Aguardando...</div>
             <div class="bar-bg"><div id="bar" class="bar-fill"></div></div>
-            <div id="log-msg">Conectando ao servidor...</div>
+            <div id="log-msg">Iniciando robô...</div>
         </div>
     </div>
 
@@ -104,31 +104,34 @@
                     const res = await fetch(`/status?mac=${mac}`);
                     const data = await res.json();
 
+                    // Lógica para mostrar/esconder Captcha
                     if(data.status === "aguardando_captcha") {
                         document.getElementById('progressArea').style.display = 'none';
                         document.getElementById('captchaArea').style.display = 'block';
                         document.getElementById('img-captcha').src = data.captchaBase64;
-                    } else if (data.status === "processando" || data.status === "pendente" || data.status === "ok") {
+                    } else {
                         document.getElementById('captchaArea').style.display = 'none';
                         document.getElementById('progressArea').style.display = 'block';
                     }
 
+                    // Atualiza textos
                     document.getElementById('status-main').innerText = data.status.toUpperCase();
                     document.getElementById('log-msg').innerText = data.mensagem;
                     
-                    // ATUALIZAÇÃO DA BARRA
+                    // Cálculo da Barra de Progresso Real
                     if (data.total > 0) {
                         let percent = (data.indiceAtual / data.total) * 100;
                         document.getElementById('bar').style.width = percent + "%";
                     }
 
+                    // Para o monitoramento ao finalizar
                     if(data.status === "ok") {
                         clearInterval(timer);
                         document.getElementById('bar').style.width = "100%";
                     }
                     if(data.status === "erro") clearInterval(timer);
 
-                } catch (e) { console.error("Erro ao monitorar"); }
+                } catch (e) { console.error("Erro na conexão"); }
             }, 3000);
         }
 
@@ -142,7 +145,6 @@
             });
             document.getElementById('captchaArea').style.display = 'none';
             document.getElementById('progressArea').style.display = 'block';
-            document.getElementById('status-main').innerText = "RETOMANDO...";
         }
     </script>
 </body>
