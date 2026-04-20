@@ -11,49 +11,62 @@ async function executarIboCom(pedido, atualizarStatus) {
         });
 
         const page = await browser.newPage();
-        // Viewport grande para capturar o máximo da página
-        await page.setViewport({ width: 1280, height: 1800 });
+        await page.setViewport({ width: 1280, height: 1600 });
         page.setDefaultNavigationTimeout(60000);
 
         atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
         await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
 
-        // 1. TENTA ACEITAR OS TERMOS
+        // --- LOCALIZAR E CLICAR NO BOTÃO VERMELHO ---
+        atualizarStatus(pedido.mac, "aceitando_termos", "Clicando em Accept legal terms...");
+        
         try {
-            const seletorAceitar = "button.btn-danger, #cookie_action_close_header, .btn-accept";
-            await page.waitForSelector(seletorAceitar, { timeout: 10000 });
-            await page.evaluate((sel) => {
-                const btn = document.querySelector(sel);
-                if (btn) btn.click();
-            }, seletorAceitar);
-            await new Promise(r => setTimeout(r, 3000));
+            // Aguarda o botão vermelho aparecer na tela
+            await page.waitForSelector('button.btn-danger', { timeout: 15000 });
+
+            // Usa JavaScript dentro do navegador para clicar no botão que contém o texto exato
+            await page.evaluate(() => {
+                const botoes = Array.from(document.querySelectorAll('button.btn-danger'));
+                const botaoAlvo = botoes.find(btn => btn.innerText.includes('Accept legal terms'));
+                
+                if (botaoAlvo) {
+                    botaoAlvo.click();
+                    // Remove o fundo escuro manualmente caso o clique não feche o modal
+                    setTimeout(() => {
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) backdrop.remove();
+                        document.body.classList.remove('modal-open');
+                    }, 500);
+                }
+            });
+            
+            // Espera a animação de fechamento do modal
+            await new Promise(r => setTimeout(r, 3000)); 
         } catch (e) {
-            console.log("Aviso de termos não encontrado.");
+            console.log("Botão de termos não encontrado ou já fechado.");
         }
+        // -----------------------------------------------------------------------------
 
         atualizarStatus(pedido.mac, "carregando_captcha", "Localizando Captcha...");
 
-        // 2. TENTA LOCALIZAR O ELEMENTO DO CAPTCHA
-        const seletorImg = 'form img[src*="captcha"], .captcha-img img, #login-form img';
-        let captchaBase64;
+        // Seletor focado na imagem do formulário de login
+        const seletorImg = '#login-form img, img[src*="captcha"]';
+        
+        await page.waitForSelector(seletorImg, { timeout: 30000 });
 
-        try {
-            // Espera curta para não travar o processo se o site mudou
-            await page.waitForSelector(seletorImg, { timeout: 10000 });
-            const captchaElement = await page.$(seletorImg);
-            captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
-        } catch (e) {
-            // ESTRATÉGIA DE SEGURANÇA: Se não achar o captcha, tira print da tela toda
-            console.log("Captcha não localizado, tirando print da tela cheia.");
-            captchaBase64 = await page.screenshot({ encoding: 'base64', fullPage: false });
-        }
+        // Centraliza o captcha para garantir que o print não saia cortado
+        await page.evaluate((sel) => {
+            document.querySelector(sel).scrollIntoView({block: "center"});
+        }, seletorImg);
 
-        // Envia o print (seja do captcha ou da tela de erro) para o seu painel
-        atualizarStatus(pedido.mac, "aguardando_captcha", "Confira a imagem abaixo:", {
+        const captchaElement = await page.$(seletorImg);
+        const captchaBase64 = await captchaElement.screenshot({ encoding: 'base64' });
+
+        atualizarStatus(pedido.mac, "aguardando_captcha", "Digite o código:", {
             captchaBase64: `data:image/png;base64,${captchaBase64}`
         });
 
-        // 3. LOOP DE ESPERA
+        // Espera o Jefferson digitar no painel
         let resolvido = false;
         let tempoInicio = Date.now();
         while (!resolvido) {
@@ -62,8 +75,8 @@ async function executarIboCom(pedido, atualizarStatus) {
 
             if (pedido.captchaDigitado) {
                 atualizarStatus(pedido.mac, "processando", "Enviando dados...");
-                
                 await page.type("input[name='mac']", pedido.mac);
+                
                 const temKey = await page.$("input[name='key']");
                 if (temKey && pedido.key) await page.type("input[name='key']", pedido.key);
                 
@@ -76,11 +89,14 @@ async function executarIboCom(pedido, atualizarStatus) {
                 resolvido = true;
             }
         }
-        atualizarStatus(pedido.mac, "ok", "✅ Ativado!");
+        atualizarStatus(pedido.mac, "ok", "✅ Dispositivo Ativado!");
 
     } catch (error) {
-        // Se der qualquer erro fatal, ele avisa no painel
-        atualizarStatus(pedido.mac, "erro", "Erro Geral: " + error.message);
+        // Se der erro de timeout, envia o print do erro para debug
+        const erroPrint = await page.screenshot({ encoding: 'base64' });
+        atualizarStatus(pedido.mac, "erro", "Erro no Captcha: " + error.message, {
+            captchaBase64: `data:image/png;base64,${erroPrint}`
+        });
     } finally {
         if (browser) await browser.close();
     }
