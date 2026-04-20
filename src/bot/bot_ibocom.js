@@ -12,73 +12,72 @@ async function executarIboCom(pedido, atualizarStatus) {
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 1600 });
-        page.setDefaultNavigationTimeout(60000);
+        
+        atualizarStatus(pedido.mac, "acessando_site", "Conectando ao portal IBO...");
+        await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2', timeout: 60000 });
 
-        atualizarStatus(pedido.mac, "acessando_site", "Abrindo portal IBO Player...");
-        await page.goto('https://iboplayer.com/device/login', { waitUntil: 'networkidle2' });
-
-        // 1. CLIQUE NOS TERMOS E LIMPEZA DE TELA
+        // --- TRATAMENTO DOS TERMOS ---
         try {
-            const seletorBotao = 'button.bg-main';
-            await page.waitForSelector(seletorBotao, { timeout: 15000 });
+            const seletorBotao = 'button.bg-main, button.btn-danger';
+            await page.waitForSelector(seletorBotao, { timeout: 10000 });
             await page.click(seletorBotao);
-            
-            // Pausa maior para o site processar o fechamento do modal
-            await new Promise(r => setTimeout(r, 4000)); 
+            await new Promise(r => setTimeout(r, 3000));
         } catch (e) {
-            // Se o botão falhar ou o modal travar, removemos tudo que bloqueia o fundo
+            // Força a remoção manual se o botão não funcionar
             await page.evaluate(() => {
-                document.querySelectorAll('.modal, .modal-backdrop, #terms-modal').forEach(el => el.remove());
+                const modals = document.querySelectorAll('.modal, .modal-backdrop, #cookie-law-info-bar');
+                modals.forEach(m => m.remove());
                 document.body.classList.remove('modal-open');
-                document.body.style.overflow = 'auto';
             });
         }
 
-        // 2. CAPTURA DO FORMULÁRIO
-        const seletorForm = '#login-form, form'; 
-        // Aumentamos o tempo de espera para 20 segundos aqui para evitar a falha
+        // --- VERIFICAÇÃO E REFRESH DE SEGURANÇA ---
+        const seletorMac = "input[name='mac']";
+        let encontrado = await page.$(seletorMac);
+
+        if (!encontrado) {
+            atualizarStatus(pedido.mac, "recarregando", "Campo não detectado. Recarregando página...");
+            await page.reload({ waitUntil: 'networkidle2' });
+            await new Promise(r => setTimeout(r, 3000));
+        }
+
+        // --- CAPTURA DO CAPTCHA ---
+        const seletorForm = '#login-form, form';
         await page.waitForSelector(seletorForm, { visible: true, timeout: 20000 });
         const formElement = await page.$(seletorForm);
         
         await formElement.scrollIntoView();
-        await new Promise(r => setTimeout(r, 2000));
+        const captchaBase64 = await formElement.screenshot({ encoding: 'base64', type: 'jpeg', quality: 80 });
 
-        const captchaBase64 = await formElement.screenshot({ 
-            encoding: 'base64',
-            type: 'jpeg',
-            quality: 80 
-        });
-
-        atualizarStatus(pedido.mac, "aguardando_captcha", "Aguardando captcha...", {
+        atualizarStatus(pedido.mac, "aguardando_captcha", "Resolva o código abaixo:", {
             captchaBase64: `data:image/jpeg;base64,${captchaBase64}`
         });
 
-        // 3. LOGICA DE PREENCHIMENTO PÓS-RESPOSTA
+        // --- ESPERA RESPOSTA ---
         let resolvido = false;
         let tempoInicio = Date.now();
-        
         while (!resolvido) {
             if (Date.now() - tempoInicio > 180000) throw new Error("Tempo esgotado.");
             await new Promise(r => setTimeout(r, 2000));
 
             if (pedido.captchaDigitado) {
-                atualizarStatus(pedido.mac, "processando", "Digitando dados...");
+                atualizarStatus(pedido.mac, "processando", "Autenticando...");
 
-                // CORREÇÃO: Espera o input MAC estar visível por até 15 segundos
-                await page.waitForSelector("input[name='mac']", { visible: true, timeout: 15000 });
+                // Tenta focar no campo MAC antes de digitar
+                await page.waitForSelector(seletorMac, { visible: true, timeout: 15000 });
+                await page.focus(seletorMac);
+                await page.click(seletorMac, { clickCount: 3 }); // Seleciona tudo para limpar
+                await page.keyboard.press('Backspace');
                 
-                // Simula clique real no campo antes de digitar
-                await page.click("input[name='mac']", { clickCount: 3 });
-                await page.type("input[name='mac']", pedido.mac, { delay: 70 });
+                await page.type(seletorMac, pedido.mac, { delay: 100 });
                 
                 const inputKey = await page.$("input[name='key']");
                 if (inputKey && pedido.key) {
-                    await page.type("input[name='key']", pedido.key, { delay: 70 });
+                    await page.type("input[name='key']", pedido.key, { delay: 100 });
                 }
                 
-                await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 70 });
+                await page.type("input[name='captcha']", pedido.captchaDigitado, { delay: 100 });
                 
-                // Clique no Login e espera a navegação
                 await Promise.all([
                     page.click("button[type='submit']"),
                     page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {})
@@ -90,7 +89,6 @@ async function executarIboCom(pedido, atualizarStatus) {
         }
 
     } catch (error) {
-        console.error("Erro no Bot:", error.message);
         atualizarStatus(pedido.mac, "erro", "Falha: " + error.message);
     } finally {
         if (browser) await browser.close();
