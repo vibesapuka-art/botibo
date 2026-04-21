@@ -1,27 +1,31 @@
 const express = require('express');
 const path = require('path');
 
-// Importação dos robôs com nomes de arquivos REAIS
+// Variáveis para os robôs
 let executarIboPro; 
 let executarIboCom; 
 let adicionarPlaylistIbo; 
 
+// --- BLOCO DE CARREGAMENTO CRÍTICO ---
 try {
-    // AJUSTE AQUI: Se o seu arquivo do IBO PRO se chama engine.js, use o caminho abaixo
-    const moduloIboPro = require('./src/bot/engine'); // Certifique-se que o nome é engine.js
-    executarIboPro = moduloIboPro.executarIboPro; 
+    // Tenta carregar o IBO PRO (Ajuste o nome 'engine' se o seu arquivo for outro)
+    const engineModule = require('./src/bot/engine'); 
+    executarIboPro = engineModule.executarIboPro;
+    console.log("✅ IBO PRO (Engine) carregado.");
+} catch (e) {
+    console.error("❌ ERRO: Arquivo './src/bot/engine.js' não encontrado ou função 'executarIboPro' não exportada.");
+}
 
+try {
     const botLogin = require('./src/bot/bot_ibocom');
     const botPlaylist = require('./src/bot/bot_ibom_playlist');
-    
     executarIboCom = botLogin.executarIboCom;
     adicionarPlaylistIbo = botPlaylist.adicionarPlaylistIbo;
-    
-    console.log("✅ Todos os módulos (incluindo Engine) carregados.");
-} catch (err) {
-    console.error("❌ Erro ao carregar módulos. Verifique os nomes dos arquivos!");
-    console.error("Detalhe do erro:", err.message);
+    console.log("✅ IBO Player (Login e Playlist) carregado.");
+} catch (e) {
+    console.error("❌ ERRO: Módulos do IBO Player não encontrados em ./src/bot/");
 }
+// -------------------------------------
 
 const app = express();
 app.use(express.json());
@@ -36,10 +40,10 @@ async function atualizarStatus(mac, status, mensagem, extras = {}) {
         pedido.mensagem = mensagem;
         Object.assign(pedido, extras);
 
-        // Fluxo automático para IBO Player (ibocom)
+        // Disparo automático da playlist para IBO Player
         if (status === 'ok' && mensagem.includes("Logado com sucesso") && pedido.tipo === 'ibocom') {
-            adicionarPlaylistIbo(pedido, atualizarStatus).catch(e => {
-                atualizarStatus(mac, 'erro', 'Erro na Playlist: ' + e.message);
+            adicionarPlaylistIbo(pedido, atualizarStatus).catch(err => {
+                atualizarStatus(mac, 'erro', 'Erro Playlist: ' + err.message);
             });
         }
     }
@@ -52,38 +56,33 @@ app.post('/ativar', (req, res) => {
     const novoPedido = { ...req.body, status: 'iniciando', mensagem: 'Iniciando robô...', captchaDigitado: null };
     pedidos.push(novoPedido);
 
-    // Chama o Engine para IBO PRO
-    if (tipo === 'ibopro' && executarIboPro) {
-        console.log("🤖 Rodando Engine (IBO PRO)...");
-        executarIboPro(novoPedido, atualizarStatus).catch(e => {
-            atualizarStatus(mac, 'erro', 'Erro no Engine: ' + e.message);
-        });
+    if (tipo === 'ibopro') {
+        if (executarIboPro) {
+            console.log("🤖 Iniciando Engine...");
+            executarIboPro(novoPedido, atualizarStatus).catch(e => atualizarStatus(mac, 'erro', e.message));
+        } else {
+            atualizarStatus(mac, 'erro', 'Módulo Engine não carregado no servidor.');
+        }
     } 
-    // Chama o Bot IBOCOM
     else if (tipo === 'ibocom' && executarIboCom) {
-        console.log("🤖 Rodando IBO Player...");
-        executarIboCom(novoPedido, atualizarStatus).catch(e => {
-            atualizarStatus(mac, 'erro', 'Erro IBO Player: ' + e.message);
-        });
+        executarIboCom(novoPedido, atualizarStatus).catch(e => atualizarStatus(mac, 'erro', e.message));
     }
 
     res.json({ success: true });
 });
 
-// ... rotas de captcha e status continuam iguais ...
 app.post('/resolver-captcha', (req, res) => {
-    const { mac, texto } = req.body;
-    const pedido = pedidos.find(p => p.mac === mac);
+    const pedido = pedidos.find(p => p.mac === req.body.mac);
     if (pedido) {
-        pedido.captchaDigitado = texto;
+        pedido.captchaDigitado = req.body.texto;
         res.json({ success: true });
     }
 });
 
 app.get('/status', (req, res) => {
     const pedido = pedidos.find(p => p.mac === req.query.mac);
-    res.json(pedido || { status: 'aguardando', mensagem: 'Aguardando...' });
+    res.json(pedido || { status: 'aguardando', mensagem: 'Aguardando comando...' });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Porta ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));
