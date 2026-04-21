@@ -1,73 +1,81 @@
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
-const login = require("./tasks/login");
-const addDns = require("./tasks/add-dns");
-const setPin = require("./tasks/set-pin");
-const submit = require("./tasks/submit");
-// IMPORTANTE: Importar a lista de DNS aqui
-const dnsConfig = require("../config/dns"); 
+const express = require('express');
+const path = require('path');
 
-module.exports = async (pedidos) => {
-    // Busca o pedido específico do IBO PRO
-    const pedido = pedidos.find(p => p.tipo === "ibopro" && (p.status === "pendente" || p.status === "processando"));
+// IMPORTANTE: Ajuste o caminho para onde está o seu dns.js
+// Pelas suas fotos, ele está em src/config/dns.js
+const dnsConfig = require('./src/config/dns'); 
+
+const enginePro = require('./src/bot/engine');      
+const botIboCom = require('./src/bot/bot_ibocom'); 
+
+const app = express();
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+let pedidos = [];
+let botOcupado = false;
+
+app.post('/ativar', (req, res) => {
+    const { mac, key, user, pass, tipo } = req.body;
+    
+    pedidos = pedidos.filter(p => p.mac !== mac);
+    
+    // CORREÇÃO AQUI: Verificando se dnsConfig e servidores existem antes de ler o length
+    const listaServidores = (dnsConfig && dnsConfig.servidores) ? dnsConfig.servidores : [];
+
+    const novoPedido = {
+        mac, key, user, pass, tipo,
+        status: "pendente",
+        mensagem: "Aguardando na fila...",
+        captchaBase64: null,
+        captchaDigitado: null,
+        indiceAtual: 0,
+        total: listaServidores.length // Agora não dará erro de undefined
+    };
+
+    pedidos.push(novoPedido);
+    res.json({ success: true });
+});
+
+app.post('/resolver-captcha', (req, res) => {
+    const { mac, texto } = req.body;
+    const pedido = pedidos.find(p => p.mac === mac);
+    if (pedido) {
+        pedido.captchaDigitado = texto;
+        pedido.status = "pendente";
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: "Não encontrado" });
+    }
+});
+
+app.get('/status', (req, res) => {
+    const pedido = pedidos.find(p => p.mac === req.query.mac);
+    res.json(pedido || { status: "nao_encontrado" });
+});
+
+setInterval(async () => {
+    if (botOcupado) return;
+    
+    const pedido = pedidos.find(p => p.status === "pendente");
     if (!pedido) return;
 
-    pedido.status = "processando";
-    let browser;
-    
+    botOcupado = true;
     try {
-        browser = await puppeteer.launch({
-            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-            executablePath: await chromium.executablePath(),
-            headless: true
-        });
-
-        const page = await browser.newPage();
-        
-        // 1. LOGIN ÚNICO
-        pedido.mensagem = "Fazendo login inicial...";
-        const sucessoLogin = await login(page, pedido.mac, pedido.key);
-        
-        if (!sucessoLogin) {
-            pedido.status = "erro";
-            pedido.mensagem = "Erro: MAC ou Key inválidos no IBO.";
-            return;
+        if (pedido.tipo === "ibopro") {
+            await enginePro(pedidos); 
+        } else if (pedido.tipo === "ibocom") {
+            await botIboCom(pedido);  
         }
-
-        // Pegamos a lista de servidores do arquivo de config
-        const servidores = dnsConfig.servidores;
-        pedido.total = servidores.length;
-
-        // 2. LOOP PELOS DNS
-        for (let i = 0; i < servidores.length; i++) {
-            const dnsBase = servidores[i];
-            const nomeDns = dnsBase.split('//')[1].split('.')[0].toUpperCase();
-            
-            // MONTAGEM DO LINK: Aqui o robô cria o link m3u usando o user e pass do pedido
-            const m3uLink = `${dnsBase}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
-            
-            pedido.indiceAtual = i + 1;
-            pedido.mensagem = `Adicionando (${i + 1}/${pedido.total}): ${nomeDns}`;
-
-            try {
-                await addDns(page, nomeDns, m3uLink);
-                await setPin(page, "123321");
-                await submit(page);
-                
-                // Espera 2 segundos entre um DNS e outro para o site não travar
-                await new Promise(r => setTimeout(r, 2000));
-            } catch (errDns) {
-                console.log(`Falha no DNS ${nomeDns}, pulando...`);
-            }
-        }
-
-        pedido.status = "ok";
-        pedido.mensagem = "✅ Todas as listas foram enviadas!";
-
-    } catch (err) {
+    } catch (e) {
+        console.error("Erro no Bot:", e.message);
         pedido.status = "erro";
-        pedido.mensagem = "Erro técnico: " + err.message;
+        pedido.mensagem = "Erro: " + e.message;
     } finally {
-        if (browser) await browser.close();
+        botOcupado = false;
     }
-};
+}, 8000);
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Servidor ativo na porta ${PORT}`));
