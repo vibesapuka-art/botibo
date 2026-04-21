@@ -1,23 +1,26 @@
 const express = require('express');
 const path = require('path');
 
-// Importação dos robôs
-let executarIboPro; // Robô antigo
-let executarIboCom; // Robô novo (Login)
-let adicionarPlaylistIbo; // Robô novo (Playlist)
+// Importação dos robôs com nomes de arquivos REAIS
+let executarIboPro; 
+let executarIboCom; 
+let adicionarPlaylistIbo; 
 
 try {
-    // Verifique se os nomes dos arquivos estão corretos no seu GitHub
-    executarIboPro = require('./src/bot/bot_ibopro').executarIboPro; 
+    // AJUSTE AQUI: Se o seu arquivo do IBO PRO se chama engine.js, use o caminho abaixo
+    const moduloIboPro = require('./src/bot/engine'); // Certifique-se que o nome é engine.js
+    executarIboPro = moduloIboPro.executarIboPro; 
+
     const botLogin = require('./src/bot/bot_ibocom');
     const botPlaylist = require('./src/bot/bot_ibom_playlist');
     
     executarIboCom = botLogin.executarIboCom;
     adicionarPlaylistIbo = botPlaylist.adicionarPlaylistIbo;
     
-    console.log("✅ Todos os módulos carregados com sucesso.");
+    console.log("✅ Todos os módulos (incluindo Engine) carregados.");
 } catch (err) {
-    console.error("❌ Erro ao carregar módulos:", err.message);
+    console.error("❌ Erro ao carregar módulos. Verifique os nomes dos arquivos!");
+    console.error("Detalhe do erro:", err.message);
 }
 
 const app = express();
@@ -26,7 +29,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let pedidos = [];
 
-// Função que gerencia o status e o encadeamento dos bots
 async function atualizarStatus(mac, status, mensagem, extras = {}) {
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
@@ -34,9 +36,8 @@ async function atualizarStatus(mac, status, mensagem, extras = {}) {
         pedido.mensagem = mensagem;
         Object.assign(pedido, extras);
 
-        // ENCADERAMENTO: Só dispara a playlist se for o bot 'ibocom' e o login der OK
+        // Fluxo automático para IBO Player (ibocom)
         if (status === 'ok' && mensagem.includes("Logado com sucesso") && pedido.tipo === 'ibocom') {
-            console.log(`[Fluxo] Login OK. Iniciando Playlist para MAC: ${mac}`);
             adicionarPlaylistIbo(pedido, atualizarStatus).catch(e => {
                 atualizarStatus(mac, 'erro', 'Erro na Playlist: ' + e.message);
             });
@@ -46,53 +47,43 @@ async function atualizarStatus(mac, status, mensagem, extras = {}) {
 
 app.post('/ativar', (req, res) => {
     const { mac, tipo } = req.body;
-    
-    // Limpa pedidos antigos do mesmo MAC para evitar conflito
     pedidos = pedidos.filter(p => p.mac !== mac);
     
-    const novoPedido = { 
-        ...req.body, 
-        status: 'iniciando', 
-        mensagem: 'Iniciando robô...', 
-        captchaDigitado: null 
-    };
+    const novoPedido = { ...req.body, status: 'iniciando', mensagem: 'Iniciando robô...', captchaDigitado: null };
     pedidos.push(novoPedido);
 
-    // Lógica para decidir qual robô rodar
+    // Chama o Engine para IBO PRO
     if (tipo === 'ibopro' && executarIboPro) {
-        console.log("🤖 Iniciando IBO PRO...");
+        console.log("🤖 Rodando Engine (IBO PRO)...");
         executarIboPro(novoPedido, atualizarStatus).catch(e => {
-            atualizarStatus(mac, 'erro', 'Erro IBO PRO: ' + e.message);
+            atualizarStatus(mac, 'erro', 'Erro no Engine: ' + e.message);
         });
     } 
+    // Chama o Bot IBOCOM
     else if (tipo === 'ibocom' && executarIboCom) {
-        console.log("🤖 Iniciando IBO PLAYER...");
+        console.log("🤖 Rodando IBO Player...");
         executarIboCom(novoPedido, atualizarStatus).catch(e => {
-            atualizarStatus(mac, 'erro', 'Erro IBO PLAYER: ' + e.message);
+            atualizarStatus(mac, 'erro', 'Erro IBO Player: ' + e.message);
         });
     }
 
     res.json({ success: true });
 });
 
-// ... (Resto do código: resolver-captcha, status, listen)
+// ... rotas de captcha e status continuam iguais ...
 app.post('/resolver-captcha', (req, res) => {
     const { mac, texto } = req.body;
     const pedido = pedidos.find(p => p.mac === mac);
     if (pedido) {
         pedido.captchaDigitado = texto;
         res.json({ success: true });
-    } else {
-        res.status(404).json({ error: "Sessão não encontrada" });
     }
 });
 
 app.get('/status', (req, res) => {
     const pedido = pedidos.find(p => p.mac === req.query.mac);
-    res.json(pedido || { status: 'aguardando', mensagem: 'Aguardando comando...' });
+    res.json(pedido || { status: 'aguardando', mensagem: 'Aguardando...' });
 });
 
-app.get('/', (req, res) => res.send('Servidor Ativo!'));
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Online na porta ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Porta ${PORT}`));
