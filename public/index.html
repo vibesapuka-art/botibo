@@ -8,8 +8,6 @@
     <style>
         body { background-color: #0f0f0f; color: white; }
         .card-selected { border: 2px solid #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.5); }
-        .loader { border-top-color: #22c55e; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -19,36 +17,34 @@
         
         <p class="text-gray-400 text-center mb-4">Selecione o Aplicativo:</p>
 
-        <div class="grid grid-cols-1 gap-4 mb-8">
-            <div id="btn-ibopro" class="card-selected bg-[#262626] p-4 rounded-xl cursor-pointer hover:bg-gray-800 transition-all text-center">
-                <img src="https://iboplayer.com/wp-content/uploads/2023/10/ibo-pro-logo.png" alt="IB Player Pro" class="w-24 mx-auto mb-2 rounded-lg">
+        <div class="flex justify-center mb-8">
+            <div id="btn-ibopro" class="card-selected bg-[#262626] p-4 rounded-xl cursor-pointer text-center w-full">
+                <img src="https://iboplayer.com/wp-content/uploads/2023/10/ibo-pro-logo.png" alt="IB Player Pro" class="w-20 mx-auto mb-2 rounded-lg">
                 <p class="font-semibold text-sm uppercase">IB PLAYER PRO</p>
             </div>
         </div>
 
         <div id="form-ativacao" class="space-y-4">
             <input type="text" id="mac" placeholder="MAC Address (Ex: 00:00:00...)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
-            <input type="text" id="key" placeholder="Device Key (Se houver)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
-            <input type="text" id="url" placeholder="URL da Playlist (M3U)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
+            <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
+            <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
+            <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
             
-            <button onclick="iniciarAtivacao()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-3 rounded-lg transition-colors uppercase tracking-widest">
+            <button onclick="iniciarAtivacao()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-3 rounded-lg transition-colors uppercase">
                 Ativar Agora
             </button>
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl uppercase mb-2">Iniciando</p>
-            
-            <div id="loading-bar" class="w-full bg-gray-800 h-2 rounded-full mb-4 overflow-hidden">
+            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2 italic uppercase">Processando</p>
+            <div class="w-full bg-gray-800 h-2 rounded-full mb-4 overflow-hidden">
                 <div id="progress" class="bg-[#22c55e] h-full w-0 transition-all duration-500"></div>
             </div>
+            <p id="status-mensagem" class="text-gray-400 text-sm italic"></p>
 
-            <p id="status-mensagem" class="text-gray-400 text-sm mb-4 italic">Aguardando servidor...</p>
-
-            <div id="captcha-area" class="hidden space-y-4 bg-[#262626] p-4 rounded-xl">
-                <p class="text-xs text-yellow-500 font-bold">DIGITE O CÓDIGO DA IMAGEM ABAIXO:</p>
-                <img id="captcha-img" src="" class="mx-auto rounded border border-gray-600">
-                <input type="text" id="captcha-input" class="w-full p-2 bg-black text-center text-xl tracking-widest border border-gray-700 rounded uppercase">
+            <div id="captcha-area" class="hidden mt-4 space-y-4 bg-[#262626] p-4 rounded-xl">
+                <img id="captcha-img" src="" class="mx-auto rounded">
+                <input type="text" id="captcha-input" class="w-full p-2 bg-black text-center border border-gray-700 rounded uppercase">
                 <button onclick="enviarCaptcha()" class="w-full bg-white text-black font-bold py-2 rounded">CONFIRMAR</button>
             </div>
         </div>
@@ -60,9 +56,10 @@
         async function iniciarAtivacao() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
-            const url = document.getElementById('url').value;
+            const user = document.getElementById('usuario').value;
+            const pass = document.getElementById('senha').value;
 
-            if(!mac || !url) return alert("MAC e URL são obrigatórios!");
+            if(!mac || !user || !pass) return alert("MAC, Usuário e Senha são obrigatórios!");
             
             macGlobal = mac;
             document.getElementById('status-container').classList.remove('hidden');
@@ -71,7 +68,7 @@
             await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac, key, url_playlist: url, tipo: 'ibopro' })
+                body: JSON.stringify({ mac, key, usuario: user, senha: pass, tipo: 'ibopro' })
             });
 
             checarStatus();
@@ -80,22 +77,20 @@
         async function checarStatus() {
             const res = await fetch(`/status?mac=${macGlobal}`);
             const data = await res.json();
-
             const msgElement = document.getElementById('status-mensagem');
             const tituloElement = document.getElementById('status-titulo');
             const progress = document.getElementById('progress');
 
-            // MENSAGEM DE SUCESSO SOLICITADA
+            // MENSAGEM DE SUCESSO
             if (data.status === 'ok') {
                 tituloElement.innerText = "SUCESSO!";
-                msgElement.innerHTML = `<span class="text-white font-bold">✅ Prontinho! Já pode abrir o app na sua TV que a lista já irá funcionar.</span><br><small class="text-gray-500">Vamos continuar adicionando os conteúdos por aqui...</small>`;
+                msgElement.innerHTML = `<span class="text-white font-bold">✅ Prontinho! Já pode abrir o app na sua TV que a lista já irá funcionar.</span><br><span class="text-xs text-gray-500">Vamos continuar adicionando os conteúdos por aqui...</span>`;
                 progress.style.width = "100%";
-                progress.classList.replace('bg-[#22c55e]', 'bg-blue-500');
                 return;
             }
 
             if (data.status === 'erro') {
-                tituloElement.innerText = "FALHA";
+                tituloElement.innerText = "ERRO";
                 msgElement.innerText = data.mensagem;
                 return;
             }
@@ -103,15 +98,13 @@
             if (data.status === 'aguardando_captcha' && data.captchaBase64) {
                 document.getElementById('captcha-area').classList.remove('hidden');
                 document.getElementById('captcha-img').src = data.captchaBase64;
-                msgElement.innerText = "Por favor, resolva o captcha para continuar.";
+                msgElement.innerText = "Resolva o captcha para continuar";
             } else {
                 document.getElementById('captcha-area').classList.add('hidden');
                 msgElement.innerText = data.mensagem;
             }
 
-            if(data.status === 'processando') progress.style.width = "70%";
-            if(data.status === 'acessando_site') progress.style.width = "30%";
-
+            if(data.status === 'processando') progress.style.width = "50%";
             setTimeout(checarStatus, 3000);
         }
 
