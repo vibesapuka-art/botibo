@@ -1,12 +1,7 @@
 const express = require('express');
 const path = require('path');
-
-// IMPORTANTE: Ajuste o caminho para onde está o seu dns.js
-// Pelas suas fotos, ele está em src/config/dns.js
 const dnsConfig = require('./src/config/dns'); 
-
 const enginePro = require('./src/bot/engine');      
-const botIboCom = require('./src/bot/bot_ibocom'); 
 
 const app = express();
 
@@ -17,21 +12,25 @@ let pedidos = [];
 let botOcupado = false;
 
 app.post('/ativar', (req, res) => {
-    const { mac, key, user, pass, tipo } = req.body;
+    // Captura os nomes exatos enviados pelo formulário HTML
+    const { mac, key, usuario, senha, tipo } = req.body; 
     
     pedidos = pedidos.filter(p => p.mac !== mac);
     
-    // CORREÇÃO AQUI: Verificando se dnsConfig e servidores existem antes de ler o length
     const listaServidores = (dnsConfig && dnsConfig.servidores) ? dnsConfig.servidores : [];
 
     const novoPedido = {
-        mac, key, user, pass, tipo,
+        mac, 
+        key, 
+        user: usuario, // Mapeia 'usuario' para 'user' (que o engine.js usa)
+        pass: senha,   // Mapeia 'senha' para 'pass' (que o engine.js usa)
+        tipo,
         status: "pendente",
         mensagem: "Aguardando na fila...",
         captchaBase64: null,
         captchaDigitado: null,
         indiceAtual: 0,
-        total: listaServidores.length // Agora não dará erro de undefined
+        total: listaServidores.length
     };
 
     pedidos.push(novoPedido);
@@ -65,8 +64,6 @@ setInterval(async () => {
     try {
         if (pedido.tipo === "ibopro") {
             await enginePro(pedidos); 
-        } else if (pedido.tipo === "ibocom") {
-            await botIboCom(pedido);  
         }
     } catch (e) {
         console.error("Erro no Bot:", e.message);
