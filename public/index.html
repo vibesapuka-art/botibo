@@ -19,13 +19,13 @@
 
         <div class="flex justify-center mb-8">
             <div id="btn-ibopro" class="card-selected bg-[#262626] p-4 rounded-xl cursor-pointer text-center w-full">
-                <img src="https://iboplayer.com/wp-content/uploads/2023/10/ibo-pro-logo.png" alt="IB Player Pro" class="w-20 mx-auto mb-2 rounded-lg">
+                <img src="/logo_pro.png" alt="IB Player Pro" class="w-20 mx-auto mb-2 rounded-lg">
                 <p class="font-semibold text-sm uppercase">IB PLAYER PRO</p>
             </div>
         </div>
 
         <div id="form-ativacao" class="space-y-4">
-            <input type="text" id="mac" placeholder="MAC Address (Ex: 00:00:00...)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
+            <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
             <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
             <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
             <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
@@ -56,10 +56,10 @@
         async function iniciarAtivacao() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
-            const user = document.getElementById('usuario').value;
-            const pass = document.getElementById('senha').value;
+            const usuario = document.getElementById('usuario').value;
+            const senha = document.getElementById('senha').value;
 
-            if(!mac || !user || !pass) return alert("MAC, Usuário e Senha são obrigatórios!");
+            if(!mac || !usuario || !senha) return alert("Preencha todos os campos!");
             
             macGlobal = mac;
             document.getElementById('status-container').classList.remove('hidden');
@@ -68,7 +68,7 @@
             await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac, key, usuario: user, senha: pass, tipo: 'ibopro' })
+                body: JSON.stringify({ mac, key, usuario, senha, tipo: 'ibopro' })
             });
 
             checarStatus();
@@ -81,10 +81,16 @@
             const tituloElement = document.getElementById('status-titulo');
             const progress = document.getElementById('progress');
 
-            // MENSAGEM DE SUCESSO
+            // Mensagem quando pelo menos 1 DNS foi adicionado
+            if (data.indiceAtual >= 1 && data.status !== 'ok') {
+                msgElement.innerHTML = `<span class="text-white font-bold">A primeira lista já subiu! Você já pode abrir o app.</span><br><span class="text-xs text-gray-500">Estamos adicionando as outras... (${data.indiceAtual}/${data.total})</span>`;
+            } else {
+                msgElement.innerText = data.mensagem;
+            }
+
             if (data.status === 'ok') {
                 tituloElement.innerText = "SUCESSO!";
-                msgElement.innerHTML = `<span class="text-white font-bold">✅ Prontinho! Já pode abrir o app na sua TV que a lista já irá funcionar.</span><br><span class="text-xs text-gray-500">Vamos continuar adicionando os conteúdos por aqui...</span>`;
+                msgElement.innerHTML = `<span class="text-white font-bold">✅ Prontinho! Já pode abrir o app na sua TV.</span><br><span class="text-xs text-gray-500">Vamos continuar adicionando os conteúdos por aqui...</span>`;
                 progress.style.width = "100%";
                 return;
             }
@@ -98,10 +104,8 @@
             if (data.status === 'aguardando_captcha' && data.captchaBase64) {
                 document.getElementById('captcha-area').classList.remove('hidden');
                 document.getElementById('captcha-img').src = data.captchaBase64;
-                msgElement.innerText = "Resolva o captcha para continuar";
             } else {
                 document.getElementById('captcha-area').classList.add('hidden');
-                msgElement.innerText = data.mensagem;
             }
 
             if(data.status === 'processando') progress.style.width = "50%";
