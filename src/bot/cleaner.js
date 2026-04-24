@@ -19,7 +19,8 @@ module.exports = async (pedido) => {
         
         await page.waitForSelector('#mac_address', { visible: true });
         await page.type('#mac_address', pedido.mac);
-        await page.type('#password', pedido.key); // Usando 'password' conforme o código-fonte real
+        // O campo da key usa id="password" no sistema deles
+        await page.type('#password', pedido.key); 
         
         await Promise.all([
             page.click('button[type="submit"].btn-primary'),
@@ -30,40 +31,42 @@ module.exports = async (pedido) => {
         while (true) {
             await page.reload({ waitUntil: "networkidle2" });
             
-            // Conta quantos botões de Delete existem na página
-            const totalListas = await page.$$eval('button.btn-warning', (btns) => btns.length);
+            // Localiza todos os botões que possuem a classe de delete
+            const deleteButtons = await page.$$('button.btn-warning, button.styles_button__17ZvA');
+            const totalListas = deleteButtons.length;
             
             if (totalListas === 0) {
                 pedido.mensagem = "✅ Tudo limpo! Nenhuma lista restante.";
                 break; 
             }
 
-            // Atualiza o painel para você ver o progresso real
             pedido.mensagem = `Encontradas ${totalListas} listas. Excluindo uma...`;
             
-            const deleteBtn = await page.$('button.btn-warning');
-            await deleteBtn.click();
+            // Clica no primeiro botão de delete encontrado
+            await deleteButtons[0].click();
 
             // 3. CONFIRMAÇÃO DO PIN
             try {
-                // Espera o campo de PIN e o botão OK
-                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
-                await page.type('input[name="pin"]', "123321", { delay: 100 }); 
+                // Aguarda o campo de PIN ficar visível no modal
+                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 10000 });
+                await page.focus('input[name="pin"]');
+                await page.keyboard.type("123321", { delay: 100 }); 
 
-                const okBtn = await page.$('button.btn-success');
+                // Localiza o botão 'Ok' verde para confirmar a exclusão
+                const okBtn = await page.waitForSelector('button.btn-success', { visible: true });
                 await okBtn.click();
 
-                // Pausa para o servidor aceitar o comando
+                // Espera técnica para o servidor processar a remoção
                 await new Promise(r => setTimeout(r, 5000));
                 
-                // Verifica se o modal sumiu, se não sumiu, tenta clicar no OK de novo
-                const modalAindaAberto = await page.$('input[name="pin"]');
-                if (modalAindaAberto) {
+                // Se o modal ainda estiver aberto, tenta forçar com a tecla Enter
+                const modalAberto = await page.$('input[name="pin"]');
+                if (modalAberto) {
                     await page.keyboard.press('Enter');
                     await new Promise(r => setTimeout(r, 3000));
                 }
             } catch (pinErr) {
-                console.log("Erro ao processar o PIN.");
+                console.log("Erro ao processar o PIN ou modal não apareceu.");
                 break;
             }
         }
