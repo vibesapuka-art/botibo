@@ -1,6 +1,5 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
-const login = require("./tasks/login");
 
 module.exports = async (pedido) => {
     let browser;
@@ -12,31 +11,42 @@ module.exports = async (pedido) => {
         });
 
         const page = await browser.newPage();
-        const sucessoLogin = await login(page, pedido.mac, pedido.key);
-        if (!sucessoLogin) return;
+        
+        // LOGIN NO IBPRO
+        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
+        await page.type('input[name="mac_address"]', pedido.mac);
+        await page.type('input[name="device_key"]', pedido.key);
+        await page.click('button[type="submit"]');
+        await page.waitForNavigation({ waitUntil: "networkidle2" });
 
+        // LOOP DE DELETAR
         while (true) {
+            // Procura botões de Delete
             const deleteBtn = await page.$('.btn-danger, button[onclick*="delete"]');
             if (!deleteBtn) break;
 
+            pedido.mensagem = "Excluindo lista antiga...";
             await deleteBtn.click();
+            
+            // Aguarda o modal do PIN aparecer
             await new Promise(r => setTimeout(r, 2000));
-
-            // Digita o PIN 123321
-            const inputs = await page.$$('input');
-            for (let input of inputs) {
-                const type = await page.evaluate(el => el.type, input);
-                if (type === 'text' || type === 'password') {
-                    await input.type("123321");
-                }
+            
+            // Digita o PIN no campo que aparecer
+            const pinInput = await page.$('input[name="pin"], #pin');
+            if (pinInput) {
+                await page.type('input[name="pin"], #pin', "123321"); // Substitua pelo seu PIN
+                await page.keyboard.press('Enter');
             }
 
-            await page.keyboard.press('Enter');
-            await new Promise(r => setTimeout(r, 4000)); // Espera 4 segundos
+            // Espera 4 segundos conforme solicitado
+            await new Promise(r => setTimeout(r, 4000));
             await page.reload({ waitUntil: "networkidle2" });
         }
+        
+        pedido.mensagem = "✅ Dispositivo limpo!";
     } catch (err) {
-        console.error("Erro Cleaner:", err.message);
+        pedido.mensagem = "Erro: Dados de login incorretos.";
+        console.error(err);
     } finally {
         if (browser) await browser.close();
     }
