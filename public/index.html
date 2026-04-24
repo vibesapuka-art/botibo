@@ -10,6 +10,10 @@
         input { transition: all 0.3s; }
         .btn-limpar { background-color: #dc2626; }
         .btn-limpar:hover { background-color: #b91c1c; }
+        .tab-active-green { background-color: #22c55e; color: black; }
+        .tab-active-blue { background-color: #3b82f6; color: white; }
+        .tab-active-red { background-color: #dc2626; color: white; }
+        .tab-inactive { background-color: #262626; color: #9ca3af; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -17,9 +21,10 @@
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
         <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic">ATV DIGITAL</h1>
         
-        <div class="grid grid-cols-2 gap-2 mb-6">
-            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg bg-[#22c55e] text-black font-bold text-xs uppercase">Ativar Novo</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg bg-[#262626] text-gray-400 font-bold text-xs uppercase">Limpar Playlists</button>
+        <div class="grid grid-cols-3 gap-2 mb-6">
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase">Novo</button>
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Assinante</button>
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar</button>
         </div>
 
         <div id="form-container" class="space-y-4">
@@ -27,8 +32,9 @@
             <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
             <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
 
-            <div id="secao-completa" class="space-y-4">
-                <hr class="border-gray-800">
+            <div id="secao-dinamica" class="space-y-4">
+                <hr id="divisor" class="border-gray-800">
+                
                 <div id="campos-gestor" class="space-y-3">
                     <div class="grid grid-cols-2 gap-2">
                         <input type="text" id="nome" placeholder="Nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
@@ -36,8 +42,11 @@
                     </div>
                     <input type="text" id="whatsapp" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
                 </div>
-                <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
-                <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+
+                <div id="campos-iptv" class="space-y-3">
+                    <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                    <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                </div>
             </div>
 
             <button id="btn-acao" onclick="processar()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg transition-colors uppercase mt-4">
@@ -56,17 +65,42 @@
 
         function setModo(modo) {
             modoAtual = modo;
-            const isLimpar = modo === 'limpar';
             
-            document.getElementById('secao-completa').classList.toggle('hidden', isLimpar);
-            document.getElementById('btn-acao').innerText = isLimpar ? 'Executar Limpeza Profunda' : 'Iniciar Ativação';
-            document.getElementById('btn-acao').className = isLimpar ? 
-                'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4' : 
-                'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
-            
-            // Estilo das abas
-            document.getElementById('tab-ativar').className = isLimpar ? 'p-2 rounded-lg bg-[#262626] text-gray-400 font-bold text-xs' : 'p-2 rounded-lg bg-[#22c55e] text-black font-bold text-xs';
-            document.getElementById('tab-limpar').className = isLimpar ? 'p-2 rounded-lg bg-red-600 text-white font-bold text-xs' : 'p-2 rounded-lg bg-[#262626] text-gray-400 font-bold text-xs';
+            // Controle de visibilidade
+            const gestor = document.getElementById('campos-gestor');
+            const iptv = document.getElementById('campos-iptv');
+            const divisor = document.getElementById('divisor');
+            const btn = document.getElementById('btn-acao');
+
+            // Reset de classes das abas
+            document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            if (modo === 'ativar') {
+                gestor.classList.remove('hidden');
+                iptv.classList.remove('hidden');
+                divisor.classList.remove('hidden');
+                btn.innerText = 'Iniciar Ativação';
+                btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
+                document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
+            } 
+            else if (modo === 'assinante') {
+                gestor.classList.add('hidden'); // ESCONDE NOME/WHATS
+                iptv.classList.remove('hidden'); // MANTÉM USER/SENHA
+                divisor.classList.remove('hidden');
+                btn.innerText = 'Reativar Cadastro';
+                btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
+                document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
+            }
+            else if (modo === 'limpar') {
+                gestor.classList.add('hidden');
+                iptv.classList.add('hidden');
+                divisor.classList.add('hidden');
+                btn.innerText = 'Executar Limpeza Profunda';
+                btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
+                document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
+            }
         }
 
         async function processar() {
@@ -84,20 +118,29 @@
             if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
 
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Conectando ao bot...";
+            document.getElementById('status-mensagem').innerText = "Iniciando processo...";
 
+            // Se for 'assinante', ele usa a mesma rota de ativar, mas o seu backend vai notar que nome/whats estão vazios
             const rota = modoAtual === 'limpar' ? '/limpar' : '/ativar';
-            await fetch(rota, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
             
-            setInterval(async () => {
-                const res = await fetch(`/status?mac=${data.mac}`);
-                const status = await res.json();
-                if(status.mensagem) document.getElementById('status-mensagem').innerText = status.mensagem;
-            }, 3000);
+            try {
+                await fetch(rota, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const interval = setInterval(async () => {
+                    const res = await fetch(`/status?mac=${data.mac}`);
+                    const status = await res.json();
+                    if(status.mensagem) {
+                        document.getElementById('status-mensagem').innerText = status.mensagem;
+                        if(status.mensagem.includes("✅") || status.mensagem.includes("❌")) clearInterval(interval);
+                    }
+                }, 3000);
+            } catch (e) {
+                document.getElementById('status-mensagem').innerText = "Erro ao conectar com o servidor.";
+            }
         }
     </script>
 </body>
