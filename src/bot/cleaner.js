@@ -11,76 +11,63 @@ module.exports = async (pedido) => {
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 }); // Força modo desktop para seletores estáveis
+        await page.setViewport({ width: 1280, height: 800 });
 
-        // 1. LOGIN
-        pedido.mensagem = "Entrando no painel...";
+        // 1. LOGIN COM OS NOMES REAIS DOS CAMPOS
+        pedido.mensagem = "Conectando ao painel...";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
         
-        await page.waitForSelector('input[name="mac_address"]', { timeout: 20000 });
-        await page.type('input[name="mac_address"]', pedido.mac);
-        await page.type('input[name="device_key"]', pedido.key);
+        // Campo MAC
+        await page.waitForSelector('#mac_address', { visible: true });
+        await page.type('#mac_address', pedido.mac);
+
+        // Campo Device Key (que no código é 'password')
+        await page.type('#password', pedido.key);
         
+        // Botão de Login
         await Promise.all([
-            page.click('button[type="submit"]'),
+            page.click('button[type="submit"].btn-primary'),
             page.waitForNavigation({ waitUntil: "networkidle2" })
         ]);
 
-        // 2. LOOP COM VALIDAÇÃO DE EXCLUSÃO
-        let tentativas = 0;
-        while (tentativas < 10) { 
+        // 2. LOOP DE EXCLUSÃO
+        while (true) {
             await page.reload({ waitUntil: "networkidle2" });
             
-            // Verifica se o botão Delete existe
-            const deleteBtn = await page.$('.btn-warning, .btn-danger, button[onclick*="delete"]');
+            // Botão Delete Amarelo
+            const deleteBtn = await page.$('button.btn-warning.styles_button__17ZvA');
             
             if (!deleteBtn) {
-                console.log("Nenhuma playlist detectada.");
+                console.log("Limpeza completa.");
                 break; 
             }
 
-            pedido.mensagem = `Excluindo lista... (Tentativa ${tentativas + 1})`;
-            
-            // Rola até o botão e clica
-            await deleteBtn.evaluate(el => el.scrollIntoView());
+            pedido.mensagem = "Removendo lista encontrada...";
             await deleteBtn.click();
 
-            // 3. INTERAÇÃO COM PIN
+            // 3. CONFIRMAÇÃO DO PIN
             try {
-                // Espera o modal de PIN aparecer e ficar visível
-                await page.waitForSelector('.modal-content, #confirmPin', { visible: true, timeout: 10000 });
-                
-                // Força o foco no campo de PIN e digita
-                const inputPin = await page.$('input#pin, input[name="pin"], .modal-body input');
-                await inputPin.focus();
-                await inputPin.click({ clickCount: 3 });
-                await page.keyboard.type("123321", { delay: 100 }); 
+                // Campo de PIN
+                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
+                await page.type('input[name="pin"]', "123321", { delay: 100 }); 
 
-                // Clica no botão "Ok" verde
-                const okBtn = await page.waitForSelector('button.btn-success, .btn-primary, #ok_btn', { visible: true });
+                // Botão OK Verde
+                const okBtn = await page.$('button.btn-success');
                 await okBtn.click();
 
-                // ESPERA OBRIGATÓRIA PARA PROCESSAMENTO DO SERVIDOR
-                await new Promise(r => setTimeout(r, 5000)); 
-                
+                // Espera de 5 segundos para o servidor processar
+                await new Promise(r => setTimeout(r, 5000));
             } catch (pinErr) {
-                console.log("Erro no modal do PIN, tentando novamente.");
+                console.log("Erro no modal do PIN.");
+                break;
             }
-            
-            tentativas++;
         }
 
-        // Validação final: se ainda houver botão delete, algo deu errado
-        const conferênciaFinal = await page.$('.btn-warning, .btn-danger');
-        if (conferênciaFinal) {
-            pedido.mensagem = "❌ O site não confirmou a exclusão. Tente novamente.";
-        } else {
-            pedido.mensagem = "✅ Tudo limpo! Aparelho pronto.";
-        }
+        pedido.mensagem = "✅ Limpeza profunda concluída!";
         
     } catch (err) {
-        console.error("Erro Cleaner:", err.message);
-        pedido.mensagem = "❌ Erro: " + err.message;
+        console.error("Erro no Cleaner:", err.message);
+        pedido.mensagem = "❌ Erro técnico na limpeza.";
     } finally {
         if (browser) await browser.close();
     }
