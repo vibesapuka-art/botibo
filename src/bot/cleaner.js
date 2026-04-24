@@ -24,11 +24,11 @@ module.exports = async (pedido) => {
             page.waitForNavigation({ waitUntil: "networkidle2" })
         ]);
 
-        // 2. CONTAGEM E LIMPEZA
+        // 2. LOOP DE LIMPEZA
         while (true) {
             await page.reload({ waitUntil: "networkidle2" });
             
-            // Localiza todos os botões de Delete amarelo
+            // Conta listas reais baseada nos botões Delete amarelos
             const totalListas = await page.$$eval('button.btn-warning', btns => btns.length);
             
             if (totalListas === 0) {
@@ -38,35 +38,38 @@ module.exports = async (pedido) => {
 
             pedido.mensagem = `Encontradas ${totalListas} listas. Excluindo...`;
 
-            // CLIQUE FORÇADO: Usa JavaScript para clicar no primeiro botão Delete encontrado
+            // Clica no botão Delete
             await page.evaluate(() => {
                 const btn = document.querySelector('button.btn-warning');
                 if (btn) btn.click();
             });
 
-            // 3. CONFIRMAÇÃO DO PIN
+            // 3. PREENCHIMENTO DO PIN REFORÇADO
             try {
-                // Espera o modal de PIN ficar 100% visível
-                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 10000 });
+                // Aguarda o campo de PIN aparecer
+                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
                 
-                // Digita o PIN simulando teclado real
-                await page.focus('input[name="pin"]');
-                await page.keyboard.type("123321", { delay: 150 }); 
+                // Limpa o campo e digita o PIN com atraso humano
+                const inputPin = await page.$('input[name="pin"]');
+                await inputPin.click({ clickCount: 3 }); // Garante que limpou
+                await page.keyboard.press('Backspace');
+                await page.keyboard.type("123321", { delay: 200 }); 
 
-                // Clique forçado no botão OK (verde)
+                // EM VEZ DE SÓ CLICAR, APERTA ENTER (Mais seguro contra bloqueios de clique)
+                await page.keyboard.press('Enter');
+
+                // Tenta também o clique no botão Ok verde por garantia
                 await page.evaluate(() => {
                     const okBtn = document.querySelector('button.btn-success');
                     if (okBtn) okBtn.click();
                 });
 
-                // Espera 5 segundos para o site processar a exclusão antes de recarregar
-                await new Promise(r => setTimeout(r, 5000));
+                // Pausa de 6 segundos: dá tempo do servidor processar e sumir com a lista
+                await new Promise(r => setTimeout(r, 6000));
                 
             } catch (pinErr) {
-                console.log("Erro ao processar o PIN ou modal não abriu.");
-                // Se o modal não abriu, tenta dar um Enter caso o clique tenha falhado
-                await page.keyboard.press('Enter');
-                await new Promise(r => setTimeout(r, 3000));
+                console.log("Erro ao preencher PIN ou modal não apareceu.");
+                break;
             }
         }
         
