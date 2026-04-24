@@ -1,101 +1,64 @@
 const express = require('express');
 const path = require('path');
-const dnsConfig = require('./src/config/dns'); 
-const enginePro = require('./src/bot/engine');      
-const cleaner = require('./src/bot/cleaner'); // Novo módulo de limpeza
+const activator = require('./src/bot/activator');
+const cleaner = require('./src/bot/cleaner');
+const gestorBot = require('./src/bot/gestor'); // Bot que salva os dados do cliente
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public')); // Serve o seu index.html
 
-let pedidos = [];
-let botOcupado = false;
+// Banco de dados temporário para mensagens de status
+const statusPedidos = {};
 
-// ROTA PARA ATIVAÇÃO COMPLETA (NOVO CLIENTE OU RENOVAÇÃO)
-app.post('/ativar', (req, res) => {
-    const { mac, key, usuario, senha, nome, sobrenome, whatsapp, tipo } = req.body;
+// --- ROTA DE ATIVAÇÃO (NOVO E ASSINANTE) ---
+app.post('/ativar', async (req, res) => {
+    const pedido = req.body;
+    const macId = pedido.mac.toLowerCase();
     
-    // Remove pedidos antigos com o mesmo MAC para não duplicar na fila
-    pedidos = pedidos.filter(p => p.mac !== mac);
-    
-    const novoPedido = {
-        mac, key, 
-        user: usuario, 
-        pass: senha,
-        nome, sobrenome, whatsapp,
-        status: "pendente",
-        mensagem: "Na fila de ativação...",
-        indiceAtual: 0,
-        total: dnsConfig.servidores.length,
-        tipo: "ibopro" // Identifica como ativação
-    };
+    // Inicializa o objeto de status
+    statusPedidos[macId] = { mensagem: "Iniciando processamento..." };
 
-    pedidos.push(novoPedido);
-    res.json({ success: true });
+    // 1. Lógica do Gestor (Cadastro): Só ocorre no modo 'ativar'
+    if (pedido.tipo === 'ativar' && pedido.nome && pedido.whatsapp) {
+        statusPedidos[macId].mensagem = "Cadastrando cliente no gestor...";
+        // Executa o bot do gestor em paralelo ou aguarda se for crítico
+        gestorBot(pedido).catch(err => console.error("Erro Gestor:", err.message));
+    }
+
+    // 2. Lógica Técnica (Puppeteer no IBO Pro)
+    // Passamos o objeto statusPedidos para o bot atualizar a mensagem em tempo real
+    statusPedidos[macId].mensagem = "Conectando ao IBO Pro...";
+    activator(pedido, statusPedidos[macId]);
+
+    res.json({ success: true, message: "Processo iniciado" });
 });
 
-// ROTA EXCLUSIVA PARA LIMPEZA (APENAS DELETAR LISTAS)
-app.post('/limpar', (req, res) => {
-    const { mac, key } = req.body;
-    
-    pedidos = pedidos.filter(p => p.mac !== mac);
+// --- ROTA DE LIMPEZA PROFUNDA ---
+app.post('/limpar', async (req, res) => {
+    const pedido = req.body;
+    const macId = pedido.mac.toLowerCase();
 
-    const pedidoLimpeza = { 
-        mac, 
-        key, 
-        status: "pendente", 
-        tipo: "limpeza", // Identifica como limpeza
-        mensagem: "Aguardando bot para limpeza..." 
-    };
+    statusPedidos[macId] = { mensagem: "Iniciando limpeza..." };
 
-    pedidos.push(pedidoLimpeza);
-    res.json({ success: true });
+    // Chama o cleaner que configuramos para localizar e excluir as listas
+    cleaner(pedido, statusPedidos[macId]);
+
+    res.json({ success: true, message: "Limpeza iniciada" });
 });
 
-// ROTA DE STATUS (O FRONT-END FICA CONSULTANDO AQUI)
+// --- ROTA DE CONSULTA DE STATUS (O POLLING DO SEU HTML) ---
 app.get('/status', (req, res) => {
-    const pedido = pedidos.find(p => p.mac === req.query.mac);
-    if (pedido) {
-        res.json(pedido);
+    const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
+    if (mac && statusPedidos[mac]) {
+        res.json(statusPedidos[mac]);
     } else {
-        res.json({ status: "nao_encontrado", mensagem: "Pedido não localizado." });
+        res.json({ mensagem: "Aguardando comando..." });
     }
 });
 
-// MOTOR DE PROCESSAMENTO (O CORAÇÃO DO BOT)
-setInterval(async () => {
-    if (botOcupado) return;
-    
-    // Busca o próximo da fila (seja ativação ou limpeza)
-    const pedido = pedidos.find(p => p.status === "pendente" || p.status === "processando");
-    
-    if (!pedido) return;
-
-    botOcupado = true;
-    pedido.status = "processando";
-
-    try {
-        if (pedido.tipo === "limpeza") {
-            // Chama o arquivo cleaner.js
-            await cleaner(pedido);
-            pedido.status = "ok";
-            pedido.mensagem = "✅ Limpeza concluída com sucesso!";
-        } else {
-            // Chama o arquivo engine.js original para adicionar DNS e Gestor
-            await enginePro(pedidos); 
-        }
-    } catch (error) {
-        console.error("Erro no processamento:", error);
-        pedido.status = "erro";
-        pedido.mensagem = "❌ Erro técnico: " + error.message;
-    } finally {
-        botOcupado = false;
-    }
-}, 5000); // Tenta processar a cada 5 segundos
-
-const PORT = process.env.PORT || 10000;
+// Inicialização do Servidor
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`=================================`);
-    console.log(`SERVIDOR ON: PORTA ${PORT}`);
-    console.log(`=================================`);
+    console.log(`🚀 Servidor ATV DIGITAL rodando na porta ${PORT}`);
 });
