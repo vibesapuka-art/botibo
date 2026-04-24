@@ -3,123 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ativador Digital - IB Player Pro</title>
+    <title>Ativador Digital - IB Pro & Gestor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f0f0f; color: white; }
+        body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
         .card-selected { border: 2px solid #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.5); }
+        input { transition: all 0.3s; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6">Ativador Digital</h1>
+        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic">ATV DIGITAL</h1>
         
-        <p class="text-gray-400 text-center mb-4">Selecione o Aplicativo:</p>
+        <div class="flex items-center space-x-3 bg-[#262626] p-4 rounded-xl mb-6 border border-gray-700">
+            <input type="checkbox" id="ja_assinante" onchange="toggleModo()" class="w-5 h-5 accent-[#22c55e] cursor-pointer">
+            <label for="ja_assinante" class="text-sm font-medium cursor-pointer">Já sou assinante / Renovação</label>
+        </div>
 
-        <div class="flex justify-center mb-8">
-            <div id="btn-ibopro" class="card-selected bg-[#262626] p-4 rounded-xl cursor-pointer text-center w-full">
-                <img src="/logo_pro.png" alt="IB Player Pro" class="w-20 mx-auto mb-2 rounded-lg">
-                <p class="font-semibold text-sm uppercase">IB PLAYER PRO</p>
-            </div>
+        <div id="area-limpeza" class="hidden mb-6">
+            <button onclick="solicitarLimpeza()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-all text-xs uppercase shadow-lg">
+                🗑️ Limpar Listas Antigas do Aparelho
+            </button>
+            <p class="text-[10px] text-gray-500 text-center mt-2">Recomendado antes de atualizar sua lista.</p>
         </div>
 
         <div id="form-ativacao" class="space-y-4">
-            <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
-            <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
-            <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
-            <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg focus:outline-none focus:border-[#22c55e]">
+            <div id="campos-gestor" class="space-y-3">
+                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Cadastro Novo Cliente</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="nome" placeholder="Seu nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                    <input type="text" id="sobrenome" placeholder="Sobrenome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                </div>
+                <input type="date" id="nascimento" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-gray-400">
+                <input type="text" id="whatsapp" placeholder="WhatsApp (DDD + Número)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                <hr class="border-gray-800 my-2">
+            </div>
+
+            <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados da TV e App</p>
+            <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+            <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+            <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+            <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
             
-            <button onclick="iniciarAtivacao()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-3 rounded-lg transition-colors uppercase">
-                Ativar Agora
+            <button onclick="iniciarAtivacao()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg transition-colors uppercase mt-4">
+                Ativar Dispositivo
             </button>
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2 italic uppercase">Processando</p>
+            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2 uppercase">Aguarde</p>
             <div class="w-full bg-gray-800 h-2 rounded-full mb-4 overflow-hidden">
                 <div id="progress" class="bg-[#22c55e] h-full w-0 transition-all duration-500"></div>
             </div>
             <p id="status-mensagem" class="text-gray-400 text-sm italic"></p>
-
-            <div id="captcha-area" class="hidden mt-4 space-y-4 bg-[#262626] p-4 rounded-xl">
-                <img id="captcha-img" src="" class="mx-auto rounded">
-                <input type="text" id="captcha-input" class="w-full p-2 bg-black text-center border border-gray-700 rounded uppercase">
-                <button onclick="enviarCaptcha()" class="w-full bg-white text-black font-bold py-2 rounded">CONFIRMAR</button>
-            </div>
         </div>
     </div>
 
     <script>
         let macGlobal = "";
 
-        async function iniciarAtivacao() {
+        function toggleModo() {
+            const isAssinante = document.getElementById('ja_assinante').checked;
+            document.getElementById('campos-gestor').classList.toggle('hidden', isAssinante);
+            document.getElementById('area-limpeza').classList.toggle('hidden', !isAssinante);
+            if(isAssinante) {
+                document.getElementById('nome').value = "";
+                document.getElementById('sobrenome').value = "";
+            }
+        }
+
+        async function solicitarLimpeza() {
             const mac = document.getElementById('mac').value;
             const key = document.getElementById('key').value;
-            const usuario = document.getElementById('usuario').value;
-            const senha = document.getElementById('senha').value;
+            if(!mac || !key) return alert("Preencha MAC e Key para limpar!");
 
-            if(!mac || !usuario || !senha) return alert("Preencha todos os campos!");
-            
             macGlobal = mac;
-            document.getElementById('status-container').classList.remove('hidden');
+            mostrarStatus("Limpando listas antigas...");
+            await fetch('/limpar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mac, key })
+            });
+            checarStatus();
+        }
+
+        async function iniciarAtivacao() {
+            const campos = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                usuario: document.getElementById('usuario').value,
+                senha: document.getElementById('senha').value,
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                nascimento: document.getElementById('nascimento').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                tipo: 'ibopro'
+            };
+
+            if(!campos.mac || !campos.usuario || !campos.senha) return alert("Preencha MAC e Credenciais IPTV!");
+            
+            macGlobal = campos.mac;
+            mostrarStatus("Iniciando processo...");
             document.getElementById('form-ativacao').classList.add('opacity-50', 'pointer-events-none');
 
             await fetch('/ativar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac, key, usuario, senha, tipo: 'ibopro' })
+                body: JSON.stringify(campos)
             });
 
             checarStatus();
+        }
+
+        function mostrarStatus(msg) {
+            document.getElementById('status-container').classList.remove('hidden');
+            document.getElementById('status-mensagem').innerText = msg;
         }
 
         async function checarStatus() {
             const res = await fetch(`/status?mac=${macGlobal}`);
             const data = await res.json();
             const msgElement = document.getElementById('status-mensagem');
-            const tituloElement = document.getElementById('status-titulo');
             const progress = document.getElementById('progress');
 
-            // Mensagem quando pelo menos 1 DNS foi adicionado
-            if (data.indiceAtual >= 1 && data.status !== 'ok') {
-                msgElement.innerHTML = `<span class="text-white font-bold">A primeira lista já subiu! Você já pode abrir o app.</span><br><span class="text-xs text-gray-500">Estamos adicionando as outras... (${data.indiceAtual}/${data.total})</span>`;
-            } else {
-                msgElement.innerText = data.mensagem;
-            }
-
+            msgElement.innerText = data.mensagem;
             if (data.status === 'ok') {
-                tituloElement.innerText = "SUCESSO!";
-                msgElement.innerHTML = `<span class="text-white font-bold">✅ Prontinho! Já pode abrir o app na sua TV.</span><br><span class="text-xs text-gray-500">Vamos continuar adicionando os conteúdos por aqui...</span>`;
+                document.getElementById('status-titulo').innerText = "CONCLUÍDO!";
                 progress.style.width = "100%";
                 return;
             }
-
-            if (data.status === 'erro') {
-                tituloElement.innerText = "ERRO";
-                msgElement.innerText = data.mensagem;
-                return;
-            }
-
-            if (data.status === 'aguardando_captcha' && data.captchaBase64) {
-                document.getElementById('captcha-area').classList.remove('hidden');
-                document.getElementById('captcha-img').src = data.captchaBase64;
-            } else {
-                document.getElementById('captcha-area').classList.add('hidden');
-            }
-
             if(data.status === 'processando') progress.style.width = "50%";
             setTimeout(checarStatus, 3000);
-        }
-
-        async function enviarCaptcha() {
-            const texto = document.getElementById('captcha-input').value;
-            await fetch('/resolver-captcha', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mac: macGlobal, texto })
-            });
-            document.getElementById('captcha-input').value = "";
         }
     </script>
 </body>
