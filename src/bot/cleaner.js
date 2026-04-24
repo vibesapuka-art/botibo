@@ -11,71 +11,76 @@ module.exports = async (pedido) => {
         });
 
         const page = await browser.newPage();
-        await page.setDefaultNavigationTimeout(60000);
+        await page.setViewport({ width: 1280, height: 800 }); // Força modo desktop para seletores estáveis
 
-        // 1. CONEXÃO AO PAINEL (Ajustada para evitar erro de seletor)
-        pedido.mensagem = "Abrindo painel de login...";
+        // 1. LOGIN
+        pedido.mensagem = "Entrando no painel...";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
         
-        // Espera qualquer um dos possíveis seletores de MAC aparecer
-        await page.waitForSelector('input[name="mac_address"], #mac_address', { visible: true, timeout: 20000 });
+        await page.waitForSelector('input[name="mac_address"]', { timeout: 20000 });
+        await page.type('input[name="mac_address"]', pedido.mac);
+        await page.type('input[name="device_key"]', pedido.key);
         
-        // Digita o MAC
-        await page.type('input[name="mac_address"], #mac_address', pedido.mac);
-
-        // Espera e digita a KEY usando múltiplos seletores para evitar o erro anterior
-        const keySelector = 'input[name="device_key"], #device_key, input[placeholder*="Key"]';
-        await page.waitForSelector(keySelector, { visible: true, timeout: 10000 });
-        await page.type(keySelector, pedido.key);
-        
-        // Clique no botão de login (Submit)
         await Promise.all([
-            page.click('button[type="submit"], .btn-primary'),
+            page.click('button[type="submit"]'),
             page.waitForNavigation({ waitUntil: "networkidle2" })
         ]);
 
-        // 2. LOOP DE LIMPEZA
-        while (true) {
+        // 2. LOOP COM VALIDAÇÃO DE EXCLUSÃO
+        let tentativas = 0;
+        while (tentativas < 10) { 
             await page.reload({ waitUntil: "networkidle2" });
             
-            // Busca o botão de Delete (Amarelo/Vermelho na tabela)
+            // Verifica se o botão Delete existe
             const deleteBtn = await page.$('.btn-warning, .btn-danger, button[onclick*="delete"]');
             
             if (!deleteBtn) {
-                console.log("Limpeza concluída: sem mais listas.");
+                console.log("Nenhuma playlist detectada.");
                 break; 
             }
 
-            pedido.mensagem = "Playlist encontrada. Removendo...";
+            pedido.mensagem = `Excluindo lista... (Tentativa ${tentativas + 1})`;
+            
+            // Rola até o botão e clica
+            await deleteBtn.evaluate(el => el.scrollIntoView());
             await deleteBtn.click();
 
-            // 3. CONFIRMAÇÃO COM PIN
+            // 3. INTERAÇÃO COM PIN
             try {
-                // Espera o campo de PIN no modal
-                await page.waitForSelector('input#pin, input[name="pin"], .modal-body input', { visible: true, timeout: 8000 });
-                const pinField = await page.$('input#pin, input[name="pin"], .modal-body input');
+                // Espera o modal de PIN aparecer e ficar visível
+                await page.waitForSelector('.modal-content, #confirmPin', { visible: true, timeout: 10000 });
                 
-                await pinField.click({ clickCount: 3 }); 
-                await pinField.type("123321"); // Seu PIN padrão
-                
-                // Clica no botão OK (Verde) do modal
-                const okBtn = await page.$('button.btn-success, .btn-primary');
-                if (okBtn) await okBtn.click();
-                else await page.keyboard.press('Enter');
+                // Força o foco no campo de PIN e digita
+                const inputPin = await page.$('input#pin, input[name="pin"], .modal-body input');
+                await inputPin.focus();
+                await inputPin.click({ clickCount: 3 });
+                await page.keyboard.type("123321", { delay: 100 }); 
 
-                // Pausa de 4 segundos para o processamento do servidor
-                await new Promise(r => setTimeout(r, 4000));
+                // Clica no botão "Ok" verde
+                const okBtn = await page.waitForSelector('button.btn-success, .btn-primary, #ok_btn', { visible: true });
+                await okBtn.click();
+
+                // ESPERA OBRIGATÓRIA PARA PROCESSAMENTO DO SERVIDOR
+                await new Promise(r => setTimeout(r, 5000)); 
+                
             } catch (pinErr) {
-                console.log("Erro no PIN, tentando recarregar.");
-                break;
+                console.log("Erro no modal do PIN, tentando novamente.");
             }
+            
+            tentativas++;
         }
 
-        pedido.mensagem = "✅ Dispositivo limpo!";
+        // Validação final: se ainda houver botão delete, algo deu errado
+        const conferênciaFinal = await page.$('.btn-warning, .btn-danger');
+        if (conferênciaFinal) {
+            pedido.mensagem = "❌ O site não confirmou a exclusão. Tente novamente.";
+        } else {
+            pedido.mensagem = "✅ Tudo limpo! Aparelho pronto.";
+        }
         
     } catch (err) {
-        console.error("Erro no Cleaner:", err.message);
-        pedido.mensagem = "❌ Erro: Verifique se o MAC/Key estão corretos na TV.";
+        console.error("Erro Cleaner:", err.message);
+        pedido.mensagem = "❌ Erro: " + err.message;
     } finally {
         if (browser) await browser.close();
     }
