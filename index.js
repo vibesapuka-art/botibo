@@ -1,68 +1,64 @@
 const express = require('express');
 const path = require('path');
 
-// 1. AJUSTE DE IMPORTAÇÃO: 
-// Você mencionou que seu arquivo de ativação se chama 'engine.js' e não 'activator.js'.
-const engine = require('./src/bot/engine');   
-const cleaner = require('./src/bot/cleaner'); 
-const gestorBot = require('./src/bot/gestor'); 
+// Importação dos seus módulos (certifique-se de que os nomes no GitHub estão em minúsculo)
+const engine = require('./src/bot/engine');           // Apenas técnico (Assinante)
+const cleaner = require('./src/bot/cleaner');         // Limpeza profunda
+const enginegestor = require('./src/bot/enginegestor'); // Unificado (Novo)
 
 const app = express();
 app.use(express.json());
 
-// 2. AJUSTE DE PASTA ESTÁTICA:
-// Garanta que seu index.html esteja dentro de uma pasta chamada 'public'
+// Serve os arquivos da pasta public (onde deve estar seu index.html)
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Banco de dados temporário para o status em tempo real
 const statusPedidos = {};
 
-// --- ROTA DE ATIVAÇÃO ---
+// --- ROTA DE ATIVAÇÃO / CADASTRO ---
 app.post('/ativar', async (req, res) => {
-    const pedido = req.body;
-    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
+    const dados = req.body;
+    if (!dados.mac) return res.status(400).json({ error: "MAC é obrigatório" });
     
-    const macId = pedido.mac.toLowerCase();
+    const macId = dados.mac.toLowerCase();
     
-    // Inicializa o status
+    // Prepara o objeto de status com as flags necessárias para o engine.js
     statusPedidos[macId] = { 
-        ...pedido, // Passamos os dados para o engine ler (user, pass, etc)
-        status: "processando",
-        mensagem: "Iniciando processamento...",
-        tipo: "ibopro" // Necessário para o seu engine.js encontrar o pedido
+        ...dados, 
+        status: "processando", 
+        tipo: "ibopro",
+        mensagem: "Iniciando sistema..." 
     };
 
-    // Cadastro no Gestor (Apenas se preenchido e se for novo)
-    if (pedido.tipo === 'ativar' && pedido.nome && pedido.whatsapp) {
-        statusPedidos[macId].mensagem = "Cadastrando no gestor...";
-        gestorBot(pedido).catch(err => console.error("Erro Gestor:", err.message));
+    // DECISÃO DE FLUXO PARA ECONOMIA DE MEMÓRIA
+    if (dados.tipo === 'ativar') {
+        // MODO NOVO: Chama a "casinha única" que faz um por vez (Técnico -> Gestor)
+        // Isso evita abrir 2 navegadores ao mesmo tempo no Render
+        enginegestor(statusPedidos[macId], statusPedidos[macId]);
+    } else {
+        // MODO ASSINANTE: Vai direto para o motor técnico, pulando o gestor
+        statusPedidos[macId].mensagem = "👤 Assinante identificado. Reativando lista...";
+        engine([statusPedidos[macId]]);
     }
 
-    // Chama o seu ENGINE (ativador técnico)
-    // Passamos como Array [statusPedidos[macId]] porque seu engine usa .find()
-    statusPedidos[macId].mensagem = "Conectando ao IBO Pro...";
-    engine([statusPedidos[macId]]).catch(err => {
-        statusPedidos[macId].mensagem = "Erro técnico no motor.";
-    });
-
-    res.json({ success: true, message: "Processo iniciado" });
+    res.json({ success: true, message: "Processamento iniciado com sucesso." });
 });
 
-// --- ROTA DE LIMPEZA ---
+// --- ROTA DE LIMPEZA PROFUNDA ---
 app.post('/limpar', async (req, res) => {
-    const pedido = req.body;
-    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
+    const dados = req.body;
+    if (!dados.mac) return res.status(400).json({ error: "MAC é obrigatório" });
 
-    const macId = pedido.mac.toLowerCase();
-    statusPedidos[macId] = { mensagem: "Iniciando limpeza profunda..." };
+    const macId = dados.mac.toLowerCase();
+    statusPedidos[macId] = { mensagem: "Limpando playlists (PIN: 123321)..." };
 
-    // Executa o cleaner que configuramos com o PIN 123321
-    cleaner(statusPedidos[macId]).catch(err => {
-        statusPedidos[macId].mensagem = "Erro ao executar limpeza.";
-    });
+    // Chama o robô de limpeza
+    cleaner(statusPedidos[macId]);
 
-    res.json({ success: true, message: "Limpeza iniciada" });
+    res.json({ success: true, message: "Limpeza iniciada." });
 });
 
+// --- ROTA DE CONSULTA DE STATUS (POLLING) ---
 app.get('/status', (req, res) => {
     const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
     if (mac && statusPedidos[mac]) {
@@ -72,7 +68,14 @@ app.get('/status', (req, res) => {
     }
 });
 
+// Inicialização do Servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
+    console.log(`
+    =========================================
+    🚀 ATV DIGITAL ONLINE
+    📂 Modo: Híbrido (Novo / Assinante)
+    🌐 Porta: ${PORT}
+    =========================================
+    `);
 });
