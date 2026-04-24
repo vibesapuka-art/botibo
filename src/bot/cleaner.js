@@ -12,41 +12,62 @@ module.exports = async (pedido) => {
 
         const page = await browser.newPage();
         
-        // LOGIN NO IBPRO
+        // Login no Gerenciador de Playlists
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
         await page.type('input[name="mac_address"]', pedido.mac);
         await page.type('input[name="device_key"]', pedido.key);
         await page.click('button[type="submit"]');
         await page.waitForNavigation({ waitUntil: "networkidle2" });
 
-        // LOOP DE DELETAR
+        // Loop de exclusão profunda
         while (true) {
-            // Procura botões de Delete
-            const deleteBtn = await page.$('.btn-danger, button[onclick*="delete"]');
-            if (!deleteBtn) break;
-
-            pedido.mensagem = "Excluindo lista antiga...";
-            await deleteBtn.click();
+            // Recarrega a página para garantir que a lista está atualizada
+            await page.reload({ waitUntil: "networkidle2" });
             
-            // Aguarda o modal do PIN aparecer
-            await new Promise(r => setTimeout(r, 2000));
+            // Procura todos os botões "Delete" visíveis
+            const deleteButtons = await page.$$('.btn-danger, button.btn-delete, a.btn-delete');
             
-            // Digita o PIN no campo que aparecer
-            const pinInput = await page.$('input[name="pin"], #pin');
-            if (pinInput) {
-                await page.type('input[name="pin"], #pin', "123321"); // Substitua pelo seu PIN
-                await page.keyboard.press('Enter');
+            if (deleteButtons.length === 0) {
+                console.log("Nenhuma playlist encontrada para deletar.");
+                break; 
             }
 
-            // Espera 4 segundos conforme solicitado
-            await new Promise(r => setTimeout(r, 4000));
-            await page.reload({ waitUntil: "networkidle2" });
+            pedido.mensagem = `Removendo lista (Restam ${deleteButtons.length})...`;
+            
+            // Clica no primeiro botão de deletar da lista
+            await deleteButtons[0].click();
+
+            // AGUARDA O MODAL DE PIN APARECER
+            try {
+                // Espera o seletor do PIN ou o título "Confirm Your PIN"
+                await page.waitForSelector('input[name="pin"], #pin', { visible: true, timeout: 5000 });
+                
+                // Limpa e digita o PIN (geralmente 123321 ou o definido pelo usuário)
+                await page.click('input[name="pin"], #pin', { clickCount: 3 }); 
+                await page.type('input[name="pin"], #pin', "123321"); 
+
+                // Clica no botão "Ok" do modal
+                const okButton = await page.$('button.btn-success, .modal-footer .btn-primary, button:contains("Ok")');
+                if (okButton) {
+                    await okButton.click();
+                } else {
+                    await page.keyboard.press('Enter');
+                }
+
+                // Espera essencial de 4 segundos para o servidor processar a exclusão
+                await new Promise(r => setTimeout(r, 4000));
+
+            } catch (pinError) {
+                console.log("Modal de PIN não apareceu ou erro ao digitar.");
+                // Se der erro, tenta recarregar e continuar
+                continue;
+            }
         }
         
-        pedido.mensagem = "✅ Dispositivo limpo!";
+        pedido.mensagem = "✅ Dispositivo limpo com sucesso!";
     } catch (err) {
-        pedido.mensagem = "Erro: Dados de login incorretos.";
-        console.error(err);
+        pedido.mensagem = "❌ Erro ao acessar o painel de limpeza.";
+        console.error("Erro Cleaner:", err.message);
     } finally {
         if (browser) await browser.close();
     }
