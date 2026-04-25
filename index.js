@@ -30,7 +30,7 @@ app.post('/ativar', (req, res) => {
 
 app.get('/status', (req, res) => {
     const pedido = pedidos.find(p => p.mac.toLowerCase() === req.query.mac.toLowerCase());
-    res.json(pedido || { status: "nao_encontrado", mensagem: "Aguardando..." });
+    res.json(pedido || { status: "nao_found", mensagem: "Aguardando processamento..." });
 });
 
 setInterval(async () => {
@@ -41,7 +41,7 @@ setInterval(async () => {
 
     botOcupado = true;
     pedido.status = "processando";
-    pedido.mensagem = "📡 Conectando ao painel IBO...";
+    pedido.mensagem = "📡 Entrando no sistema IBO...";
 
     try {
         const modoNovo = pedido.tipo === "ativar";
@@ -58,11 +58,11 @@ setInterval(async () => {
     } catch (e) {
         console.error("Erro:", e.message);
         pedido.status = "erro";
-        pedido.mensagem = "❌ Erro: " + e.message;
+        pedido.mensagem = "❌ Erro: Tente novamente em instantes.";
     } finally {
         botOcupado = false;
     }
-}, 10000); // 10 segundos entre verificações
+}, 10000);
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Servidor ATV DIGITAL ativo na porta ${PORT}`));
