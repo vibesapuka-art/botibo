@@ -1,19 +1,19 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
-const login = require("./tasks/login");
-const addDns = require("./tasks/add-dns");
-const setPin = require("./tasks/set-pin");
-const submit = require("./tasks/submit");
-const dnsConfig = require("../config/dns"); 
 
-module.exports = async (pedidos) => {
-    const pedido = pedidos.find(p => p.tipo === "ibopro" && (p.status === "pendente" || p.status === "processando"));
-    if (!pedido) return;
+/**
+ * Motor de Ativação Técnica - IBO Pro
+ * @param {Array} pedidos - Lista contendo o objeto do pedido
+ * @param {Object} config - Configurações extras (ex: manterAberto)
+ */
+module.exports = async (pedidos, config = {}) => {
+    // Procura o pedido que está com status processando
+    const pedido = pedidos.find(p => p.status === "processando" && p.tipo === "ibopro");
+    if (!pedido) return null;
 
-    pedido.status = "processando";
     let browser;
-    
     try {
+        // Inicializa o navegador (Otimizado para o Render)
         browser = await puppeteer.launch({
             args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
             executablePath: await chromium.executablePath(),
@@ -21,45 +21,49 @@ module.exports = async (pedidos) => {
         });
 
         const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 720 });
+
+        // 1. Acessa o site do IBO Player Pro
+        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
+
+        // 2. Login com MAC e Device ID
+        await page.type("#mac_address", pedido.mac);
+        await page.type("#device_id", pedido.key || pedido.device_id); // Aceita 'key' ou 'device_id'
         
-        pedido.mensagem = "Fazendo login no site...";
-        const sucessoLogin = await login(page, pedido.mac, pedido.key);
+        await Promise.all([
+            page.click("#login_btn"),
+            page.waitForNavigation({ waitUntil: "networkidle2" })
+        ]);
+
+        // 3. Adiciona a Playlist (DNS Corrigido)
+        // Usamos pedido.user e pedido.pass que tratamos no index.js
+        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         
-        if (!sucessoLogin) {
-            pedido.status = "erro";
-            pedido.mensagem = "Erro: MAC ou Key inválidos.";
-            return;
+        await page.waitForSelector("#playlist_name");
+        await page.type("#playlist_name", "ATV DIGITAL");
+        await page.type("#playlist_url", dnsFinal);
+
+        // Clique no botão de salvar/adicionar
+        await page.click("#add_playlist_btn");
+        
+        // Pequena pausa para garantir o salvamento no banco deles
+        await new Promise(r => setTimeout(r, 3000));
+
+        console.log(`✅ DNS Configurado para MAC: ${pedido.mac}`);
+
+        // --- LÓGICA DE PASSAGEM DE BASTÃO ---
+        if (config.manterAberto) {
+            // Se for modo NOVO, retornamos o navegador vivo para o index.js usar no gestor
+            return { browser, page };
+        } else {
+            // Se for ASSINANTE, fecha tudo agora para economizar RAM
+            await browser.close();
+            return null;
         }
-
-        const servidores = dnsConfig.servidores;
-        pedido.total = servidores.length;
-
-        for (let i = 0; i < servidores.length; i++) {
-            const dnsBase = servidores[i];
-            const nomeDns = dnsBase.split('//')[1].split('.')[0].toUpperCase();
-            const m3uLink = `${dnsBase}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
-            
-            // ESSENCIAL: Atualiza o objeto que o painel está lendo
-            pedido.indiceAtual = i + 1;
-            pedido.mensagem = `Adicionando (${i + 1}/${pedido.total}): ${nomeDns}`;
-
-            try {
-                await addDns(page, nomeDns, m3uLink);
-                await setPin(page, "123321");
-                await submit(page);
-                await new Promise(r => setTimeout(r, 2000));
-            } catch (errDns) {
-                console.log(`Falha no DNS ${nomeDns}`);
-            }
-        }
-
-        pedido.status = "ok";
-        pedido.mensagem = "✅ Ativação concluída!";
 
     } catch (err) {
-        pedido.status = "erro";
-        pedido.mensagem = "Erro técnico: " + err.message;
-    } finally {
+        console.error("❌ Erro no Engine:", err.message);
         if (browser) await browser.close();
+        throw err;
     }
 };
