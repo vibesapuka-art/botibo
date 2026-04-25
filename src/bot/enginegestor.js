@@ -3,28 +3,23 @@ const gestorBot = require('./gestor');
 
 module.exports = async (pedido, status) => {
     try {
-        if (status) status.mensagem = "📡 Iniciando: Ativação + Cadastro...";
+        // 1. Mudamos o status para algo que o engine.js NÃO finalize como 'ok'
+        status.mensagem = "📡 Passo 1: Ativando no IBO Pro...";
+        
+        // Executa a ativação técnica
+        await engine([pedido]);
 
-        // 1. Executamos primeiro a parte técnica (IBO Pro)
-        // Usamos 'await' para o código não passar para a próxima linha até o engine terminar
-        await engine([pedido]); 
-        
-        // 2. Agora que o IBO Pro terminou, chamamos o Gestor
-        if (status) status.mensagem = "📝 Ativado! Agora registrando no gestor...";
-        
-        // AGUARDAR O GESTOR: Isso é o que estava faltando
+        // 2. Após o IBO, forçamos a mensagem e o processo do gestor
+        status.mensagem = "📝 Passo 2: Gravando no Gestor...";
         await gestorBot(pedido);
 
-        if (status) {
-            status.status = "ok";
-            status.mensagem = "✅ Tudo pronto! Cadastro e Ativação concluídos.";
-        }
+        // 3. AGORA SIM damos o OK final
+        status.status = "ok"; 
+        status.mensagem = "✅ Ativação e Cadastro concluídos com sucesso!";
 
     } catch (err) {
-        console.error("Erro no fluxo unificado:", err.message);
-        if (status) {
-            status.status = "erro";
-            status.mensagem = "⚠️ Houve um problema no processo.";
-        }
+        console.error("Erro:", err.message);
+        status.status = "erro";
+        status.mensagem = "❌ Erro no processo unificado.";
     }
 };
