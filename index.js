@@ -1,9 +1,10 @@
 const express = require('express');
 const path = require('path');
 
-const engine = require('./src/bot/engine');
-const cleaner = require('./src/bot/cleaner');
-const enginegestor = require('./src/bot/enginegestor');
+// Importação dos bots especializados
+const engine = require('./src/bot/engine');           // Apenas técnico
+const cleaner = require('./src/bot/cleaner');         // Limpeza profunda
+const enginegestor = require('./src/bot/enginegestor'); // Combo Novo Cliente
 
 const app = express();
 app.use(express.json());
@@ -15,22 +16,21 @@ app.post('/ativar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
     
-    // CORREÇÃO AQUI: Criamos as propriedades 'user' e 'pass' que o engine.js exige
-    // para montar o link http://xw.pluss.fun/get.php?username=...
+    // Inicializa o status para o Front-end
     statusPedidos[macId] = { 
-        ...dados,
-        user: dados.usuario, // Mapeia 'usuario' do formulário para 'user' do engine
-        pass: dados.senha,   // Mapeia 'senha' do formulário para 'pass' do engine
+        ...dados, 
         status: "processando", 
         tipo: "ibopro",
-        mensagem: "Iniciando..." 
+        mensagem: "Preparando motores..." 
     };
 
+    // DECISÃO DE FLUXO
     if (dados.tipo === 'ativar') {
-        // Envia para o combo (Gestor + Ativação)
+        // ÁREA NOVO: Ativa o bot unificado (Gestor + Lista)
         enginegestor(statusPedidos[macId], statusPedidos[macId]);
     } else {
-        // Envia apenas para ativação técnica
+        // ÁREA ASSINANTE: Ativa apenas o motor técnico (engine.js)
+        statusPedidos[macId].mensagem = "👤 Reconhecido como assinante. Reativando...";
         engine([statusPedidos[macId]]);
     }
 
@@ -40,8 +40,10 @@ app.post('/ativar', async (req, res) => {
 app.post('/limpar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
-    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
-    cleaner(statusPedidos[macId], statusPedidos[macId]);
+    statusPedidos[macId] = { mensagem: "Iniciando limpeza..." };
+    
+    // Chama o robô de exclusão que configuramos
+    cleaner(statusPedidos[macId]);
     res.json({ success: true });
 });
 
@@ -51,4 +53,4 @@ app.get('/status', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando e DNS corrigido`));
+app.listen(PORT, () => console.log(`🚀 ATV DIGITAL: Sistema Híbrido Ativo`));
