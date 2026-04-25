@@ -15,40 +15,34 @@ module.exports = async (pedidos, config = {}) => {
         });
 
         const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-        // Login
-        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2", timeout: 60000 });
-        await page.waitForSelector("#mac_address", { timeout: 30000 });
-        await page.type("#mac_address", pedido.mac, { delay: 100 });
-        await page.type("#password", (pedido.key || pedido.device_id), { delay: 100 });
-        await page.keyboard.press('Enter');
+        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "domcontentloaded", timeout: 60000 });
         
-        console.log("Login realizado, aguardando painel...");
-        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 45000 });
+        // Preenchimento de Login
+        await page.waitForSelector("#mac_address", { timeout: 20000 });
+        await page.type("#mac_address", pedido.mac, { delay: 50 });
+        await page.type("#password", (pedido.key || pedido.device_id), { delay: 50 });
+        await page.keyboard.press('Enter');
 
-        // 1. Clica no botão "Add Playlist" (O botão cinza que você mandou antes)
-        console.log("Abrindo modal de Playlist...");
-        await page.waitForSelector('button.btn-secondary', { timeout: 20000 });
+        // Aguarda a transição para o painel
+        await page.waitForSelector('button.btn-secondary', { timeout: 45000 });
+
+        // Abre modal e preenche
         await page.evaluate(() => {
             const btnAdd = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Add Playlist'));
             if (btnAdd) btnAdd.click();
         });
 
-        // 2. Preenche o Modal (Usando os nomes que você extraiu)
-        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         await page.waitForSelector('input[name="name"]', { timeout: 15000 });
+        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         
         await page.type('input[name="name"]', "ATV DIGITAL", { delay: 50 });
         await page.type('input[name="url"]', dnsFinal, { delay: 50 });
         
-        // 3. Clique no botão SUBMIT (O botão azul que você mandou agora)
-        console.log("Confirmando envio da playlist...");
-        await page.waitForSelector('button.btn-primary[type="submit"]', { timeout: 10000 });
-        await page.click('button.btn-primary[type="submit"]');
-        
-        // Espera um pouco para o site processar o salvamento
-        await new Promise(r => setTimeout(r, 6000));
+        await page.keyboard.press('Enter');
+        await new Promise(r => setTimeout(r, 5000));
 
         if (config.manterAberto) {
             return { browser, page };
@@ -58,8 +52,17 @@ module.exports = async (pedidos, config = {}) => {
         }
 
     } catch (err) {
-        console.error("❌ Erro detalhado no Engine:", err.message);
-        if (browser) await browser.close();
+        // CAPTURA DE PRINT APENAS EM CASO DE ERRO
+        if (browser) {
+            const pages = await browser.pages();
+            const activePage = pages[0];
+            if (activePage) {
+                console.log("📸 Gerando print do erro em public/erro_final.png");
+                await activePage.screenshot({ path: 'public/erro_final.png', fullPage: true });
+            }
+            await browser.close();
+        }
+        console.error("❌ Erro detectado:", err.message);
         throw err;
     }
 };
