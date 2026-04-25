@@ -1,11 +1,9 @@
 const express = require('express');
 const path = require('path');
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
 
 const engine = require('./src/bot/engine');
-const gestorBot = require('./src/bot/gestor'); 
 const cleaner = require('./src/bot/cleaner');
+const enginegestor = require('./src/bot/enginegestor');
 
 const app = express();
 app.use(express.json());
@@ -17,51 +15,40 @@ app.post('/ativar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
     
+    // CORREÇÃO AQUI: Criamos as propriedades 'user' e 'pass' que o engine.js exige
+    // para montar o link http://xw.pluss.fun/get.php?username=...
     statusPedidos[macId] = { 
         ...dados,
-        user: dados.usuario, 
-        pass: dados.senha,
+        user: dados.usuario, // Mapeia 'usuario' do formulário para 'user' do engine
+        pass: dados.senha,   // Mapeia 'senha' do formulário para 'pass' do engine
         status: "processando", 
-        mensagem: "⏳ Iniciando navegador único..." 
+        tipo: "ibopro",
+        mensagem: "Iniciando..." 
     };
 
-    // FUNÇÃO QUE REAPROVEITA A MESMA JANELA
-    const rodarFluxoUnificado = async (pedido) => {
-        let browser;
-        try {
-            browser = await puppeteer.launch({
-                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-                executablePath: await chromium.executablePath(),
-                headless: true
-            });
+    if (dados.tipo === 'ativar') {
+        // Envia para o combo (Gestor + Ativação)
+        enginegestor(statusPedidos[macId], statusPedidos[macId]);
+    } else {
+        // Envia apenas para ativação técnica
+        engine([statusPedidos[macId]]);
+    }
 
-            const page = await browser.newPage();
-
-            // PASSO 1: IBO PRO (ENGINE)
-            pedido.mensagem = "📡 Passo 1/2: Configurando DNS...";
-            // IMPORTANTE: O seu engine.js precisa aceitar receber a 'page' para não abrir outra
-            await engine([pedido], page); 
-
-            // PASSO 2: GESTOR (Na mesma aba, apenas navega por cima)
-            if (pedido.tipo === 'ativar') {
-                pedido.mensagem = "📝 Passo 2/2: Registrando no Gestor...";
-                await gestorBot(pedido, page); 
-            }
-
-            pedido.status = "ok";
-            pedido.mensagem = "✅ Sucesso! Tudo concluído na mesma janela.";
-
-        } catch (err) {
-            console.error("Erro no fluxo:", err.message);
-            pedido.status = "erro";
-            pedido.mensagem = "❌ Erro: " + err.message;
-        } finally {
-            if (browser) await browser.close(); // Só fecha aqui, depois de TUDO
-        }
-    };
-
-    rodarFluxoUnificado(statusPedidos[macId]);
     res.json({ success: true });
 });
 
-// ... (resto das rotas status e limpar)
+app.post('/limpar', async (req, res) => {
+    const dados = req.body;
+    const macId = dados.mac.toLowerCase();
+    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
+    cleaner(statusPedidos[macId], statusPedidos[macId]);
+    res.json({ success: true });
+});
+
+app.get('/status', (req, res) => {
+    const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
+    res.json(statusPedidos[mac] || { mensagem: "Aguardando..." });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Servidor rodando e DNS corrigido`));
