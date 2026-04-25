@@ -1,78 +1,78 @@
 const express = require('express');
 const path = require('path');
-
-// 1. AJUSTE DE IMPORTAÇÃO: 
-// Você mencionou que seu arquivo de ativação se chama 'engine.js' e não 'activator.js'.
-const engine = require('./src/bot/engine');   
-const cleaner = require('./src/bot/cleaner'); 
-const gestorBot = require('./src/bot/gestor'); 
+const dnsConfig = require('./src/config/dns'); 
+const enginePro = require('./src/bot/engine');      
 
 const app = express();
-app.use(express.json());
 
-// 2. AJUSTE DE PASTA ESTÁTICA:
-// Garanta que seu index.html esteja dentro de uma pasta chamada 'public'
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const statusPedidos = {};
+let pedidos = [];
+let botOcupado = false;
 
-// --- ROTA DE ATIVAÇÃO ---
-app.post('/ativar', async (req, res) => {
-    const pedido = req.body;
-    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
+app.post('/ativar', (req, res) => {
+    // Captura os nomes exatos enviados pelo formulário HTML
+    const { mac, key, usuario, senha, tipo } = req.body; 
     
-    const macId = pedido.mac.toLowerCase();
+    pedidos = pedidos.filter(p => p.mac !== mac);
     
-    // Inicializa o status
-    statusPedidos[macId] = { 
-        ...pedido, // Passamos os dados para o engine ler (user, pass, etc)
-        status: "processando",
-        mensagem: "Iniciando processamento...",
-        tipo: "ibopro" // Necessário para o seu engine.js encontrar o pedido
+    const listaServidores = (dnsConfig && dnsConfig.servidores) ? dnsConfig.servidores : [];
+
+    const novoPedido = {
+        mac, 
+        key, 
+        user: usuario, // Mapeia 'usuario' para 'user' (que o engine.js usa)
+        pass: senha,   // Mapeia 'senha' para 'pass' (que o engine.js usa)
+        tipo,
+        status: "pendente",
+        mensagem: "Aguardando na fila...",
+        captchaBase64: null,
+        captchaDigitado: null,
+        indiceAtual: 0,
+        total: listaServidores.length
     };
 
-    // Cadastro no Gestor (Apenas se preenchido e se for novo)
-    if (pedido.tipo === 'ativar' && pedido.nome && pedido.whatsapp) {
-        statusPedidos[macId].mensagem = "Cadastrando no gestor...";
-        gestorBot(pedido).catch(err => console.error("Erro Gestor:", err.message));
-    }
-
-    // Chama o seu ENGINE (ativador técnico)
-    // Passamos como Array [statusPedidos[macId]] porque seu engine usa .find()
-    statusPedidos[macId].mensagem = "Conectando ao IBO Pro...";
-    engine([statusPedidos[macId]]).catch(err => {
-        statusPedidos[macId].mensagem = "Erro técnico no motor.";
-    });
-
-    res.json({ success: true, message: "Processo iniciado" });
+    pedidos.push(novoPedido);
+    res.json({ success: true });
 });
 
-// --- ROTA DE LIMPEZA ---
-app.post('/limpar', async (req, res) => {
-    const pedido = req.body;
-    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
-
-    const macId = pedido.mac.toLowerCase();
-    statusPedidos[macId] = { mensagem: "Iniciando limpeza profunda..." };
-
-    // Executa o cleaner que configuramos com o PIN 123321
-    cleaner(statusPedidos[macId]).catch(err => {
-        statusPedidos[macId].mensagem = "Erro ao executar limpeza.";
-    });
-
-    res.json({ success: true, message: "Limpeza iniciada" });
+app.post('/resolver-captcha', (req, res) => {
+    const { mac, texto } = req.body;
+    const pedido = pedidos.find(p => p.mac === mac);
+    if (pedido) {
+        pedido.captchaDigitado = texto;
+        pedido.status = "pendente";
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: "Não encontrado" });
+    }
 });
 
 app.get('/status', (req, res) => {
-    const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
-    if (mac && statusPedidos[mac]) {
-        res.json(statusPedidos[mac]);
-    } else {
-        res.json({ mensagem: "Aguardando comando..." });
-    }
+    const pedido = pedidos.find(p => p.mac === req.query.mac);
+    res.json(pedido || { status: "nao_encontrado" });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
-});
+setInterval(async () => {
+    if (botOcupado) return;
+    
+    const pedido = pedidos.find(p => p.status === "pendente");
+    if (!pedido) return;
+
+    botOcupado = true;
+    try {
+        if (pedido.tipo === "ibopro") {
+            await enginePro(pedidos); 
+        }
+    } catch (e) {
+        console.error("Erro no Bot:", e.message);
+        pedido.status = "erro";
+        pedido.mensagem = "Erro: " + e.message;
+    } finally {
+        botOcupado = false;
+    }
+}, 8000);
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Servidor ativo na porta ${PORT}`));
