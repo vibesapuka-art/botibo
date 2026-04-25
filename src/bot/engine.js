@@ -4,7 +4,6 @@ const chromium = require("@sparticuz/chromium");
 module.exports = async (pedidos, config = {}) => {
     if (!pedidos || !Array.isArray(pedidos)) return null;
 
-    // Busca o pedido que o index.js marcou como processando
     const pedido = pedidos.find(p => p.status === "processando");
     if (!pedido) return null;
 
@@ -17,41 +16,39 @@ module.exports = async (pedidos, config = {}) => {
         });
 
         const page = await browser.newPage();
-        // User-Agent real para evitar ser barrado como bot
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-        // Login no IBO Pro
         await page.goto("https://iboproapp.com/manage-playlists/login/", { 
             waitUntil: "networkidle2", 
             timeout: 60000 
         });
         
-        // Espera e preenche o MAC
-        await page.waitForSelector("#mac_address", { timeout: 20000 });
-        await page.type("#mac_address", pedido.mac, { delay: 50 });
+        // 1. Digita o MAC
+        await page.waitForSelector("#mac_address", { timeout: 30000 });
+        await page.click("#mac_address");
+        await page.type("#mac_address", pedido.mac, { delay: 100 });
 
-        // Tenta preencher o Device ID (Key)
-        const deviceId = pedido.key || pedido.device_id;
-        await page.waitForSelector("#device_id", { timeout: 10000 });
-        await page.type("#device_id", deviceId, { delay: 50 });
+        // 2. Digita a Device Key (O ID AGORA É #password)
+        const deviceKey = pedido.key || pedido.device_id;
+        await page.waitForSelector("#password", { timeout: 20000 });
+        await page.click("#password");
+        await page.type("#password", deviceKey, { delay: 100 });
         
-        // Clica em Login e aguarda a entrada
+        // 3. Login
         await Promise.all([
             page.click("#login_btn"),
-            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 })
+            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 40000 })
         ]);
 
-        // Configuração do DNS
+        // 4. Configuração da Playlist
         const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         
-        await page.waitForSelector("#playlist_name", { timeout: 15000 });
-        await page.type("#playlist_name", "ATV DIGITAL");
-        await page.type("#playlist_url", dnsFinal);
+        await page.waitForSelector("#playlist_name", { timeout: 20000 });
+        await page.type("#playlist_name", "ATV DIGITAL", { delay: 50 });
+        await page.type("#playlist_url", dnsFinal, { delay: 50 });
         
         await page.click("#add_playlist_btn");
-        
-        // Espera o site processar o salvamento
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise(r => setTimeout(r, 5000));
 
         if (config.manterAberto) {
             return { browser, page };
@@ -63,6 +60,6 @@ module.exports = async (pedidos, config = {}) => {
     } catch (err) {
         console.error("❌ Erro no Engine:", err.message);
         if (browser) await browser.close();
-        throw err; // Repassa o erro para o catch do index.js
+        throw err;
     }
 };
