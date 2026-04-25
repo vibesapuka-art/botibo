@@ -1,65 +1,68 @@
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
+const express = require('express');
+const path = require('path');
+const enginePro = require('./src/bot/engine');      
+const gestorBot = require('./src/bot/gestor'); 
 
-module.exports = async (pedidos, config = {}) => {
-    if (!pedidos || !Array.isArray(pedidos)) return null;
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-    const pedido = pedidos.find(p => p.status === "processando");
-    if (!pedido) return null;
+let pedidos = [];
+let botOcupado = false;
 
-    let browser;
+app.post('/ativar', (req, res) => {
+    const { mac, key, usuario, senha, tipo } = req.body; 
+    pedidos = pedidos.filter(p => p.mac !== mac);
+    
+    const novoPedido = {
+        mac: mac.trim(), 
+        key: key ? key.trim() : "", 
+        user: usuario ? usuario.trim() : "", 
+        pass: senha ? senha.trim() : "",    
+        tipo, 
+        status: "pendente",
+        mensagem: "⏳ Aguardando na fila..."
+    };
+
+    pedidos.push(novoPedido);
+    res.json({ success: true });
+});
+
+app.get('/status', (req, res) => {
+    const pedido = pedidos.find(p => p.mac.toLowerCase() === req.query.mac.toLowerCase());
+    res.json(pedido || { status: "nao_found", mensagem: "Aguardando processamento..." });
+});
+
+setInterval(async () => {
+    if (botOcupado) return;
+    
+    const pedido = pedidos.find(p => p.status === "pendente");
+    if (!pedido) return;
+
+    botOcupado = true;
+    pedido.status = "processando";
+    pedido.mensagem = "📡 Entrando no sistema IBO...";
+
     try {
-        browser = await puppeteer.launch({
-            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-            executablePath: await chromium.executablePath(),
-            headless: true,
-        });
+        const modoNovo = pedido.tipo === "ativar";
+        const resultado = await enginePro(pedidos, { manterAberto: modoNovo });
 
-        const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-
-        await page.goto("https://iboproapp.com/manage-playlists/login/", { 
-            waitUntil: "networkidle2", 
-            timeout: 60000 
-        });
-        
-        // 1. Digita o MAC
-        await page.waitForSelector("#mac_address", { timeout: 30000 });
-        await page.click("#mac_address");
-        await page.type("#mac_address", pedido.mac, { delay: 100 });
-
-        // 2. Digita a Device Key (O ID AGORA É #password)
-        const deviceKey = pedido.key || pedido.device_id;
-        await page.waitForSelector("#password", { timeout: 20000 });
-        await page.click("#password");
-        await page.type("#password", deviceKey, { delay: 100 });
-        
-        // 3. Login
-        await Promise.all([
-            page.click("#login_btn"),
-            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 40000 })
-        ]);
-
-        // 4. Configuração da Playlist
-        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
-        
-        await page.waitForSelector("#playlist_name", { timeout: 20000 });
-        await page.type("#playlist_name", "ATV DIGITAL", { delay: 50 });
-        await page.type("#playlist_url", dnsFinal, { delay: 50 });
-        
-        await page.click("#add_playlist_btn");
-        await new Promise(r => setTimeout(r, 5000));
-
-        if (config.manterAberto) {
-            return { browser, page };
-        } else {
-            await browser.close();
-            return null;
+        if (modoNovo && resultado && resultado.page) {
+            pedido.mensagem = "📝 Gravando no Gestor...";
+            await gestorBot(pedido, resultado.page);
         }
 
-    } catch (err) {
-        console.error("❌ Erro no Engine:", err.message);
-        if (browser) await browser.close();
-        throw err;
+        pedido.status = "ok";
+        pedido.mensagem = "✅ Ativação concluída!";
+
+    } catch (e) {
+        console.error("Erro:", e.message);
+        pedido.status = "erro";
+        pedido.mensagem = "❌ Erro: Tente novamente em instantes.";
+    } finally {
+        botOcupado = false;
     }
-};
+}, 10000);
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 Servidor ATV DIGITAL ativo na porta ${PORT}`));
