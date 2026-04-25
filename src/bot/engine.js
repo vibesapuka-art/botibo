@@ -1,69 +1,58 @@
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
-/**
- * Motor de Ativação Técnica - IBO Pro
- * @param {Array} pedidos - Lista contendo o objeto do pedido
- * @param {Object} config - Configurações extras (ex: manterAberto)
- */
-module.exports = async (pedidos, config = {}) => {
-    // Procura o pedido que está com status processando
-    const pedido = pedidos.find(p => p.status === "processando" && p.tipo === "ibopro");
-    if (!pedido) return null;
-
+module.exports = async (pedido, status) => {
     let browser;
     try {
-        // Inicializa o navegador (Otimizado para o Render)
         browser = await puppeteer.launch({
             args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
             executablePath: await chromium.executablePath(),
-            headless: true
+            headless: true 
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 720 });
+        await page.setViewport({ width: 1280, height: 800 });
 
-        // 1. Acessa o site do IBO Player Pro
+        // 1. LOGIN NO PAINEL
+        if(status) status.mensagem = "Conectando ao painel IBO...";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
-
-        // 2. Login com MAC e Device ID
-        await page.type("#mac_address", pedido.mac);
-        await page.type("#device_id", pedido.key || pedido.device_id); // Aceita 'key' ou 'device_id'
+        
+        await page.waitForSelector('#mac_address');
+        await page.type('#mac_address', pedido.mac);
+        await page.type('#password', pedido.key); // ID password conforme seu código-fonte
         
         await Promise.all([
-            page.click("#login_btn"),
+            page.click('button[type="submit"]'),
             page.waitForNavigation({ waitUntil: "networkidle2" })
         ]);
 
-        // 3. Adiciona a Playlist (DNS Corrigido)
-        // Usamos pedido.user e pedido.pass que tratamos no index.js
-        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
+        // 2. ADICIONAR PLAYLIST
+        if(status) status.mensagem = "Adicionando sua nova lista...";
         
-        await page.waitForSelector("#playlist_name");
-        await page.type("#playlist_name", "ATV DIGITAL");
-        await page.type("#playlist_url", dnsFinal);
+        // Clica no botão de adicionar (geralmente 'Add Playlist')
+        const addBtn = await page.$('.btn-primary'); 
+        if (addBtn) await addBtn.click();
 
-        // Clique no botão de salvar/adicionar
-        await page.click("#add_playlist_btn");
+        await page.waitForSelector('input[name="playlist_name"]', { visible: true });
         
-        // Pequena pausa para garantir o salvamento no banco deles
-        await new Promise(r => setTimeout(r, 3000));
+        // Preenche os dados IPTV
+        await page.type('input[name="playlist_name"]', "TV DIGITAL");
+        await page.type('input[name="username"]', pedido.usuario);
+        await page.type('input[name="password"]', pedido.senha);
+        await page.type('input[name="host"]', "http://xw.pluss.fun"); // Seu DNS padrão
 
-        console.log(`✅ DNS Configurado para MAC: ${pedido.mac}`);
+        // Salva a lista
+        await page.keyboard.press('Enter');
+        
+        // Espera um pouco para o servidor processar
+        await new Promise(r => setTimeout(r, 5000));
 
-        // --- LÓGICA DE PASSAGEM DE BASTÃO ---
-        if (config.manterAberto) {
-            // Se for modo NOVO, retornamos o navegador vivo para o index.js usar no gestor
-            return { browser, page };
-        } else {
-            // Se for ASSINANTE, fecha tudo agora para economizar RAM
-            await browser.close();
-            return null;
-        }
-
+        if(status) status.mensagem = "✅ Ativação concluída!";
+        
     } catch (err) {
-        console.error("❌ Erro no Engine:", err.message);
+        console.error("Erro no Activator:", err.message);
+        if(status) status.mensagem = "❌ Erro na ativação técnica.";
+    } finally {
         if (browser) await browser.close();
-        throw err;
     }
 };
