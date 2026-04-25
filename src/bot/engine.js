@@ -18,31 +18,53 @@ module.exports = async (pedidos, config = {}) => {
         await page.setViewport({ width: 1280, height: 800 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
+        // 1. LOGIN
+        pedido.mensagem = "📡 Acessando painel IBO...";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "domcontentloaded", timeout: 60000 });
         
-        // Preenchimento de Login
-        await page.waitForSelector("#mac_address", { timeout: 20000 });
+        await page.waitForSelector("#mac_address", { timeout: 30000 });
         await page.type("#mac_address", pedido.mac, { delay: 50 });
         await page.type("#password", (pedido.key || pedido.device_id), { delay: 50 });
         await page.keyboard.press('Enter');
-
-        // Aguarda a transição para o painel
+        
+        // Espera carregar a lista de playlists
         await page.waitForSelector('button.btn-secondary', { timeout: 45000 });
 
-        // Abre modal e preenche
+        // 2. DEFINIR NOME SEQUENCIAL (IMPTV1, IMPTV2...)
+        // Conta os botões "Delete" para saber quantas listas já existem
+        const totalExistente = await page.$$eval('button.btn-warning', btns => 
+            btns.filter(b => b.innerText.includes('Delete')).length
+        );
+        const nomeLista = `IMPTV${totalExistente + 1}`;
+        pedido.mensagem = `📝 Criando ${nomeLista}...`;
+
+        // 3. ABRIR MODAL "ADD PLAYLIST"
         await page.evaluate(() => {
             const btnAdd = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Add Playlist'));
             if (btnAdd) btnAdd.click();
         });
 
+        // 4. PREENCHER DADOS E ATIVAR PIN
         await page.waitForSelector('input[name="name"]', { timeout: 15000 });
         const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         
-        await page.type('input[name="name"]', "ATV DIGITAL", { delay: 50 });
+        await page.type('input[name="name"]', nomeLista, { delay: 50 });
         await page.type('input[name="url"]', dnsFinal, { delay: 50 });
+
+        // Ativa o Checkbox de proteção
+        await page.click('#playlist-protected');
+        await new Promise(r => setTimeout(r, 800)); // Espera habilitar os campos de PIN
         
+        // Digita o PIN 123321
+        await page.type('input[name="pin"]', "123321", { delay: 50 });
+        await page.type('input[name="cpin"]', "123321", { delay: 50 });
+        
+        // 5. SUBMIT
+        console.log(`Enviando ${nomeLista} com PIN...`);
         await page.keyboard.press('Enter');
-        await new Promise(r => setTimeout(r, 5000));
+        
+        await new Promise(r => setTimeout(r, 6000));
+        pedido.mensagem = `✅ ${nomeLista} adicionada com sucesso!`;
 
         if (config.manterAberto) {
             return { browser, page };
@@ -52,17 +74,12 @@ module.exports = async (pedidos, config = {}) => {
         }
 
     } catch (err) {
-        // CAPTURA DE PRINT APENAS EM CASO DE ERRO
+        console.error("❌ Erro no Engine:", err.message);
         if (browser) {
             const pages = await browser.pages();
-            const activePage = pages[0];
-            if (activePage) {
-                console.log("📸 Gerando print do erro em public/erro_final.png");
-                await activePage.screenshot({ path: 'public/erro_final.png', fullPage: true });
-            }
+            if (pages[0]) await pages[0].screenshot({ path: 'public/erro_final.png' });
             await browser.close();
         }
-        console.error("❌ Erro detectado:", err.message);
         throw err;
     }
 };
