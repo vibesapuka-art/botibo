@@ -1,9 +1,11 @@
 const express = require('express');
 const path = require('path');
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 
 const engine = require('./src/bot/engine');
-const cleaner = require('./src/bot/cleaner');
 const gestorBot = require('./src/bot/gestor'); 
+const cleaner = require('./src/bot/cleaner');
 
 const app = express();
 app.use(express.json());
@@ -15,68 +17,51 @@ app.post('/ativar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
     
-    // Organiza os dados para o engine e gestor
     statusPedidos[macId] = { 
         ...dados,
         user: dados.usuario, 
         pass: dados.senha,
         status: "processando", 
-        tipo: "ibopro",
-        mensagem: "⏳ Iniciando ativação..." 
+        mensagem: "⏳ Iniciando navegador único..." 
     };
 
-    const pedido = statusPedidos[macId];
-
-    const executarFluxo = async () => {
+    // FUNÇÃO QUE REAPROVEITA A MESMA JANELA
+    const rodarFluxoUnificado = async (pedido) => {
+        let browser;
         try {
-            const modoNovo = dados.tipo === 'ativar';
-            pedido.mensagem = "📡 Configurando DNS no IBO Pro...";
-            
-            // 1. Roda o motor técnico
-            const resultadoEngine = await engine([pedido], { manterAberto: modoNovo });
+            browser = await puppeteer.launch({
+                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+                executablePath: await chromium.executablePath(),
+                headless: true
+            });
 
-            if (!modoNovo) {
-                pedido.status = "ok";
-                pedido.mensagem = "✅ Ativação concluída!";
-                return;
+            const page = await browser.newPage();
+
+            // PASSO 1: IBO PRO (ENGINE)
+            pedido.mensagem = "📡 Passo 1/2: Configurando DNS...";
+            // IMPORTANTE: O seu engine.js precisa aceitar receber a 'page' para não abrir outra
+            await engine([pedido], page); 
+
+            // PASSO 2: GESTOR (Na mesma aba, apenas navega por cima)
+            if (pedido.tipo === 'ativar') {
+                pedido.mensagem = "📝 Passo 2/2: Registrando no Gestor...";
+                await gestorBot(pedido, page); 
             }
 
-            // 2. Se for novo, libera o cliente e continua o cadastro na mesma janela
             pedido.status = "ok";
-            pedido.mensagem = "✅ Ativado! Finalizando seu cadastro...";
-
-            if (resultadoEngine && resultadoEngine.page) {
-                await gestorBot(pedido, resultadoEngine.page);
-                console.log(`✅ Cadastro finalizado para ${pedido.nome}`);
-            }
+            pedido.mensagem = "✅ Sucesso! Tudo concluído na mesma janela.";
 
         } catch (err) {
             console.error("Erro no fluxo:", err.message);
             pedido.status = "erro";
             pedido.mensagem = "❌ Erro: " + err.message;
+        } finally {
+            if (browser) await browser.close(); // Só fecha aqui, depois de TUDO
         }
     };
 
-    executarFluxo();
+    rodarFluxoUnificado(statusPedidos[macId]);
     res.json({ success: true });
 });
 
-app.post('/limpar', async (req, res) => {
-    const dados = req.body;
-    const macId = dados.mac.toLowerCase();
-    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
-    cleaner(statusPedidos[macId], statusPedidos[macId]);
-    res.json({ success: true });
-});
-
-app.get('/status', (req, res) => {
-    const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
-    res.json(statusPedidos[mac] || { mensagem: "Aguardando..." });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    // Log limpo para não dar erro na inicialização
-    console.log(`🚀 Sistema ATV DIGITAL Rodando na porta ${PORT}`);
-    console.log(`📡 Modo Híbrido (Gestor + Engine) Ativo`);
-});
+// ... (resto das rotas status e limpar)
