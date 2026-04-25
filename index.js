@@ -1,9 +1,9 @@
 const express = require('express');
 const path = require('path');
 
-const engine = require('./src/bot/engine');           
-const cleaner = require('./src/bot/cleaner');         
-const enginegestor = require('./src/bot/enginegestor'); 
+const engine = require('./src/bot/engine');
+const cleaner = require('./src/bot/cleaner');
+const enginegestor = require('./src/bot/enginegestor');
 
 const app = express();
 app.use(express.json());
@@ -11,50 +11,37 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const statusPedidos = {};
 
-// --- ROTA DE ATIVAÇÃO / CADASTRO ---
 app.post('/ativar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
     
+    // CORREÇÃO AQUI: Criamos as propriedades 'user' e 'pass' que o engine.js exige
+    // para montar o link http://xw.pluss.fun/get.php?username=...
     statusPedidos[macId] = { 
-        ...dados, 
+        ...dados,
+        user: dados.usuario, // Mapeia 'usuario' do formulário para 'user' do engine
+        pass: dados.senha,   // Mapeia 'senha' do formulário para 'pass' do engine
         status: "processando", 
         tipo: "ibopro",
         mensagem: "Iniciando..." 
     };
 
     if (dados.tipo === 'ativar') {
-        // Envia o objeto individual e o status para o combo
+        // Envia para o combo (Gestor + Ativação)
         enginegestor(statusPedidos[macId], statusPedidos[macId]);
     } else {
-        // O seu engine.js ESPECIFICAMENTE exige um Array [ ]
+        // Envia apenas para ativação técnica
         engine([statusPedidos[macId]]);
     }
 
     res.json({ success: true });
 });
 
-// --- ROTA DE LIMPEZA (ONDE DEU O ERRO) ---
 app.post('/limpar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
-
-    // Criamos o objeto de status
-    statusPedidos[macId] = { 
-        ...dados,
-        mensagem: "Buscando playlists para limpar..." 
-    };
-
-    // CORREÇÃO: O cleaner geralmente espera o objeto direto, 
-    // mas se ele usar a mesma lógica do engine, ele precisa de um Array.
-    // Vamos enviar o objeto direto conforme a estrutura padrão do cleaner.
-    try {
-        cleaner(statusPedidos[macId], statusPedidos[macId]);
-    } catch (e) {
-        console.error("Erro ao chamar cleaner:", e.message);
-        statusPedidos[macId].mensagem = "❌ Erro ao iniciar limpeza.";
-    }
-
+    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
+    cleaner(statusPedidos[macId], statusPedidos[macId]);
     res.json({ success: true });
 });
 
@@ -64,4 +51,4 @@ app.get('/status', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor rodando e DNS corrigido`));
