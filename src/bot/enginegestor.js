@@ -1,25 +1,25 @@
 const engine = require('./engine');
 const gestorBot = require('./gestor');
 
+/**
+ * Esse bot unifica a ativação técnica (Puppeteer) 
+ * com o cadastro administrativo (Gestor)
+ */
 module.exports = async (pedido, status) => {
     try {
-        // 1. Mudamos o status para algo que o engine.js NÃO finalize como 'ok'
-        status.mensagem = "📡 Passo 1: Ativando no IBO Pro...";
+        if (status) status.mensagem = "🚀 Iniciando Combo: Cadastro + Ativação";
+
+        // Rodamos os dois processos simultaneamente
+        // O engine precisa receber um Array [pedido] como você configurou originalmente
+        await Promise.all([
+            gestorBot(pedido),
+            engine([pedido])
+        ]);
+
+        if (status) status.mensagem = "✅ Cliente cadastrado e lista ativada!";
         
-        // Executa a ativação técnica
-        await engine([pedido]);
-
-        // 2. Após o IBO, forçamos a mensagem e o processo do gestor
-        status.mensagem = "📝 Passo 2: Gravando no Gestor...";
-        await gestorBot(pedido);
-
-        // 3. AGORA SIM damos o OK final
-        status.status = "ok"; 
-        status.mensagem = "✅ Ativação e Cadastro concluídos com sucesso!";
-
     } catch (err) {
-        console.error("Erro:", err.message);
-        status.status = "erro";
-        status.mensagem = "❌ Erro no processo unificado.";
+        console.error("Erro no EngineGestor:", err.message);
+        if (status) status.mensagem = "⚠️ Falha no processo unificado.";
     }
 };
