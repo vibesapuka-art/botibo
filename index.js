@@ -1,56 +1,78 @@
 const express = require('express');
 const path = require('path');
 
-// IMPORTANTE: Ajustei os nomes para baterem com os seus arquivos reais
-const engine = require('./src/bot/engine'); // O seu arquivo de ativação
-const cleaner = require('./src/bot/cleaner'); // O arquivo de limpeza que fizemos
-const gestorBot = require('./src/bot/gestor'); // Seu bot de cadastro
+// 1. AJUSTE DE IMPORTAÇÃO: 
+// Você mencionou que seu arquivo de ativação se chama 'engine.js' e não 'activator.js'.
+const engine = require('./src/bot/engine');   
+const cleaner = require('./src/bot/cleaner'); 
+const gestorBot = require('./src/bot/gestor'); 
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); 
+
+// 2. AJUSTE DE PASTA ESTÁTICA:
+// Garanta que seu index.html esteja dentro de uma pasta chamada 'public'
+app.use(express.static(path.join(__dirname, 'public')));
 
 const statusPedidos = {};
 
+// --- ROTA DE ATIVAÇÃO ---
 app.post('/ativar', async (req, res) => {
     const pedido = req.body;
+    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
+    
     const macId = pedido.mac.toLowerCase();
     
-    // Criamos a estrutura que o seu engine.js espera
+    // Inicializa o status
     statusPedidos[macId] = { 
-        ...pedido, 
-        status: "pendente", 
-        mensagem: "Iniciando...",
-        tipo: "ibopro" // O seu engine.js filtra por esse tipo
+        ...pedido, // Passamos os dados para o engine ler (user, pass, etc)
+        status: "processando",
+        mensagem: "Iniciando processamento...",
+        tipo: "ibopro" // Necessário para o seu engine.js encontrar o pedido
     };
 
-    // 1. Cadastro no Gestor (Se for novo)
-    if (pedido.tipo === 'ativar' && pedido.nome) {
-        gestorBot(pedido).catch(e => console.log("Erro Gestor:", e.message));
+    // Cadastro no Gestor (Apenas se preenchido e se for novo)
+    if (pedido.tipo === 'ativar' && pedido.nome && pedido.whatsapp) {
+        statusPedidos[macId].mensagem = "Cadastrando no gestor...";
+        gestorBot(pedido).catch(err => console.error("Erro Gestor:", err.message));
     }
 
-    // 2. Executa o seu engine.js
-    // Note que passamos um ARRAY porque o seu engine usa pedidos.find()
-    engine([statusPedidos[macId]]);
+    // Chama o seu ENGINE (ativador técnico)
+    // Passamos como Array [statusPedidos[macId]] porque seu engine usa .find()
+    statusPedidos[macId].mensagem = "Conectando ao IBO Pro...";
+    engine([statusPedidos[macId]]).catch(err => {
+        statusPedidos[macId].mensagem = "Erro técnico no motor.";
+    });
 
-    res.json({ success: true });
+    res.json({ success: true, message: "Processo iniciado" });
 });
 
+// --- ROTA DE LIMPEZA ---
 app.post('/limpar', async (req, res) => {
     const pedido = req.body;
+    if (!pedido.mac) return res.status(400).json({ error: "MAC é obrigatório" });
+
     const macId = pedido.mac.toLowerCase();
-    statusPedidos[macId] = { ...pedido, mensagem: "Limpando..." };
+    statusPedidos[macId] = { mensagem: "Iniciando limpeza profunda..." };
 
-    // Chama o cleaner de exclusão
-    cleaner(statusPedidos[macId]);
+    // Executa o cleaner que configuramos com o PIN 123321
+    cleaner(statusPedidos[macId]).catch(err => {
+        statusPedidos[macId].mensagem = "Erro ao executar limpeza.";
+    });
 
-    res.json({ success: true });
+    res.json({ success: true, message: "Limpeza iniciada" });
 });
 
 app.get('/status', (req, res) => {
     const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
-    res.json(statusPedidos[mac] || { mensagem: "Aguardando..." });
+    if (mac && statusPedidos[mac]) {
+        res.json(statusPedidos[mac]);
+    } else {
+        res.json({ mensagem: "Aguardando comando..." });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 ATV DIGITAL online na porta ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
+});
