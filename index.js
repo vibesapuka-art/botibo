@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 
+// Use ./ para indicar que a pasta src está na raiz do projeto
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 const gestorBot = require('./src/bot/gestor'); 
@@ -21,44 +22,35 @@ app.post('/ativar', async (req, res) => {
         pass: dados.senha,
         status: "processando", 
         tipo: "ibopro",
-        mensagem: "⏳ Iniciando ativação..." 
+        mensagem: "⏳ Iniciando..." 
     };
 
     const pedido = statusPedidos[macId];
 
-    // FUNÇÃO PARA CONTROLAR O FLUXO SEM PESAR A MEMÓRIA
     const executarFluxo = async () => {
         try {
-            // 1. CHAMA O ENGINE (IBO PRO)
-            // Passamos um parâmetro extra 'manterAberto' para o engine não dar browser.close()
             const modoNovo = dados.tipo === 'ativar';
+            pedido.mensagem = "📡 Configurando DNS...";
             
-            pedido.mensagem = "📡 Configurando DNS no IBO Pro...";
-            
-            // Aqui enviamos o pedido e um sinal se deve fechar ou não
-            // Se for NOVO, manterAberto é true. Se for ASSINANTE, é false.
+            // 1. Motor técnico
             const resultadoEngine = await engine([pedido], { manterAberto: modoNovo });
 
-            // Se for ASSINANTE, o engine já fechou o navegador e acaba aqui.
             if (!modoNovo) {
                 pedido.status = "ok";
                 pedido.mensagem = "✅ Ativação concluída!";
                 return;
             }
 
-            // 2. SE FOR NOVO: O cliente já é liberado, mas o processo continua
-            pedido.status = "ok";
-            pedido.mensagem = "✅ Ativação técnica pronta! Abrindo gestor...";
+            // 2. Modo Novo: Segue para o gestor
+            pedido.status = "ok"; 
+            pedido.mensagem = "✅ Ativado! Finalizando cadastro...";
 
-            // 3. CHAMA O GESTOR REAPROVEITANDO O NAVEGADOR
-            // O resultadoEngine deve retornar o 'browser' ou a 'page' que ficou aberta
-            if (resultadoEngine && resultadoEngine.browser) {
-                await gestorBot(pedido, resultadoEngine.browser);
-                console.log("Cadastro no gestor finalizado com sucesso.");
+            if (resultadoEngine && resultadoEngine.page) {
+                await gestorBot(pedido, resultadoEngine.page);
             }
 
         } catch (err) {
-            console.error("Erro no fluxo:", err.message);
+            console.error("Erro:", err.message);
             pedido.status = "erro";
             pedido.mensagem = "❌ Erro: " + err.message;
         }
@@ -68,10 +60,20 @@ app.post('/ativar', async (req, res) => {
     res.json({ success: true });
 });
 
+app.post('/limpar', async (req, res) => {
+    const dados = req.body;
+    const macId = dados.mac.toLowerCase();
+    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
+    cleaner(statusPedidos[macId], statusPedidos[macId]);
+    res.json({ success: true });
+});
+
 app.get('/status', (req, res) => {
     const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
     res.json(statusPedidos[mac] || { mensagem: "Aguardando..." });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Sistema Híbrido: Memória Otimizada` + `\n` + `Dns: http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor Online na porta ${PORT}`);
+});
