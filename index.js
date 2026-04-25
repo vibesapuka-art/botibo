@@ -1,10 +1,9 @@
 const express = require('express');
 const path = require('path');
 
-// Importação dos bots especializados
-const engine = require('./src/bot/engine');           // Apenas técnico
-const cleaner = require('./src/bot/cleaner');         // Limpeza profunda
-const enginegestor = require('./src/bot/enginegestor'); // Combo Novo Cliente
+const engine = require('./src/bot/engine');
+const cleaner = require('./src/bot/cleaner');
+const gestorBot = require('./src/bot/gestor'); 
 
 const app = express();
 app.use(express.json());
@@ -16,34 +15,56 @@ app.post('/ativar', async (req, res) => {
     const dados = req.body;
     const macId = dados.mac.toLowerCase();
     
-    // Inicializa o status para o Front-end
     statusPedidos[macId] = { 
-        ...dados, 
+        ...dados,
+        user: dados.usuario, 
+        pass: dados.senha,
         status: "processando", 
         tipo: "ibopro",
-        mensagem: "Preparando motores..." 
+        mensagem: "⏳ Iniciando ativação..." 
     };
 
-    // DECISÃO DE FLUXO
-    if (dados.tipo === 'ativar') {
-        // ÁREA NOVO: Ativa o bot unificado (Gestor + Lista)
-        enginegestor(statusPedidos[macId], statusPedidos[macId]);
-    } else {
-        // ÁREA ASSINANTE: Ativa apenas o motor técnico (engine.js)
-        statusPedidos[macId].mensagem = "👤 Reconhecido como assinante. Reativando...";
-        engine([statusPedidos[macId]]);
-    }
+    const pedido = statusPedidos[macId];
 
-    res.json({ success: true });
-});
+    // FUNÇÃO PARA CONTROLAR O FLUXO SEM PESAR A MEMÓRIA
+    const executarFluxo = async () => {
+        try {
+            // 1. CHAMA O ENGINE (IBO PRO)
+            // Passamos um parâmetro extra 'manterAberto' para o engine não dar browser.close()
+            const modoNovo = dados.tipo === 'ativar';
+            
+            pedido.mensagem = "📡 Configurando DNS no IBO Pro...";
+            
+            // Aqui enviamos o pedido e um sinal se deve fechar ou não
+            // Se for NOVO, manterAberto é true. Se for ASSINANTE, é false.
+            const resultadoEngine = await engine([pedido], { manterAberto: modoNovo });
 
-app.post('/limpar', async (req, res) => {
-    const dados = req.body;
-    const macId = dados.mac.toLowerCase();
-    statusPedidos[macId] = { mensagem: "Iniciando limpeza..." };
-    
-    // Chama o robô de exclusão que configuramos
-    cleaner(statusPedidos[macId]);
+            // Se for ASSINANTE, o engine já fechou o navegador e acaba aqui.
+            if (!modoNovo) {
+                pedido.status = "ok";
+                pedido.mensagem = "✅ Ativação concluída!";
+                return;
+            }
+
+            // 2. SE FOR NOVO: O cliente já é liberado, mas o processo continua
+            pedido.status = "ok";
+            pedido.mensagem = "✅ Ativação técnica pronta! Abrindo gestor...";
+
+            // 3. CHAMA O GESTOR REAPROVEITANDO O NAVEGADOR
+            // O resultadoEngine deve retornar o 'browser' ou a 'page' que ficou aberta
+            if (resultadoEngine && resultadoEngine.browser) {
+                await gestorBot(pedido, resultadoEngine.browser);
+                console.log("Cadastro no gestor finalizado com sucesso.");
+            }
+
+        } catch (err) {
+            console.error("Erro no fluxo:", err.message);
+            pedido.status = "erro";
+            pedido.mensagem = "❌ Erro: " + err.message;
+        }
+    };
+
+    executarFluxo();
     res.json({ success: true });
 });
 
@@ -53,4 +74,4 @@ app.get('/status', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 ATV DIGITAL: Sistema Híbrido Ativo`));
+app.listen(PORT, () => console.log(`🚀 Sistema Híbrido: Memória Otimizada` + `\n` + `Dns: http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}`));
