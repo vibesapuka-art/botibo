@@ -23,33 +23,36 @@ module.exports = async (pedidos, config = {}) => {
             timeout: 60000 
         });
         
-        // 1. Digita o MAC
+        // 1. Preenchimento (IDs atualizados: #mac_address e #password)
         await page.waitForSelector("#mac_address", { timeout: 30000 });
-        await page.click("#mac_address");
         await page.type("#mac_address", pedido.mac, { delay: 100 });
 
-        // 2. Digita a Device Key (ID #password conforme seu HTML)
         const deviceKey = pedido.key || pedido.device_id;
         await page.waitForSelector("#password", { timeout: 20000 });
-        await page.click("#password");
         await page.type("#password", deviceKey, { delay: 100 });
         
-        // 3. ACESSO VIA ENTER (Mais seguro contra mudanças de botão)
+        // 2. Login via Enter
         console.log("Pressionando Enter para login...");
-        await Promise.all([
-            page.keyboard.press('Enter'),
-            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 45000 })
-        ]).catch(e => console.log("Aviso: Navegação pós-login demorada ou automática."));
+        await page.keyboard.press('Enter');
+        
+        // Aguarda a navegação ou uma mudança na URL que indique sucesso
+        await new Promise(r => setTimeout(r, 8000)); 
 
-        // 4. Configuração da Playlist
+        // VERIFICAÇÃO: Se ainda estiver na página de login, os dados estão errados
+        const isStillAtLogin = await page.$("#password");
+        if (isStillAtLogin) {
+            throw new Error("Dados de acesso inválidos (MAC ou Key incorretos).");
+        }
+
+        // 3. Configuração da Playlist (Aumentamos para 40 segundos de espera)
         const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
         
-        // Espera o campo de nome aparecer
-        await page.waitForSelector("#playlist_name", { timeout: 25000 });
+        console.log("Aguardando carregamento do painel de playlists...");
+        await page.waitForSelector("#playlist_name", { timeout: 40000 });
+        
         await page.type("#playlist_name", "ATV DIGITAL", { delay: 50 });
         await page.type("#playlist_url", dnsFinal, { delay: 50 });
         
-        // No envio da playlist, também usamos Enter para garantir
         await page.focus("#playlist_url");
         await page.keyboard.press('Enter');
         
