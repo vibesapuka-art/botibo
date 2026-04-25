@@ -1,49 +1,59 @@
 const express = require('express');
 const path = require('path');
-
-// IMPORTANTE: Ajustei os nomes para baterem com os seus arquivos reais
-const engine = require('./src/bot/engine'); // O seu arquivo de ativação
-const cleaner = require('./src/bot/cleaner'); // O arquivo de limpeza que fizemos
-const gestorBot = require('./src/bot/gestor'); // Seu bot de cadastro
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); 
+app.use(express.static('public')); // Certifique-se que o index.html está na pasta 'public'
 
+// Banco de dados temporário para mensagens de status
 const statusPedidos = {};
 
+// Função auxiliar para carregar módulos com segurança
+const carregarModulo = (caminho) => {
+    if (fs.existsSync(path.join(__dirname, caminho + '.js'))) {
+        return require(caminho);
+    }
+    console.error(`⚠️ AVISO: O arquivo ${caminho}.js não foi encontrado!`);
+    return null;
+};
+
+// Carregando os robôs (Ajuste os nomes se estiverem diferentes no seu GitHub)
+const activator = carregarModulo('./src/bot/activator');
+const cleaner = carregarModulo('./src/bot/cleaner');
+const gestorBot = carregarModulo('./src/bot/gestor');
+
+// --- ROTA DE ATIVAÇÃO ---
 app.post('/ativar', async (req, res) => {
     const pedido = req.body;
     const macId = pedido.mac.toLowerCase();
-    
-    // Criamos a estrutura que o seu engine.js espera
-    statusPedidos[macId] = { 
-        ...pedido, 
-        status: "pendente", 
-        mensagem: "Iniciando...",
-        tipo: "ibopro" // O seu engine.js filtra por esse tipo
-    };
+    statusPedidos[macId] = { mensagem: "Iniciando..." };
 
-    // 1. Cadastro no Gestor (Se for novo)
-    if (pedido.tipo === 'ativar' && pedido.nome) {
+    if (!activator) {
+        return res.status(500).json({ error: "Módulo de ativação não configurado no servidor." });
+    }
+
+    if (pedido.tipo === 'ativar' && pedido.nome && gestorBot) {
+        statusPedidos[macId].mensagem = "Cadastrando no gestor...";
         gestorBot(pedido).catch(e => console.log("Erro Gestor:", e.message));
     }
 
-    // 2. Executa o seu engine.js
-    // Note que passamos um ARRAY porque o seu engine usa pedidos.find()
-    engine([statusPedidos[macId]]);
-
+    statusPedidos[macId].mensagem = "Abrindo painel IBO...";
+    activator(pedido, statusPedidos[macId]);
     res.json({ success: true });
 });
 
+// --- ROTA DE LIMPEZA ---
 app.post('/limpar', async (req, res) => {
     const pedido = req.body;
     const macId = pedido.mac.toLowerCase();
-    statusPedidos[macId] = { ...pedido, mensagem: "Limpando..." };
+    statusPedidos[macId] = { mensagem: "Iniciando limpeza..." };
 
-    // Chama o cleaner de exclusão
-    cleaner(statusPedidos[macId]);
+    if (!cleaner) {
+        return res.status(500).json({ error: "Módulo de limpeza não encontrado." });
+    }
 
+    cleaner(pedido, statusPedidos[macId]);
     res.json({ success: true });
 });
 
@@ -53,4 +63,4 @@ app.get('/status', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 ATV DIGITAL online na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Rodando na porta ${PORT}`));
