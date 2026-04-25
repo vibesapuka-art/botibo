@@ -1,97 +1,82 @@
-const express = require('express');
-const path = require('path');
-const enginePro = require('./src/bot/engine');      
-const gestorBot = require('./src/bot/gestor'); 
-const cleanerBot = require('./src/bot/cleaner'); // Certifique-se que o arquivo existe em src/bot/
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 
-const app = express();
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+module.exports = async (pedidos, config = {}) => {
+    if (!pedidos || !Array.isArray(pedidos)) return null;
+    const pedido = pedidos.find(p => p.status === "processando");
+    if (!pedido) return null;
 
-let pedidos = [];
-let botOcupado = false;
-
-// Rota que recebe os comandos do Front-end
-app.post('/ativar', (req, res) => {
-    const { mac, key, usuario, senha, tipo } = req.body; 
-    
-    // Evita duplicidade de pedidos para o mesmo MAC
-    pedidos = pedidos.filter(p => p.mac !== mac);
-    
-    const novoPedido = {
-        mac: mac.trim(), 
-        key: key ? key.trim() : "", 
-        user: usuario ? usuario.trim() : "", 
-        pass: senha ? senha.trim() : "",    
-        tipo, // 'ativar', 'ibopro' ou 'limpar'
-        status: "pendente",
-        mensagem: tipo === 'limpar' ? "🧹 Na fila para limpeza..." : "⏳ Aguardando na fila..."
-    };
-
-    pedidos.push(novoPedido);
-    res.json({ success: true });
-});
-
-app.get('/status', (req, res) => {
-    const pedido = pedidos.find(p => p.mac.toLowerCase() === req.query.mac.toLowerCase());
-    if (pedido) {
-        res.json(pedido);
-    } else {
-        res.json({ status: "nao_encontrado", mensagem: "Aguardando comando..." });
-    }
-});
-
-// LOOP DE EXECUÇÃO DO BOT
-setInterval(async () => {
-    if (botOcupado) return;
-    
-    const pedido = pedidos.find(p => p.status === "pendente");
-    if (!pedido) return;
-
-    botOcupado = true;
-    pedido.status = "processando";
-
+    let browser;
     try {
-        // LÓGICA DE LIMPEZA
-        if (pedido.tipo === 'limpar') {
-            pedido.mensagem = "🧼 Iniciando limpeza do painel...";
-            await cleanerBot(pedido); 
-            pedido.mensagem = "✨ Painel limpo com sucesso!";
-        } 
-        // LÓGICA DE ATIVAÇÃO/REATIVAÇÃO
-        else {
-            pedido.mensagem = "📡 Conectando ao painel IBO...";
-            const modoNovo = pedido.tipo === 'ativar';
-            
-            // Chama o motor principal (Engine)
-            const resultado = await enginePro(pedidos, { manterAberto: modoNovo });
+        browser = await puppeteer.launch({
+            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+            executablePath: await chromium.executablePath(),
+            headless: true,
+        });
 
-            // Se for cadastro NOVO, envia para o Gestor
-            if (modoNovo && resultado && resultado.page) {
-                pedido.mensagem = "📝 Registrando no Gestor...";
-                await gestorBot(pedido, resultado.page);
-            }
-            pedido.mensagem = "✅ Procedimento concluído!";
-        }
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-        pedido.status = "ok";
-
-    } catch (e) {
-        console.error("❌ Erro no processamento:", e.message);
-        pedido.status = "erro";
+        // 1. Login
+        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.waitForSelector("#mac_address", { timeout: 30000 });
+        await page.type("#mac_address", pedido.mac, { delay: 50 });
+        await page.type("#password", (pedido.key || pedido.device_id), { delay: 50 });
+        await page.keyboard.press('Enter');
         
-        // Mensagens de erro baseadas nos logs recentes
-        if (e.message.includes("timeout")) {
-            pedido.mensagem = "⚠️ Site lento. Tente novamente.";
-        } else {
-            pedido.mensagem = "❌ Erro. Veja o print em /erro_final.png";
-        }
-    } finally {
-        botOcupado = false;
-    }
-}, 10000);
+        pedido.mensagem = "📡 Painel acessado, verificando listas...";
+        await page.waitForSelector('button.btn-secondary', { timeout: 45000 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor ATV DIGITAL ativo na porta ${PORT}`);
-});
+        // 2. Definir nome sequencial (IMPTV1, IMPTV2...)
+        const totalListasExistentes = await page.$$eval('button.btn-warning', btns => btns.length);
+        const proximoNumero = totalListasExistentes + 1;
+        const nomeLista = `IMPTV${proximoNumero}`;
+
+        // 3. Abrir Modal de Adição
+        await page.evaluate(() => {
+            const btnAdd = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Add Playlist'));
+            if (btnAdd) btnAdd.click();
+        });
+
+        // 4. Preencher Modal com PIN
+        await page.waitForSelector('input[name="name"]', { timeout: 15000 });
+        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
+        
+        pedido.mensagem = `📝 Adicionando ${nomeLista}...`;
+        await page.type('input[name="name"]', nomeLista, { delay: 50 });
+        await page.type('input[name="url"]', dnsFinal, { delay: 50 });
+
+        // ATIVAR PROTEÇÃO POR PIN
+        console.log("Ativando proteção por PIN...");
+        await page.click('#playlist-protected'); // Clica no checkbox
+        
+        // Espera os campos de PIN serem habilitados
+        await new Promise(r => setTimeout(r, 1000));
+        
+        await page.type('input[name="pin"]', "123321", { delay: 100 });
+        await page.type('input[name="cpin"]', "123321", { delay: 100 });
+        
+        // 5. Submit Final
+        await page.keyboard.press('Enter');
+        
+        // Feedback visual do status
+        await new Promise(r => setTimeout(r, 5000));
+        pedido.mensagem = `✅ ${nomeLista} adicionada com PIN!`;
+
+        if (config.manterAberto) {
+            return { browser, page };
+        } else {
+            await browser.close();
+            return null;
+        }
+
+    } catch (err) {
+        if (browser) {
+            const pages = await browser.pages();
+            if (pages[0]) await pages[0].screenshot({ path: 'public/erro_final.png' });
+        }
+        console.error("❌ Erro no Engine:", err.message);
+        throw err;
+    }
+};
