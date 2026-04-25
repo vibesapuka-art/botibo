@@ -1,70 +1,49 @@
 const express = require('express');
 const path = require('path');
 
-// Use ./ para indicar que a pasta src está na raiz do projeto
-const engine = require('./src/bot/engine');
-const cleaner = require('./src/bot/cleaner');
-const gestorBot = require('./src/bot/gestor'); 
+// IMPORTANTE: Ajustei os nomes para baterem com os seus arquivos reais
+const engine = require('./src/bot/engine'); // O seu arquivo de ativação
+const cleaner = require('./src/bot/cleaner'); // O arquivo de limpeza que fizemos
+const gestorBot = require('./src/bot/gestor'); // Seu bot de cadastro
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public')); 
 
 const statusPedidos = {};
 
 app.post('/ativar', async (req, res) => {
-    const dados = req.body;
-    const macId = dados.mac.toLowerCase();
+    const pedido = req.body;
+    const macId = pedido.mac.toLowerCase();
     
+    // Criamos a estrutura que o seu engine.js espera
     statusPedidos[macId] = { 
-        ...dados,
-        user: dados.usuario, 
-        pass: dados.senha,
-        status: "processando", 
-        tipo: "ibopro",
-        mensagem: "⏳ Iniciando..." 
+        ...pedido, 
+        status: "pendente", 
+        mensagem: "Iniciando...",
+        tipo: "ibopro" // O seu engine.js filtra por esse tipo
     };
 
-    const pedido = statusPedidos[macId];
+    // 1. Cadastro no Gestor (Se for novo)
+    if (pedido.tipo === 'ativar' && pedido.nome) {
+        gestorBot(pedido).catch(e => console.log("Erro Gestor:", e.message));
+    }
 
-    const executarFluxo = async () => {
-        try {
-            const modoNovo = dados.tipo === 'ativar';
-            pedido.mensagem = "📡 Configurando DNS...";
-            
-            // 1. Motor técnico
-            const resultadoEngine = await engine([pedido], { manterAberto: modoNovo });
+    // 2. Executa o seu engine.js
+    // Note que passamos um ARRAY porque o seu engine usa pedidos.find()
+    engine([statusPedidos[macId]]);
 
-            if (!modoNovo) {
-                pedido.status = "ok";
-                pedido.mensagem = "✅ Ativação concluída!";
-                return;
-            }
-
-            // 2. Modo Novo: Segue para o gestor
-            pedido.status = "ok"; 
-            pedido.mensagem = "✅ Ativado! Finalizando cadastro...";
-
-            if (resultadoEngine && resultadoEngine.page) {
-                await gestorBot(pedido, resultadoEngine.page);
-            }
-
-        } catch (err) {
-            console.error("Erro:", err.message);
-            pedido.status = "erro";
-            pedido.mensagem = "❌ Erro: " + err.message;
-        }
-    };
-
-    executarFluxo();
     res.json({ success: true });
 });
 
 app.post('/limpar', async (req, res) => {
-    const dados = req.body;
-    const macId = dados.mac.toLowerCase();
-    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
-    cleaner(statusPedidos[macId], statusPedidos[macId]);
+    const pedido = req.body;
+    const macId = pedido.mac.toLowerCase();
+    statusPedidos[macId] = { ...pedido, mensagem: "Limpando..." };
+
+    // Chama o cleaner de exclusão
+    cleaner(statusPedidos[macId]);
+
     res.json({ success: true });
 });
 
@@ -74,6 +53,4 @@ app.get('/status', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor Online na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 ATV DIGITAL online na porta ${PORT}`));
