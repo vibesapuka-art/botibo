@@ -1,69 +1,82 @@
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
+const express = require('express');
+const path = require('path');
 
-/**
- * Motor de Ativação Técnica - IBO Pro
- * @param {Array} pedidos - Lista contendo o objeto do pedido
- * @param {Object} config - Configurações extras (ex: manterAberto)
- */
-module.exports = async (pedidos, config = {}) => {
-    // Procura o pedido que está com status processando
-    const pedido = pedidos.find(p => p.status === "processando" && p.tipo === "ibopro");
-    if (!pedido) return null;
+const engine = require('./src/bot/engine');
+const cleaner = require('./src/bot/cleaner');
+const gestorBot = require('./src/bot/gestor'); 
 
-    let browser;
-    try {
-        // Inicializa o navegador (Otimizado para o Render)
-        browser = await puppeteer.launch({
-            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-            executablePath: await chromium.executablePath(),
-            headless: true
-        });
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-        const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 720 });
+const statusPedidos = {};
 
-        // 1. Acessa o site do IBO Player Pro
-        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
+app.post('/ativar', async (req, res) => {
+    const dados = req.body;
+    const macId = dados.mac.toLowerCase();
+    
+    // Organiza os dados para o engine e gestor
+    statusPedidos[macId] = { 
+        ...dados,
+        user: dados.usuario, 
+        pass: dados.senha,
+        status: "processando", 
+        tipo: "ibopro",
+        mensagem: "⏳ Iniciando ativação..." 
+    };
 
-        // 2. Login com MAC e Device ID
-        await page.type("#mac_address", pedido.mac);
-        await page.type("#device_id", pedido.key || pedido.device_id); // Aceita 'key' ou 'device_id'
-        
-        await Promise.all([
-            page.click("#login_btn"),
-            page.waitForNavigation({ waitUntil: "networkidle2" })
-        ]);
+    const pedido = statusPedidos[macId];
 
-        // 3. Adiciona a Playlist (DNS Corrigido)
-        // Usamos pedido.user e pedido.pass que tratamos no index.js
-        const dnsFinal = `http://xw.pluss.fun/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
-        
-        await page.waitForSelector("#playlist_name");
-        await page.type("#playlist_name", "ATV DIGITAL");
-        await page.type("#playlist_url", dnsFinal);
+    const executarFluxo = async () => {
+        try {
+            const modoNovo = dados.tipo === 'ativar';
+            pedido.mensagem = "📡 Configurando DNS no IBO Pro...";
+            
+            // 1. Roda o motor técnico
+            const resultadoEngine = await engine([pedido], { manterAberto: modoNovo });
 
-        // Clique no botão de salvar/adicionar
-        await page.click("#add_playlist_btn");
-        
-        // Pequena pausa para garantir o salvamento no banco deles
-        await new Promise(r => setTimeout(r, 3000));
+            if (!modoNovo) {
+                pedido.status = "ok";
+                pedido.mensagem = "✅ Ativação concluída!";
+                return;
+            }
 
-        console.log(`✅ DNS Configurado para MAC: ${pedido.mac}`);
+            // 2. Se for novo, libera o cliente e continua o cadastro na mesma janela
+            pedido.status = "ok";
+            pedido.mensagem = "✅ Ativado! Finalizando seu cadastro...";
 
-        // --- LÓGICA DE PASSAGEM DE BASTÃO ---
-        if (config.manterAberto) {
-            // Se for modo NOVO, retornamos o navegador vivo para o index.js usar no gestor
-            return { browser, page };
-        } else {
-            // Se for ASSINANTE, fecha tudo agora para economizar RAM
-            await browser.close();
-            return null;
+            if (resultadoEngine && resultadoEngine.page) {
+                await gestorBot(pedido, resultadoEngine.page);
+                console.log(`✅ Cadastro finalizado para ${pedido.nome}`);
+            }
+
+        } catch (err) {
+            console.error("Erro no fluxo:", err.message);
+            pedido.status = "erro";
+            pedido.mensagem = "❌ Erro: " + err.message;
         }
+    };
 
-    } catch (err) {
-        console.error("❌ Erro no Engine:", err.message);
-        if (browser) await browser.close();
-        throw err;
-    }
-};
+    executarFluxo();
+    res.json({ success: true });
+});
+
+app.post('/limpar', async (req, res) => {
+    const dados = req.body;
+    const macId = dados.mac.toLowerCase();
+    statusPedidos[macId] = { ...dados, mensagem: "Limpando..." };
+    cleaner(statusPedidos[macId], statusPedidos[macId]);
+    res.json({ success: true });
+});
+
+app.get('/status', (req, res) => {
+    const mac = req.query.mac ? req.query.mac.toLowerCase() : null;
+    res.json(statusPedidos[mac] || { mensagem: "Aguardando..." });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    // Log limpo para não dar erro na inicialização
+    console.log(`🚀 Sistema ATV DIGITAL Rodando na porta ${PORT}`);
+    console.log(`📡 Modo Híbrido (Gestor + Engine) Ativo`);
+});
