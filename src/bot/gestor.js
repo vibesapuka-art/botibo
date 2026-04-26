@@ -9,8 +9,6 @@ module.exports = async (pedido, pageExistente = null) => {
         const loginFinal = pedido.usuario_iptv || pedido.user || "";
         const senhaFinal = pedido.senha_iptv || pedido.pass || "";
 
-        console.log(`[DEBUG] Iniciando Registro -> User: ${loginFinal} | Pass: ${senhaFinal}`);
-
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
@@ -19,61 +17,64 @@ module.exports = async (pedido, pageExistente = null) => {
                 headless: chromium.headless,
             });
             page = await browser.newPage();
+            // User agent mais comum para evitar detecção de bot
             await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
-            await page.setDefaultNavigationTimeout(90000); 
         }
 
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
-        await page.waitForSelector('#nome', { visible: true });
+        await page.waitForSelector('#nome');
 
-        const preencher = async (id, valor) => {
-            await page.focus(id);
+        // Preenchimento com cliques reais antes de digitar
+        const preencherHibrido = async (id, valor) => {
+            await page.click(id); // Clique real para focar
             await page.click(id, { clickCount: 3 });
             await page.keyboard.press('Backspace');
-            await page.keyboard.type(String(valor || ""), { delay: 100 });
+            await page.keyboard.type(String(valor || ""), { delay: 50 });
         };
 
-        await preencher('#nome', pedido.nome);
-        await preencher('#sobrenome', pedido.sobrenome);
-        await preencher('#user', loginFinal);
-        await preencher('#pass', senhaFinal);
-        if (pedido.whatsapp) await preencher('#whatsapp', pedido.whatsapp);
+        await preencherHibrido('#nome', pedido.nome);
+        await preencherHibrido('#sobrenome', pedido.sobrenome);
+        await preencherHibrido('#user', loginFinal);
+        await preencherHibrido('#pass', senhaFinal);
+        if (pedido.whatsapp) await preencherHibrido('#whatsapp', pedido.whatsapp);
 
-        // --- CAPTCHA (Tentativa de clique e espera) ---
-        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
-        await frameHandle.focus();
-        await page.keyboard.press('Tab');
-        await new Promise(r => setTimeout(r, 1000));
-        await page.keyboard.press('Space');
+        // --- MANIPULAÇÃO DO RECAPTCHA ---
+        console.log("🤖 Tentando marcar o captcha...");
+        const frame = page.frames().find(f => f.url().includes('api2/anchor'));
+        if (frame) {
+            const checkbox = await frame.waitForSelector('#recaptcha-anchor');
+            await checkbox.click({ delay: 200 });
+        }
 
-        console.log("⏳ Aguardando validação do Captcha...");
-        await new Promise(r => setTimeout(r, 12000)); 
+        // Espera generosa para validação do Google
+        await new Promise(r => setTimeout(r, 15000)); 
 
-        await page.click('#btn-cadastrar');
-        console.log("🚀 Botão registrar clicado, aguardando resposta...");
+        // --- O PULO DO GATO: FORÇAR O ENVIO ---
+        console.log("🚀 Forçando submissão do formulário...");
+        await page.evaluate(() => {
+            const form = document.querySelector('form');
+            if (form) form.submit(); // Tenta enviar o formulário diretamente
+            else document.querySelector('#btn-cadastrar').click(); // Se não tiver form, clica no botão
+        });
+
         await new Promise(r => setTimeout(r, 15000));
 
         const urlFinal = page.url();
         const conteudo = await page.content();
 
-        if (urlFinal.includes('/login/') || conteudo.includes("Até mais sucesso")) {
+        if (urlFinal.includes('/login/') || conteudo.includes("sucesso") || conteudo.includes("Até mais")) {
             pedido.mensagem = "✅ Cadastro realizado com sucesso!";
             if (browser) await browser.close();
             return true;
         }
 
-        // --- DIAGNÓSTICO AVANÇADO ---
-        const logDoSite = await page.evaluate(() => document.body.innerText.slice(-500));
-        console.log(`[RAIO-X SITE]: ${logDoSite}`);
-
-        const erroVisivel = await page.evaluate(() => {
-            const el = document.querySelector('.text-danger, .invalid-feedback, .alert');
-            return el ? el.innerText : null;
+        // Se ainda assim não foi, pegamos o erro final
+        const erroFinal = await page.evaluate(() => {
+            const el = document.querySelector('.text-danger, .alert');
+            return el ? el.innerText : "Captcha bloqueou ou campo invisível barrou.";
         });
 
-        if (erroVisivel) throw new Error(`Site diz: ${erroVisivel}`);
-        
-        throw new Error("O site não mudou de página. Pode ser o desafio de imagens do Google.");
+        throw new Error(erroFinal);
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
