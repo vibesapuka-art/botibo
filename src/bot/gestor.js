@@ -9,94 +9,73 @@ module.exports = async (pedido, pageExistente = null) => {
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
-                args: [
-                    ...chromium.args,
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                ],
+                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
                 executablePath: executablePath,
                 headless: chromium.headless,
             });
             page = await browser.newPage();
             await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
-            await page.setViewport({ width: 1280, height: 800 });
-            
-            // Aumenta o tempo limite global para evitar o erro de Navigation Timeout
             await page.setDefaultNavigationTimeout(90000); 
         }
 
-        pedido.mensagem = "🌐 Acessando Central ImperiumTV...";
-        await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { 
-            waitUntil: "networkidle2", 
-            timeout: 90000 
-        });
-
+        await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
         await page.waitForSelector('#nome', { visible: true, timeout: 60000 });
 
-        const preencherHumano = async (seletor, valor) => {
-            await page.click(seletor, { clickCount: 3 });
+        // Preenchimento com atraso humano
+        const digitar = async (sel, val) => {
+            await page.click(sel, { clickCount: 3 });
             await page.keyboard.press('Backspace');
-            for (const char of (valor || "")) {
-                await page.type(seletor, char, { delay: Math.random() * 50 + 20 });
-            }
+            await page.type(sel, val || "", { delay: 100 });
         };
 
         pedido.mensagem = "📝 Preenchendo dados...";
-        await preencherHumano('#nome', pedido.nome);
-        await preencherHumano('#sobrenome', pedido.sobrenome);
-        await preencherHumano('#user', pedido.user);
-        await preencherHumano('#pass', pedido.pass);
-        if (pedido.whatsapp) await preencherHumano('#whatsapp', pedido.whatsapp);
+        await digitar('#nome', pedido.nome);
+        await digitar('#sobrenome', pedido.sobrenome);
+        await digitar('#user', pedido.user);
+        await digitar('#pass', pedido.pass);
+        if (pedido.whatsapp) await digitar('#whatsapp', pedido.whatsapp);
 
-        // LÓGICA DO RECAPTCHA
-        pedido.mensagem = "🤖 Resolvendo verificação...";
-        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]', { timeout: 60000 });
+        // --- CLIQUE NO RECAPTCHA ---
+        pedido.mensagem = "🤖 Validando captcha...";
+        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
         const frame = await frameHandle.contentFrame();
-        
-        const rect = await frame.evaluate(() => {
-            const el = document.querySelector('#recaptcha-anchor');
-            const { x, y, width, height } = el.getBoundingClientRect();
-            return { x, y, width, height };
-        });
+        const rect = await frame.evaluate(() => document.querySelector('#recaptcha-anchor').getBoundingClientRect());
+        const offset = await page.evaluate(el => el.getBoundingClientRect(), frameHandle);
 
-        const offsetFrame = await page.evaluate(el => {
-            const { x, y } = el.getBoundingClientRect();
-            return { x, y };
-        }, frameHandle);
+        await page.mouse.click(offset.x + rect.x + rect.width / 2, offset.y + rect.y + rect.height / 2);
+        await new Promise(r => setTimeout(r, 8000)); // Espera validação
 
-        // Clique com leve variação de posição
-        const clickX = offsetFrame.x + rect.x + (rect.width / 2) + (Math.random() * 4);
-        const clickY = offsetFrame.y + rect.y + (rect.height / 2) + (Math.random() * 4);
+        pedido.mensagem = "🚀 Clicando em Registrar...";
+        await page.click('#btn-cadastrar');
 
-        await page.mouse.click(clickX, clickY, { delay: 150 });
+        // Aguarda um pouco para ver se redireciona ou se aparece erro na tela
+        await new Promise(r => setTimeout(r, 10000));
 
-        pedido.mensagem = "⏳ Aguardando validação...";
-        await new Promise(r => setTimeout(r, 8000)); 
-
-        pedido.mensagem = "🚀 Enviando cadastro...";
-        // Usa Promise.all para garantir que o clique e a navegação sejam capturados juntos
-        await Promise.all([
-            page.click('#btn-cadastrar'),
-            page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 90000 }).catch(() => null)
-        ]);
-        
-        // Verifica se chegamos na tela de login ou se a mensagem de sucesso apareceu
-        const finalUrl = page.url();
+        const urlFinal = page.url();
         const conteudo = await page.content();
-        
-        if (finalUrl.includes('/login/') || conteudo.includes("Até mais sucesso")) {
+
+        // 1. Verifica Sucesso por URL ou Mensagem
+        if (urlFinal.includes('/login/') || conteudo.includes("Até mais sucesso")) {
             pedido.mensagem = "✅ Cadastro realizado com sucesso!";
             if (browser) await browser.close();
             return true;
         }
 
-        throw new Error("Não foi possível confirmar o redirecionamento.");
+        // 2. Diagnóstico de Erro (Verifica o que o site respondeu)
+        if (conteudo.includes("usuário já cadastrado") || conteudo.includes("já existe")) {
+            throw new Error("Este usuário já existe no sistema.");
+        } else if (conteudo.includes("solicitação de captcha inválida")) {
+            throw new Error("O Google bloqueou o captcha.");
+        } else {
+            // Tira print para você ver o que o bot está vendo
+            await page.screenshot({ path: 'erro_registro.png' });
+            throw new Error("O site não avançou após o clique.");
+        }
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
         pedido.status = "erro";
-        pedido.mensagem = `❌ Erro: ${err.message.includes('timeout') ? 'Site lento ou bloqueado' : 'Falha no cadastro'}`;
+        pedido.mensagem = `❌ ${err.message}`;
         if (browser) await browser.close();
         return false;
     }
