@@ -9,12 +9,7 @@ module.exports = async (pedido, pageExistente = null) => {
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
-                args: [
-                    ...chromium.args, 
-                    "--no-sandbox", 
-                    "--disable-setuid-sandbox", 
-                    "--disable-blink-features=AutomationControlled"
-                ],
+                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
                 executablePath: executablePath,
                 headless: chromium.headless,
             });
@@ -25,61 +20,65 @@ module.exports = async (pedido, pageExistente = null) => {
 
         pedido.mensagem = "🌐 Abrindo Central ImperiumTV...";
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
+        
+        // Espera o campo de nome estar pronto
         await page.waitForSelector('#nome', { visible: true, timeout: 60000 });
 
-        const digitar = async (sel, val) => {
-            await page.click(sel, { clickCount: 3 });
-            await page.keyboard.press('Backspace');
-            await page.type(sel, String(val || ""), { delay: 100 });
-        };
+        // Foca no primeiro campo para começar a sequência de TABs
+        await page.focus('#nome');
 
-        pedido.mensagem = "📝 Preenchendo formulário...";
-        await digitar('#nome', pedido.nome);
-        await digitar('#sobrenome', pedido.sobrenome);
-        await digitar('#user', pedido.user);
-        await digitar('#pass', pedido.pass);
-        if (pedido.whatsapp) await digitar('#whatsapp', pedido.whatsapp);
-
-        // --- CORREÇÃO DO CLIQUE NO RECAPTCHA ---
-        pedido.mensagem = "🤖 Validando captcha...";
-        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
+        pedido.mensagem = "📝 Preenchendo via teclado...";
         
-        // Nova forma mais segura de clicar sem erro de parâmetros inválidos
-        const boundingBox = await frameHandle.boundingBox();
-        if (boundingBox) {
-            // Clica exatamente no centro do iframe onde o checkbox fica localizado
-            await page.mouse.click(
-                boundingBox.x + (boundingBox.width / 2) - 100, 
-                boundingBox.y + (boundingBox.height / 2), 
-                { delay: 150 }
-            );
-        } else {
-            // Fallback caso o boundingBox falhe
-            await frameHandle.click();
-        }
+        // Nome -> TAB -> Sobrenome
+        await page.keyboard.type(pedido.nome || "", { delay: 100 });
+        await page.keyboard.press('Tab');
+        await page.keyboard.type(pedido.sobrenome || "", { delay: 100 });
+        await page.keyboard.press('Tab');
 
+        // Usuário -> TAB -> Senha
+        await page.keyboard.type(pedido.user || "", { delay: 100 });
+        await page.keyboard.press('Tab');
+        await page.keyboard.type(pedido.pass || "", { delay: 100 });
+        await page.keyboard.press('Tab');
+
+        // Pula Data de Nascimento (TAB) -> Cód País (TAB) -> WhatsApp
+        await page.keyboard.press('Tab'); 
+        await page.keyboard.press('Tab'); 
+        await page.keyboard.type(pedido.whatsapp || "", { delay: 100 });
+
+        // --- NAVEGANDO ATÉ O RECAPTCHA ---
+        pedido.mensagem = "🤖 Selecionando captcha...";
+        
+        // Pressionamos TAB até chegar no checkbox do robô
+        // Geralmente são 1 ou 2 TABs após o campo de telefone
+        await page.keyboard.press('Tab');
+        await new Promise(r => setTimeout(r, 1000));
+        await page.keyboard.press('Space'); // O Espaço marca o checkbox do Google
+
+        pedido.mensagem = "⏳ Validando...";
         await new Promise(r => setTimeout(r, 8000)); 
 
-        pedido.mensagem = "🚀 Registrando conta...";
-        await page.click('#btn-cadastrar');
+        // TAB final para chegar no botão "Criar Conta" e Enter para enviar
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Enter');
 
-        // Aguarda resposta ou redirecionamento
+        pedido.mensagem = "🚀 Processando registro...";
         await new Promise(r => setTimeout(r, 12000));
 
         const urlFinal = page.url();
         const conteudo = await page.content();
 
+        // Verificação de sucesso
         if (urlFinal.includes('/login/') || conteudo.includes("Até mais sucesso")) {
             pedido.mensagem = "✅ Cadastro realizado com sucesso!";
             if (browser) await browser.close();
             return true;
         }
 
-        // Diagnóstico de erros comuns
+        // Se o site não avançou, verificamos se há erro visível
         if (conteudo.includes("usuário já cadastrado")) throw new Error("Usuário já existe.");
-        if (conteudo.includes("captcha inválida")) throw new Error("Google barrou o bot.");
-
-        throw new Error("O site não avançou após o registro.");
+        
+        throw new Error("O site não avançou. Verifique se o captcha abriu imagens.");
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
