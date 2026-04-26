@@ -2,6 +2,10 @@ const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
 module.exports = async (pedido) => {
+    // FORÇA O STATUS A MUDAR NA HORA
+    pedido.status = "processando"; 
+    pedido.mensagem = "🚀 Bot de limpeza iniciado...";
+
     let browser;
     try {
         browser = await puppeteer.launch({
@@ -13,68 +17,41 @@ module.exports = async (pedido) => {
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
 
-        // 1. INÍCIO DO PROCESSO
-        pedido.mensagem = "🌐 Abrindo painel IBO...";
+        pedido.mensagem = "🔑 Fazendo login no IBO...";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
         
-        pedido.mensagem = "🔑 Realizando login...";
         await page.waitForSelector('#mac_address');
         await page.type('#mac_address', pedido.mac);
         await page.type('#password', pedido.key);
-        
-        await Promise.all([
-            page.keyboard.press('Enter'),
-            page.waitForNavigation({ waitUntil: "networkidle2" })
-        ]);
+        await page.keyboard.press('Enter');
+        await page.waitForNavigation({ waitUntil: "networkidle2" });
 
-        // 2. LOOP DE LIMPEZA COM FEEDBACK NO PAINEL
         while (true) {
-            pedido.mensagem = "🔄 Atualizando lista de conteúdos...";
+            pedido.mensagem = "🔄 Escaneando playlists...";
             await page.reload({ waitUntil: "networkidle2" });
             
-            // Conta listas reais pelos botões amarelos específicos
-            const totalListas = await page.$$eval('button.styles_button__17ZvA', btns => btns.length);
+            const btnDelete = await page.$('button.styles_button__17ZvA');
             
-            if (totalListas === 0) {
-                pedido.mensagem = "✨ Sucesso! Painel 100% limpo.";
+            if (!btnDelete) {
+                pedido.mensagem = "✅ Limpeza concluída!";
+                pedido.status = "ok";
                 break; 
             }
 
-            pedido.mensagem = `🗑️ Encontradas ${totalListas} listas. Excluindo...`;
+            pedido.mensagem = "🗑️ Deletando lista encontrada...";
+            await btnDelete.click();
 
-            // Localiza o botão Delete exato
-            const btnDelete = await page.$('button.styles_button__17ZvA');
-            if (btnDelete) {
-                await btnDelete.click();
+            await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
+            await page.type('input[name="pin"]', "123321"); 
+            await page.keyboard.press('Enter');
 
-                // 3. MODAL DE PIN
-                pedido.mensagem = "⌨️ Digitando PIN 123321...";
-                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
-                
-                const inputPin = await page.$('input[name="pin"]');
-                await inputPin.click({ clickCount: 3 }); 
-                await page.keyboard.press('Backspace');
-                await page.keyboard.type("123321", { delay: 100 }); 
-
-                pedido.mensagem = "🚀 Confirmando exclusão...";
-                await page.keyboard.press('Enter');
-                
-                // Força o clique no OK se o Enter falhar
-                await page.evaluate(() => {
-                    const okBtn = document.querySelector('button.btn-success');
-                    if (okBtn) okBtn.click();
-                });
-
-                // Pausa necessária para o servidor processar
-                await new Promise(r => setTimeout(r, 7500));
-            } else {
-                break;
-            }
+            // Tempo para o servidor do IBO processar
+            await new Promise(r => setTimeout(r, 7000));
         }
         
     } catch (err) {
-        console.error("Erro no Cleaner:", err.message);
-        pedido.mensagem = "❌ Erro na limpeza. Tente novamente.";
+        pedido.status = "erro";
+        pedido.mensagem = "❌ Falha: " + err.message;
     } finally {
         if (browser) await browser.close();
     }
