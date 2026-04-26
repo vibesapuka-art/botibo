@@ -33,68 +33,51 @@ module.exports = async (pedido, pageExistente = null) => {
             await page.keyboard.type(String(valor || ""), { delay: 100 });
         };
 
-        pedido.mensagem = "📝 Preenchendo dados...";
         await preencher('#nome', pedido.nome);
         await preencher('#sobrenome', pedido.sobrenome);
         await preencher('#user', loginFinal);
         await preencher('#pass', senhaFinal);
         if (pedido.whatsapp) await preencher('#whatsapp', pedido.whatsapp);
 
-        // --- CAPTCHA ---
-        pedido.mensagem = "🤖 Acionando captcha...";
+        // --- CAPTCHA (Tentativa de clique e espera) ---
         const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
         await frameHandle.focus();
         await page.keyboard.press('Tab');
         await new Promise(r => setTimeout(r, 1000));
         await page.keyboard.press('Space');
 
-        pedido.mensagem = "⏳ Aguardando validação...";
-        await new Promise(r => setTimeout(r, 10000)); 
+        console.log("⏳ Aguardando validação do Captcha...");
+        await new Promise(r => setTimeout(r, 12000)); 
 
-        pedido.mensagem = "🚀 Clicando em Registrar...";
         await page.click('#btn-cadastrar');
-
-        // Espera o processamento do servidor
-        await new Promise(r => setTimeout(r, 10000));
+        console.log("🚀 Botão registrar clicado, aguardando resposta...");
+        await new Promise(r => setTimeout(r, 15000));
 
         const urlFinal = page.url();
         const conteudo = await page.content();
 
-        // 1. Verificação de Sucesso
         if (urlFinal.includes('/login/') || conteudo.includes("Até mais sucesso")) {
             pedido.mensagem = "✅ Cadastro realizado com sucesso!";
             if (browser) await browser.close();
             return true;
         }
 
-        // 2. BUSCA DE ERROS NO SITE (O "DETETIVE")
-        const erroDetectado = await page.evaluate(() => {
-            // Busca mensagens de erro comuns em vermelho ou alertas
-            const msgErro = document.querySelector('.text-danger, .invalid-feedback, .alert-danger, #erro-mensagem');
-            if (msgErro && msgErro.innerText.trim().length > 0) {
-                return msgErro.innerText.trim();
-            }
-            
-            // Verifica se algum campo ficou com borda vermelha
-            const campoInvalido = document.querySelector('.is-invalid');
-            if (campoInvalido) {
-                const label = document.querySelector(`label[for="${campoInvalido.id}"]`);
-                return `Campo inválido: ${label ? label.innerText : campoInvalido.id}`;
-            }
+        // --- DIAGNÓSTICO AVANÇADO ---
+        const logDoSite = await page.evaluate(() => document.body.innerText.slice(-500));
+        console.log(`[RAIO-X SITE]: ${logDoSite}`);
 
-            return null;
+        const erroVisivel = await page.evaluate(() => {
+            const el = document.querySelector('.text-danger, .invalid-feedback, .alert');
+            return el ? el.innerText : null;
         });
 
-        if (erroDetectado) {
-            throw new Error(`Site reportou: ${erroDetectado}`);
-        }
-
-        throw new Error("O site não avançou e não mostrou erro claro.");
+        if (erroVisivel) throw new Error(`Site diz: ${erroVisivel}`);
+        
+        throw new Error("O site não mudou de página. Pode ser o desafio de imagens do Google.");
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
         pedido.status = "erro";
-        // Envia a mensagem real do site para o seu painel
         pedido.mensagem = `❌ ${err.message}`;
         if (browser) await browser.close();
         return false;
