@@ -1,5 +1,3 @@
-Esse é o codigo cleaner.js que deu certo 
-
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
