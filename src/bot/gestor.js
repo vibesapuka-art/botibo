@@ -7,57 +7,70 @@ module.exports = async (pedido, pageExistente = null) => {
 
     try {
         if (!page) {
-            // CORREÇÃO: executablePath com 'P' maiúsculo e await obrigatório
             const executablePath = await chromium.executablePath();
-            
             browser = await puppeteer.launch({
-                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-                executablePath: executablePath, // Nome correto da propriedade
+                args: [
+                    ...chromium.args,
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled", // Tenta ocultar que é um bot
+                ],
+                executablePath: executablePath,
                 headless: chromium.headless,
             });
             page = await browser.newPage();
+            
+            // Define um User-Agent real para evitar bloqueios do Cloudflare
+            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             await page.setViewport({ width: 1280, height: 800 });
         }
 
-        pedido.mensagem = "📝 Acessando Registro do Gestor...";
+        pedido.mensagem = "🌐 Acessando Gestor V3...";
+        
+        // Tenta carregar a página com um tempo de espera maior e ignorando erros de rede leves
         await page.goto("https://gestorv3.com.br/central/registrar/", { 
-            waitUntil: "networkidle2",
-            timeout: 60000 
+            waitUntil: "networkidle2", 
+            timeout: 90000 
         });
 
-        await page.waitForSelector('#nome', { timeout: 30000 });
+        // Aguarda um pouco antes de procurar o seletor para garantir que scripts de segurança rodem
+        await new Promise(r => setTimeout(r, 5000));
 
-        pedido.mensagem = "✍️ Preenchendo dados pessoais...";
-        await page.type('#nome', pedido.nome || "Cliente");
-        await page.type('#sobrenome', pedido.sobrenome || "Imperium");
+        pedido.mensagem = "📝 Localizando formulário...";
+        // Verifica se o seletor existe antes de tentar digitar
+        await page.waitForSelector('#nome', { visible: true, timeout: 60000 });
 
-        await page.type('#user', pedido.user);
-        await page.type('#pass', pedido.pass);
+        pedido.mensagem = "✍️ Preenchendo dados...";
+        await page.type('#nome', pedido.nome || "Jefferson", { delay: 100 });
+        await page.type('#sobrenome', pedido.sobrenome || "Teste", { delay: 100 });
+        await page.type('#user', pedido.user, { delay: 100 });
+        await page.type('#pass', pedido.pass, { delay: 100 });
 
-        pedido.mensagem = "📱 Configurando contato...";
         if (pedido.whatsapp) {
-            await page.type('#whatsapp', pedido.whatsapp);
+            await page.type('#whatsapp', pedido.whatsapp, { delay: 100 });
         }
 
-        // Simulação de tempo para o Cloudflare validar o bot
-        pedido.mensagem = "🛡️ Validando segurança...";
-        await new Promise(r => setTimeout(r, 6000));
+        pedido.mensagem = "🛡️ Finalizando segurança...";
+        await new Promise(r => setTimeout(r, 8000)); // Tempo extra para o Cloudflare autorizar
 
-        pedido.mensagem = "🚀 Finalizando cadastro...";
+        pedido.mensagem = "🚀 Criando conta...";
         await page.click('#btn-cadastrar');
         
-        // Aguarda um pouco para ver se houve sucesso ou erro na tela
-        await new Promise(r => setTimeout(r, 4000));
+        // Espera a resposta do servidor ou redirecionamento
+        await new Promise(r => setTimeout(r, 5000));
 
-        pedido.mensagem = "✅ Cadastro realizado!";
-        
+        pedido.mensagem = "✅ Cadastro enviado!";
         if (browser) await browser.close();
         return true;
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
+        
+        // Se falhar, tira um print do erro para diagnóstico (opcional)
+        try { await page.screenshot({ path: 'erro_gestor.png' }); } catch(e) {}
+        
         pedido.status = "erro";
-        pedido.mensagem = `❌ Erro: ${err.message}`; // Mostra o erro real no painel
+        pedido.mensagem = "❌ Site do Gestor demorou a responder.";
         if (browser) await browser.close();
         return false;
     }
