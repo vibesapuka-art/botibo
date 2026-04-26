@@ -19,74 +19,81 @@ module.exports = async (pedido, pageExistente = null) => {
                 headless: chromium.headless,
             });
             page = await browser.newPage();
-            // User-agent atualizado para maior compatibilidade
             await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
             await page.setViewport({ width: 1280, height: 800 });
         }
 
-        // URL ATUALIZADA: gestorv3.pro
         pedido.mensagem = "🌐 Acessando Central ImperiumTV...";
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { 
             waitUntil: "networkidle2", 
             timeout: 90000 
         });
 
-        // Aguarda carregamento de segurança
-        await new Promise(r => setTimeout(r, 5000));
-
-        pedido.mensagem = "📝 Preenchendo formulário...";
         await page.waitForSelector('#nome', { visible: true, timeout: 60000 });
 
-        const preencher = async (seletor, valor) => {
+        // Função para simular digitação humana com atrasos variáveis
+        const preencherHumano = async (seletor, valor) => {
             await page.click(seletor, { clickCount: 3 });
             await page.keyboard.press('Backspace');
-            await page.type(seletor, valor || "", { delay: 100 });
+            for (const char of valor) {
+                await page.type(seletor, char, { delay: Math.random() * 100 + 50 });
+            }
         };
 
-        await preencher('#nome', pedido.nome);
-        await preencher('#sobrenome', pedido.sobrenome);
-        await preencher('#user', pedido.user);
-        await preencher('#pass', pedido.pass);
+        await preencherHumano('#nome', pedido.nome);
+        await preencherHumano('#sobrenome', pedido.sobrenome);
+        await preencherHumano('#user', pedido.user);
+        await preencherHumano('#pass', pedido.pass);
+        if (pedido.whatsapp) await preencherHumano('#whatsapp', pedido.whatsapp);
 
-        if (pedido.whatsapp) {
-            await preencher('#whatsapp', pedido.whatsapp);
-        }
+        // --- LÓGICA DO RECAPTCHA ---
+        pedido.mensagem = "🤖 Validando verificação humana...";
+        
+        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
+        const frame = await frameHandle.contentFrame();
+        const checkbox = await frame.waitForSelector('#recaptcha-anchor');
 
-        pedido.mensagem = "🛡️ Validando segurança...";
-        await new Promise(r => setTimeout(r, 8000)); 
+        // Obtém as coordenadas do checkbox
+        const rect = await frame.evaluate(() => {
+            const el = document.querySelector('#recaptcha-anchor');
+            const { x, y, width, height } = el.getBoundingClientRect();
+            return { x, y, width, height };
+        });
+
+        // Calcula um ponto aleatório dentro do quadrado do checkbox para não clicar sempre no centro
+        const offsetFrame = await page.evaluate(el => {
+            const { x, y } = el.getBoundingClientRect();
+            return { x, y };
+        }, frameHandle);
+
+        const clickX = offsetFrame.x + rect.x + (Math.random() * rect.width);
+        const clickY = offsetFrame.y + rect.y + (Math.random() * rect.height);
+
+        // Simula movimento do mouse até o local antes de clicar
+        await page.mouse.move(clickX - 50, clickY - 50, { steps: 10 });
+        await page.mouse.click(clickX, clickY, { delay: Math.random() * 200 + 100 });
+
+        pedido.mensagem = "⏳ Aguardando aprovação do Google...";
+        await new Promise(r => setTimeout(r, 7000)); 
 
         pedido.mensagem = "🚀 Finalizando registro...";
         await page.click('#btn-cadastrar');
         
-        // Verificação inteligente de sucesso baseada na sua observação
-        pedido.mensagem = "⏳ Aguardando confirmação...";
+        // Verificação de sucesso baseada na sua tela anterior
+        await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
         
-        try {
-            // Espera o redirecionamento para a tela de login
-            await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 });
-            
-            const urlAtual = page.url();
-            if (urlAtual.includes('/login/')) {
-                pedido.mensagem = "✅ Cadastro realizado com sucesso!";
-                if (browser) await browser.close();
-                return true;
-            }
-        } catch (e) {
-            // Backup: verifica se a mensagem de "Até mais" apareceu
-            const conteudo = await page.content();
-            if (conteudo.includes("Até mais sucesso")) {
-                pedido.mensagem = "✅ Sucesso detectado!";
-                if (browser) await browser.close();
-                return true;
-            }
+        if (page.url().includes('/login/') || (await page.content()).includes("Até mais sucesso")) {
+            pedido.mensagem = "✅ Cadastro realizado com sucesso!";
+            if (browser) await browser.close();
+            return true;
         }
 
-        throw new Error("Não foi possível confirmar o sucesso.");
+        throw new Error("Falha ao confirmar o cadastro.");
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
         pedido.status = "erro";
-        pedido.mensagem = "❌ Erro no cadastro da central.";
+        pedido.mensagem = "❌ Erro: Verificação de robô falhou.";
         if (browser) await browser.close();
         return false;
     }
