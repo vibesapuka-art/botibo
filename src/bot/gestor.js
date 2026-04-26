@@ -6,6 +6,13 @@ module.exports = async (pedido, pageExistente = null) => {
     let page = pageExistente;
 
     try {
+        // MAPEAMENTO DAS VARIÁVEIS
+        // Pegamos usuario_iptv ou user, e senha_iptv ou pass
+        const loginFinal = pedido.usuario_iptv || pedido.user || "";
+        const senhaFinal = pedido.senha_iptv || pedido.pass || "";
+
+        console.log(`[DEBUG] Enviando para Gestor -> User: ${loginFinal} | Pass: ${senhaFinal}`);
+
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
@@ -21,41 +28,38 @@ module.exports = async (pedido, pageExistente = null) => {
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
         await page.waitForSelector('#nome', { visible: true });
 
-        // Preenchimento Direto nos IDs para não errar
         const preencher = async (id, valor) => {
+            if (!valor) return; // Evita erro se o valor for nulo
             await page.focus(id);
             await page.click(id, { clickCount: 3 });
             await page.keyboard.press('Backspace');
-            await page.keyboard.type(String(valor || ""), { delay: 50 });
+            await page.keyboard.type(String(valor), { delay: 100 });
         };
 
-        pedido.mensagem = "📝 Preenchendo dados...";
+        pedido.mensagem = "📝 Preenchendo cadastro...";
         await preencher('#nome', pedido.nome);
         await preencher('#sobrenome', pedido.sobrenome);
-        await preencher('#user', pedido.user);
-        await preencher('#pass', pedido.pass);
+        
+        // PREENCHIMENTO DOS CAMPOS DE ACESSO
+        await preencher('#user', loginFinal);
+        await preencher('#pass', senhaFinal);
+        
         if (pedido.whatsapp) await preencher('#whatsapp', pedido.whatsapp);
 
-        // --- CHEGANDO NO RECAPTCHA ---
-        pedido.mensagem = "🤖 Acionando verificação...";
+        pedido.mensagem = "🤖 Acionando captcha...";
+        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
+        await frameHandle.focus();
         
-        // Em vez de contar Tabs desde o começo, focamos no iframe do captcha primeiro
-        await page.focus('iframe[src*="api2/anchor"]');
-        
-        // Agora sim, usamos o teclado dentro do contexto do captcha
-        await page.keyboard.press('Tab');   // Entra no checkbox
-        await new Promise(r => setTimeout(r, 500));
-        await page.keyboard.press('Space'); // Marca "Não sou um robô"
+        await page.keyboard.press('Tab');
+        await new Promise(r => setTimeout(r, 1000));
+        await page.keyboard.press('Space');
 
-        pedido.mensagem = "⏳ Validando captcha (8s)...";
-        await new Promise(r => setTimeout(r, 8000)); 
+        pedido.mensagem = "⏳ Validando...";
+        await new Promise(r => setTimeout(r, 10000)); 
 
-        // Navega até o botão de Registrar
-        // Após o captcha, geralmente 1 ou 2 Tabs chegam no botão final
-        await page.keyboard.press('Tab'); 
-        await page.keyboard.press('Enter');
+        pedido.mensagem = "🚀 Clicando em Registrar...";
+        await page.click('#btn-cadastrar');
 
-        pedido.mensagem = "🚀 Finalizando registro...";
         await new Promise(r => setTimeout(r, 12000));
 
         const urlFinal = page.url();
@@ -67,10 +71,9 @@ module.exports = async (pedido, pageExistente = null) => {
             return true;
         }
 
-        // Diagnóstico se não mudou de página
         if (conteudo.includes("usuário já cadastrado")) throw new Error("Usuário já existe.");
         
-        throw new Error("O site não avançou. O captcha pode ter pedido imagens.");
+        throw new Error("O site não avançou após o registro.");
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
