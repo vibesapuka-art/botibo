@@ -1,80 +1,62 @@
 const express = require('express');
-const path = require('path');
-const enginePro = require('./src/bot/engine');      
-const gestorBot = require('./src/bot/gestor'); 
-const cleanerBot = require('./src/bot/cleaner');
-
 const app = express();
+const path = require('path');
+const engine = require('./src/bot/engine');
+const cleaner = require('./src/bot/cleaner');
+const gestor = require('./src/bot/gestor'); // Importando o novo bot
+
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 let pedidos = [];
-let botOcupado = false;
 
 app.post('/ativar', (req, res) => {
-    const { mac, key, usuario, senha, tipo } = req.body; 
-    
-    // Limpa pedidos antigos do mesmo MAC para evitar conflito
-    pedidos = pedidos.filter(p => p.mac.toLowerCase() !== mac.toLowerCase());
+    const { mac, key, usuario, senha, tipo, nome, sobrenome, whatsapp, aniversario } = req.body;
     
     const novoPedido = {
-        mac: mac.trim(), 
-        key: key ? key.trim() : "", 
-        user: usuario ? usuario.trim() : "", 
-        pass: senha ? senha.trim() : "",    
-        tipo: tipo, 
+        mac: mac.trim(),
+        key: key.trim(),
+        user: usuario,
+        pass: senha,
+        nome: nome,
+        sobrenome: sobrenome,
+        whatsapp: whatsapp,
+        aniversario: aniversario,
+        tipo: tipo,
         status: "pendente",
-        mensagem: "⏳ Aguardando na fila..."
+        mensagem: "⏳ Na fila de espera..."
     };
 
     pedidos.push(novoPedido);
-    console.log(`[LOG] Pedido de ${tipo} recebido para o MAC: ${mac}`);
     res.json({ success: true });
 });
 
 app.get('/status', (req, res) => {
-    const pedido = pedidos.find(p => p.mac.toLowerCase() === req.query.mac.toLowerCase());
-    if (pedido) {
-        res.json(pedido);
-    } else {
-        res.json({ status: "nao_encontrado", mensagem: "Aguardando comando..." });
-    }
+    const pedido = pedidos.find(p => p.mac === req.query.mac);
+    res.json(pedido || { mensagem: "Não encontrado" });
 });
 
-// LOOP DE EXECUÇÃO - Ciclo de 5 segundos
+// Loop principal de processamento
 setInterval(async () => {
-    if (botOcupado) return;
-    
     const pedido = pedidos.find(p => p.status === "pendente");
     if (!pedido) return;
 
-    botOcupado = true;
     pedido.status = "processando";
 
-    try {
-        if (pedido.tipo === 'limpar') {
-            await cleanerBot(pedido); 
-        } 
-        else {
-            const modoNovo = pedido.tipo === 'ativar';
-            const resultado = await enginePro(pedidos, { manterAberto: modoNovo });
-
-            if (modoNovo && resultado && resultado.page) {
-                pedido.mensagem = "📝 Registrando no Gestor...";
-                await gestorBot(pedido, resultado.page);
-            }
+    if (pedido.tipo === 'limpar') {
+        await cleaner(pedido);
+    } else if (pedido.tipo === 'ativar') {
+        // Primeiro faz o cadastro no Gestor V3
+        const cadastroOk = await gestor(pedido);
+        if (cadastroOk) {
+            // Se o cadastro deu certo, segue para a ativação no IBO
+            await engine([pedido]);
         }
-        pedido.status = "ok";
-    } catch (e) {
-        console.error("❌ Erro no processamento:", e.message);
-        pedido.status = "erro";
-        pedido.mensagem = "❌ Falha no sistema. Tente de novo.";
-    } finally {
-        botOcupado = false;
+    } else {
+        // Modo Assinante (apenas IBO)
+        await engine([pedido]);
     }
 }, 5000);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor ativo na porta ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
