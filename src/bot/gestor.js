@@ -18,67 +18,59 @@ module.exports = async (pedido, pageExistente = null) => {
             await page.setDefaultNavigationTimeout(90000); 
         }
 
-        pedido.mensagem = "🌐 Abrindo Central ImperiumTV...";
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
+        await page.waitForSelector('#nome', { visible: true });
+
+        // Preenchimento Direto nos IDs para não errar
+        const preencher = async (id, valor) => {
+            await page.focus(id);
+            await page.click(id, { clickCount: 3 });
+            await page.keyboard.press('Backspace');
+            await page.keyboard.type(String(valor || ""), { delay: 50 });
+        };
+
+        pedido.mensagem = "📝 Preenchendo dados...";
+        await preencher('#nome', pedido.nome);
+        await preencher('#sobrenome', pedido.sobrenome);
+        await preencher('#user', pedido.user);
+        await preencher('#pass', pedido.pass);
+        if (pedido.whatsapp) await preencher('#whatsapp', pedido.whatsapp);
+
+        // --- CHEGANDO NO RECAPTCHA ---
+        pedido.mensagem = "🤖 Acionando verificação...";
         
-        // Espera o campo de nome estar pronto
-        await page.waitForSelector('#nome', { visible: true, timeout: 60000 });
-
-        // Foca no primeiro campo para começar a sequência de TABs
-        await page.focus('#nome');
-
-        pedido.mensagem = "📝 Preenchendo via teclado...";
+        // Em vez de contar Tabs desde o começo, focamos no iframe do captcha primeiro
+        await page.focus('iframe[src*="api2/anchor"]');
         
-        // Nome -> TAB -> Sobrenome
-        await page.keyboard.type(pedido.nome || "", { delay: 100 });
-        await page.keyboard.press('Tab');
-        await page.keyboard.type(pedido.sobrenome || "", { delay: 100 });
-        await page.keyboard.press('Tab');
+        // Agora sim, usamos o teclado dentro do contexto do captcha
+        await page.keyboard.press('Tab');   // Entra no checkbox
+        await new Promise(r => setTimeout(r, 500));
+        await page.keyboard.press('Space'); // Marca "Não sou um robô"
 
-        // Usuário -> TAB -> Senha
-        await page.keyboard.type(pedido.user || "", { delay: 100 });
-        await page.keyboard.press('Tab');
-        await page.keyboard.type(pedido.pass || "", { delay: 100 });
-        await page.keyboard.press('Tab');
-
-        // Pula Data de Nascimento (TAB) -> Cód País (TAB) -> WhatsApp
-        await page.keyboard.press('Tab'); 
-        await page.keyboard.press('Tab'); 
-        await page.keyboard.type(pedido.whatsapp || "", { delay: 100 });
-
-        // --- NAVEGANDO ATÉ O RECAPTCHA ---
-        pedido.mensagem = "🤖 Selecionando captcha...";
-        
-        // Pressionamos TAB até chegar no checkbox do robô
-        // Geralmente são 1 ou 2 TABs após o campo de telefone
-        await page.keyboard.press('Tab');
-        await new Promise(r => setTimeout(r, 1000));
-        await page.keyboard.press('Space'); // O Espaço marca o checkbox do Google
-
-        pedido.mensagem = "⏳ Validando...";
+        pedido.mensagem = "⏳ Validando captcha (8s)...";
         await new Promise(r => setTimeout(r, 8000)); 
 
-        // TAB final para chegar no botão "Criar Conta" e Enter para enviar
-        await page.keyboard.press('Tab');
+        // Navega até o botão de Registrar
+        // Após o captcha, geralmente 1 ou 2 Tabs chegam no botão final
+        await page.keyboard.press('Tab'); 
         await page.keyboard.press('Enter');
 
-        pedido.mensagem = "🚀 Processando registro...";
+        pedido.mensagem = "🚀 Finalizando registro...";
         await new Promise(r => setTimeout(r, 12000));
 
         const urlFinal = page.url();
         const conteudo = await page.content();
 
-        // Verificação de sucesso
         if (urlFinal.includes('/login/') || conteudo.includes("Até mais sucesso")) {
             pedido.mensagem = "✅ Cadastro realizado com sucesso!";
             if (browser) await browser.close();
             return true;
         }
 
-        // Se o site não avançou, verificamos se há erro visível
+        // Diagnóstico se não mudou de página
         if (conteudo.includes("usuário já cadastrado")) throw new Error("Usuário já existe.");
         
-        throw new Error("O site não avançou. Verifique se o captcha abriu imagens.");
+        throw new Error("O site não avançou. O captcha pode ter pedido imagens.");
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
