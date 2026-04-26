@@ -12,50 +12,52 @@ module.exports = async (pedido, pageExistente = null) => {
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
-                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
+                args: [
+                    ...chromium.args, 
+                    "--no-sandbox", 
+                    "--disable-web-security",
+                    "--disable-features=IsolateOrigins,site-per-process" // Ajuda a interagir com Iframes
+                ],
                 executablePath: executablePath,
                 headless: chromium.headless,
             });
             page = await browser.newPage();
-            // User agent mais comum para evitar detecção de bot
-            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+            // User agent de um Chrome real no Windows
+            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36");
         }
 
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
-        await page.waitForSelector('#nome');
+        
+        // Simula movimento aleatório do mouse para "aquecer" o reCAPTCHA
+        await page.mouse.move(100, 100);
+        await page.mouse.move(200, 300);
 
-        // Preenchimento com cliques reais antes de digitar
-        const preencherHibrido = async (id, valor) => {
-            await page.click(id); // Clique real para focar
-            await page.click(id, { clickCount: 3 });
-            await page.keyboard.press('Backspace');
-            await page.keyboard.type(String(valor || ""), { delay: 50 });
+        const preencherLento = async (id, valor) => {
+            await page.click(id);
+            await page.keyboard.type(String(valor || ""), { delay: Math.floor(Math.random() * 100) + 50 });
         };
 
-        await preencherHibrido('#nome', pedido.nome);
-        await preencherHibrido('#sobrenome', pedido.sobrenome);
-        await preencherHibrido('#user', loginFinal);
-        await preencherHibrido('#pass', senhaFinal);
-        if (pedido.whatsapp) await preencherHibrido('#whatsapp', pedido.whatsapp);
+        await preencherLento('#nome', pedido.nome);
+        await preencherLento('#sobrenome', pedido.sobrenome);
+        await preencherLento('#user', loginFinal);
+        await preencherLento('#pass', senhaFinal);
+        if (pedido.whatsapp) await preencherLento('#whatsapp', pedido.whatsapp);
 
-        // --- MANIPULAÇÃO DO RECAPTCHA ---
-        console.log("🤖 Tentando marcar o captcha...");
-        const frame = page.frames().find(f => f.url().includes('api2/anchor'));
-        if (frame) {
-            const checkbox = await frame.waitForSelector('#recaptcha-anchor');
-            await checkbox.click({ delay: 200 });
-        }
+        // --- INTERAÇÃO COM O CAPTCHA ---
+        console.log("🤖 Tentando marcar o captcha de forma humana...");
+        const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
+        const frame = await frameHandle.contentFrame();
+        
+        // Clica no checkbox do captcha
+        await frame.click('#recaptcha-anchor', { delay: 500 });
 
-        // Espera generosa para validação do Google
+        // Espera longa (o Google analisa seu comportamento aqui)
         await new Promise(r => setTimeout(r, 15000)); 
 
-        // --- O PULO DO GATO: FORÇAR O ENVIO ---
-        console.log("🚀 Forçando submissão do formulário...");
-        await page.evaluate(() => {
-            const form = document.querySelector('form');
-            if (form) form.submit(); // Tenta enviar o formulário diretamente
-            else document.querySelector('#btn-cadastrar').click(); // Se não tiver form, clica no botão
-        });
+        // Em vez de forçar o submit, vamos clicar no botão físico como um humano faria
+        console.log("🚀 Clicando no botão Registrar...");
+        const btn = await page.waitForSelector('#btn-cadastrar');
+        await btn.click({ delay: 200 });
 
         await new Promise(r => setTimeout(r, 15000));
 
@@ -68,13 +70,13 @@ module.exports = async (pedido, pageExistente = null) => {
             return true;
         }
 
-        // Se ainda assim não foi, pegamos o erro final
-        const erroFinal = await page.evaluate(() => {
+        // Se falhar, tira um print interno (ajuda no debug do Render)
+        const erroTexto = await page.evaluate(() => {
             const el = document.querySelector('.text-danger, .alert');
-            return el ? el.innerText : "Captcha bloqueou ou campo invisível barrou.";
+            return el ? el.innerText : "O Google pediu desafio de imagens.";
         });
 
-        throw new Error(erroFinal);
+        throw new Error(erroTexto);
 
     } catch (err) {
         console.error("Erro no GestorBot:", err.message);
