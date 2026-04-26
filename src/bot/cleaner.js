@@ -12,70 +12,67 @@ module.exports = async (pedido) => {
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
         // 1. LOGIN
-        pedido.mensagem = "Conectando ao painel...";
-        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "networkidle2" });
-        await page.waitForSelector('#mac_address');
-        await page.type('#mac_address', pedido.mac);
-        await page.type('#password', pedido.key);
-        await Promise.all([
-            page.click('button[type="submit"]'),
-            page.waitForNavigation({ waitUntil: "networkidle2" })
-        ]);
+        pedido.mensagem = "🔑 Acessando painel IBO...";
+        await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "domcontentloaded", timeout: 60000 });
+        
+        await page.waitForSelector('#mac_address', { timeout: 30000 });
+        await page.type('#mac_address', pedido.mac, { delay: 50 });
+        await page.type('#password', pedido.key, { delay: 50 });
+        await page.keyboard.press('Enter');
 
-        // 2. LOOP DE LIMPEZA
+        await page.waitForSelector('button.btn-secondary', { timeout: 45000 });
+
+        // 2. LOOP DE LIMPEZA COM SELETORES EXATOS
         while (true) {
-            await page.reload({ waitUntil: "networkidle2" });
-            
-            // Conta listas reais baseada nos botões Delete amarelos
-            const totalListas = await page.$$eval('button.btn-warning', btns => btns.length);
-            
-            if (totalListas === 0) {
-                pedido.mensagem = "✅ Tudo limpo! Aparelho liberado.";
+            // Localiza o botão Delete pela classe exata que você mandou
+            const btnDelete = await page.$('button.styles_button__17ZvA');
+
+            if (!btnDelete) {
+                pedido.mensagem = "✅ Painel totalmente limpo!";
                 break; 
             }
 
-            pedido.mensagem = `Encontradas ${totalListas} listas. Excluindo...`;
+            pedido.mensagem = "🗑️ Excluindo lista encontrada...";
 
-            // Clica no botão Delete
-            await page.evaluate(() => {
-                const btn = document.querySelector('button.btn-warning');
-                if (btn) btn.click();
-            });
+            // Clica no Delete
+            await btnDelete.click();
 
-            // 3. PREENCHIMENTO DO PIN REFORÇADO
+            // 3. MODAL DE CONFIRMAÇÃO (PIN e OK)
             try {
-                // Aguarda o campo de PIN aparecer
-                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 8000 });
+                // Aguarda o input específico de password name="pin"
+                await page.waitForSelector('input[name="pin"]', { visible: true, timeout: 10000 });
                 
-                // Limpa o campo e digita o PIN com atraso humano
-                const inputPin = await page.$('input[name="pin"]');
-                await inputPin.click({ clickCount: 3 }); // Garante que limpou
-                await page.keyboard.press('Backspace');
-                await page.keyboard.type("123321", { delay: 200 }); 
+                // Limpa e digita o PIN 123321
+                await page.click('input[name="pin"]', { clickCount: 3 });
+                await page.keyboard.type("123321", { delay: 100 }); 
 
-                // EM VEZ DE SÓ CLICAR, APERTA ENTER (Mais seguro contra bloqueios de clique)
-                await page.keyboard.press('Enter');
+                // Clica no botão OK (btn-success tipo submit)
+                await page.click('button.btn-success[type="submit"]');
 
-                // Tenta também o clique no botão Ok verde por garantia
-                await page.evaluate(() => {
-                    const okBtn = document.querySelector('button.btn-success');
-                    if (okBtn) okBtn.click();
-                });
-
-                // Pausa de 6 segundos: dá tempo do servidor processar e sumir com a lista
-                await new Promise(r => setTimeout(r, 6000));
+                // Espera 7 segundos para o servidor processar a exclusão
+                await new Promise(r => setTimeout(r, 7000));
+                
+                // Recarrega a página para atualizar a tabela e evitar "botões fantasmas"
+                await page.reload({ waitUntil: "domcontentloaded" });
+                await page.waitForSelector('button.btn-secondary', { timeout: 20000 });
                 
             } catch (pinErr) {
-                console.log("Erro ao preencher PIN ou modal não apareceu.");
+                console.log("Erro ao processar modal de exclusão.");
+                await page.screenshot({ path: 'public/erro_cleaner_detalhado.png' });
                 break;
             }
         }
         
     } catch (err) {
-        console.error("Erro no Cleaner:", err.message);
-        pedido.mensagem = "❌ Erro: " + err.message;
+        console.error("❌ Erro no Cleaner:", err.message);
+        pedido.mensagem = "❌ Falha na limpeza. Verifique o log.";
+        if (browser) {
+            const pages = await browser.pages();
+            if (pages[0]) await pages[0].screenshot({ path: 'public/erro_cleaner_geral.png' });
+        }
     } finally {
         if (browser) await browser.close();
     }
