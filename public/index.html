@@ -12,7 +12,6 @@
         .tab-active-blue { background-color: #3b82f6; color: white; }
         .tab-active-red { background-color: #dc2626; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
-        /* Garante que os placeholders fiquem visíveis no fundo escuro */
         ::placeholder { color: #555 !important; opacity: 1; }
     </style>
 </head>
@@ -29,13 +28,22 @@
 
         <div id="form-container" class="space-y-4">
             <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Identificação do Aparelho</p>
-            
-            <input type="text" id="mac" placeholder="Digite o MAC Address (Ex: 00:AA:BB...)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-            <input type="text" id="key" placeholder="Digite o Device Key ou PIN" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+            <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+            <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
 
             <div id="secao-dinamica" class="space-y-4">
                 <hr id="divisor" class="border-gray-800 hidden">
                 
+                <div id="campos-gestor" class="space-y-3 hidden">
+                    <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Cliente (Gestor)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="nome" placeholder="Seu nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                        <input type="text" id="sobrenome" placeholder="Seu sobrenome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                    </div>
+                    <input type="text" id="whatsapp" placeholder="WhatsApp (00) 00000-0000" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                    <input type="date" id="aniversario" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                </div>
+
                 <div id="campos-iptv" class="space-y-3 hidden">
                     <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Servidor</p>
                     <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
@@ -61,29 +69,30 @@
         function setModo(modo) {
             modoAtual = modo;
             const iptv = document.getElementById('campos-iptv');
+            const gestor = document.getElementById('campos-gestor');
             const divisor = document.getElementById('divisor');
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
 
-            // Reset de todas as abas para inativo
             abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase');
 
             if (modo === 'limpar') {
                 iptv.classList.add('hidden');
+                gestor.classList.add('hidden');
                 divisor.classList.add('hidden');
                 btn.innerText = 'Executar Limpeza Profunda';
                 btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                 document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
-            } 
-            else {
+            } else {
                 iptv.classList.remove('hidden');
                 divisor.classList.remove('hidden');
-                
                 if (modo === 'ativar') {
+                    gestor.classList.remove('hidden');
                     btn.innerText = 'Iniciar Ativação';
                     btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
                     document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
                 } else {
+                    gestor.classList.add('hidden');
                     btn.innerText = 'Reativar Cadastro';
                     btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                     document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
@@ -92,29 +101,32 @@
         }
 
         async function processar() {
-            const mac = document.getElementById('mac').value;
-            const key = document.getElementById('key').value;
-            const usuario = document.getElementById('usuario').value;
-            const senha = document.getElementById('senha').value;
+            const data = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                usuario: document.getElementById('usuario').value,
+                senha: document.getElementById('senha').value,
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                aniversario: document.getElementById('aniversario').value,
+                tipo: modoAtual
+            };
 
-            if(!mac || !key) return alert("MAC e Key são obrigatórios!");
+            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
 
-            // EXIBE A ÁREA DE STATUS SOMENTE AGORA
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Enviando comando para o servidor...";
+            document.getElementById('status-mensagem').innerText = "Enviando para o servidor...";
 
             try {
                 const res = await fetch('/ativar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mac, key, usuario, senha, tipo: modoAtual })
+                    body: JSON.stringify(data)
                 });
-
-                if(res.ok) {
-                    iniciarMonitoramento(mac);
-                }
+                if(res.ok) iniciarMonitoramento(data.mac);
             } catch (e) {
-                document.getElementById('status-mensagem').innerText = "Erro ao conectar com o servidor.";
+                document.getElementById('status-mensagem').innerText = "Erro de conexão.";
             }
         }
 
@@ -126,14 +138,11 @@
                     const status = await res.json();
                     if(status.mensagem) {
                         document.getElementById('status-mensagem').innerText = status.mensagem;
-                        // Para o monitoramento se houver ícone de conclusão ou erro
                         if(status.status === 'ok' || status.status === 'erro') clearInterval(monitoramento);
                     }
                 } catch (err) {}
             }, 3000);
         }
-
-        // Inicia no modo Limpar como padrão visual
         setModo('limpar');
     </script>
 </body>
