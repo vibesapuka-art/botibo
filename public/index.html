@@ -3,145 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOT IMPERIUM IB</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Imperium Bot IBO - Painel de Controle</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
-        input { transition: all 0.3s; }
-        .btn-limpar { background-color: #dc2626; }
-        .btn-limpar:hover { background-color: #b91c1c; }
-        .tab-active-green { background-color: #22c55e; color: black; }
-        .tab-active-blue { background-color: #3b82f6; color: white; }
-        .tab-active-red { background-color: #dc2626; color: white; }
-        .tab-inactive { background-color: #262626; color: #9ca3af; }
+        body { background-color: #0d0d0d; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 15px; padding: 25px; margin-top: 50px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #2ecc71; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        .nav-pills .nav-link { color: #888; background: #262626; margin: 5px; border-radius: 8px; }
+        .nav-pills .nav-link.active { background-color: #e74c3c !important; color: white; }
+        .btn-limpar { background-color: #c0392b; border: none; font-weight: bold; padding: 15px; }
+        .btn-limpar:hover { background-color: #e74c3c; }
+        .status-box { background: #111; border: 1px solid #222; border-radius: 10px; padding: 20px; margin-top: 30px; }
+        .status-title { color: #2ecc71; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 5px; }
+        .status-msg { color: #bbb; font-size: 0.85rem; font-style: italic; }
+        input.form-control { background-color: #222; border: 1px solid #444; color: white; }
+        input.form-control:focus { background-color: #2a2a2a; color: white; border-color: #2ecc71; box-shadow: none; }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4">
+<body>
 
-    <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic">ATV DIGITAL</h1>
-        
-        <div class="grid grid-cols-3 gap-2 mb-6">
-            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase">Novo</button>
-            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Assinante</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar</button>
-        </div>
-
-        <div id="form-container" class="space-y-4">
-            <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Identificação do Aparelho</p>
-            <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
-            <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
-
-            <div id="secao-dinamica" class="space-y-4">
-                <hr id="divisor" class="border-gray-800">
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card text-center">
+                <h1>Imperium Bot IBO</h1>
                 
-                <div id="campos-gestor" class="space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="nome" placeholder="Nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
-                        <input type="text" id="sobrenome" placeholder="Sobrenome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
-                    </div>
-                    <input type="text" id="whatsapp" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                <ul class="nav nav-pills justify-content-center my-4" id="pills-tab" role="tablist">
+                    <li class="nav-item"><button class="nav-link" onclick="setTipo('ativar')">NOVO</button></li>
+                    <li class="nav-item"><button class="nav-link" onclick="setTipo('ibopro')">ASSINANTE</button></li>
+                    <li class="nav-item"><button class="nav-link active" onclick="setTipo('limpar')">LIMPAR</button></li>
+                </ul>
+
+                <div class="text-start mb-3">
+                    <label class="form-label text-success small fw-bold">IDENTIFICAÇÃO DO APARELHO</label>
+                    <input type="text" id="mac" class="form-control mb-2" placeholder="00:00:00:00:00:00">
+                    <input type="text" id="key" class="form-control" placeholder="Device Key / Password">
                 </div>
 
-                <div id="campos-iptv" class="space-y-3">
-                    <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
-                    <input type="password" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                <div id="campos-extra" style="display: none;" class="text-start mb-3">
+                    <label class="form-label text-success small fw-bold">DADOS DA LISTA</label>
+                    <input type="text" id="usuario" class="form-control mb-2" placeholder="Usuário">
+                    <input type="text" id="senha" class="form-control" placeholder="Senha">
+                </div>
+
+                <button id="btn-executar" class="btn btn-limpar w-100 mb-3" onclick="enviarComando()">
+                    EXECUTAR LIMPEZA PROFUNDA
+                </button>
+
+                <div class="status-box">
+                    <div class="status-title" id="status-label">PRONTO</div>
+                    <div class="status-msg" id="status-msg">Aguardando comando...</div>
                 </div>
             </div>
-
-            <button id="btn-acao" onclick="processar()" class="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg transition-colors uppercase mt-4">
-                Iniciar Ativação
-            </button>
-        </div>
-
-        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2">PROCESSANDO</p>
-            <p id="status-mensagem" class="text-gray-400 text-sm italic">Aguardando...</p>
         </div>
     </div>
+</div>
 
-    <script>
-        let modoAtual = 'ativar';
+<script>
+    let tipoAtual = 'limpar';
+    let intervaloStatus = null;
 
-        function setModo(modo) {
-            modoAtual = modo;
-            
-            // Controle de visibilidade
-            const gestor = document.getElementById('campos-gestor');
-            const iptv = document.getElementById('campos-iptv');
-            const divisor = document.getElementById('divisor');
-            const btn = document.getElementById('btn-acao');
+    function setTipo(tipo) {
+        tipoAtual = tipo;
+        const btn = document.getElementById('btn-executar');
+        const extras = document.getElementById('campos-extra');
+        
+        // Remove active de todos e coloca no clicado
+        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
 
-            // Reset de classes das abas
-            document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-
-            if (modo === 'ativar') {
-                gestor.classList.remove('hidden');
-                iptv.classList.remove('hidden');
-                divisor.classList.remove('hidden');
-                btn.innerText = 'Iniciar Ativação';
-                btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
-            } 
-            else if (modo === 'assinante') {
-                gestor.classList.add('hidden'); // ESCONDE NOME/WHATS
-                iptv.classList.remove('hidden'); // MANTÉM USER/SENHA
-                divisor.classList.remove('hidden');
-                btn.innerText = 'Reativar Cadastro';
-                btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
-            }
-            else if (modo === 'limpar') {
-                gestor.classList.add('hidden');
-                iptv.classList.add('hidden');
-                divisor.classList.add('hidden');
-                btn.innerText = 'Executar Limpeza Profunda';
-                btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
-            }
+        if (tipo === 'limpar') {
+            btn.innerText = 'EXECUTAR LIMPEZA PROFUNDA';
+            btn.className = 'btn btn-limpar w-100 mb-3';
+            extras.style.display = 'none';
+        } else {
+            btn.innerText = tipo === 'ativar' ? 'ATIVAR NOVO DISPOSITIVO' : 'RENOVAR ASSINANTE';
+            btn.className = 'btn btn-success w-100 mb-3';
+            extras.style.display = 'block';
         }
+    }
 
-        async function processar() {
-            const data = {
-                mac: document.getElementById('mac').value,
-                key: document.getElementById('key').value,
-                usuario: document.getElementById('usuario').value,
-                senha: document.getElementById('senha').value,
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                whatsapp: document.getElementById('whatsapp').value,
-                tipo: modoAtual
-            };
+    async function enviarComando() {
+        const mac = document.getElementById('mac').value;
+        const key = document.getElementById('key').value;
+        const usuario = document.getElementById('usuario').value;
+        const senha = document.getElementById('senha').value;
 
-            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
+        if (!mac) return alert("Digite o MAC!");
 
-            document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Iniciando processo...";
+        document.getElementById('status-label').innerText = "PROCESSANDO";
+        document.getElementById('status-msg').innerText = "Enviando comando para o servidor...";
 
-            // Se for 'assinante', ele usa a mesma rota de ativar, mas o seu backend vai notar que nome/whats estão vazios
-            const rota = modoAtual === 'limpar' ? '/limpar' : '/ativar';
-            
+        try {
+            const res = await fetch('/ativar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mac, key, usuario, senha, tipo: tipoAtual })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                iniciarMonitoramento(mac);
+            }
+        } catch (err) {
+            alert("Erro ao conectar com o servidor.");
+        }
+    }
+
+    function iniciarMonitoramento(mac) {
+        if (intervaloStatus) clearInterval(intervaloStatus);
+        
+        intervaloStatus = setInterval(async () => {
             try {
-                await fetch(rota, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                
-                const interval = setInterval(async () => {
-                    const res = await fetch(`/status?mac=${data.mac}`);
-                    const status = await res.json();
-                    if(status.mensagem) {
-                        document.getElementById('status-mensagem').innerText = status.mensagem;
-                        if(status.mensagem.includes("✅") || status.mensagem.includes("❌")) clearInterval(interval);
+                const res = await fetch(`/status?mac=${mac}`);
+                const data = await res.json();
+
+                if (data.status !== "nao_encontrado") {
+                    document.getElementById('status-label').innerText = data.status.toUpperCase();
+                    document.getElementById('status-msg').innerText = data.mensagem;
+                    
+                    if (data.status === 'ok' || data.status === 'erro') {
+                        clearInterval(intervaloStatus);
                     }
-                }, 3000);
+                }
             } catch (e) {
-                document.getElementById('status-mensagem').innerText = "Erro ao conectar com o servidor.";
+                console.error("Erro ao buscar status");
             }
-        }
-    </script>
+        }, 3000);
+    }
+</script>
+
 </body>
 </html>
