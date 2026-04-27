@@ -12,52 +12,49 @@ module.exports = async (pedido, pageExistente = null) => {
         if (!page) {
             const executablePath = await chromium.executablePath();
             browser = await puppeteer.launch({
-                args: [
-                    ...chromium.args, 
-                    "--no-sandbox", 
-                    "--disable-web-security",
-                    "--disable-features=IsolateOrigins,site-per-process" // Ajuda a interagir com Iframes
-                ],
+                args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
                 executablePath: executablePath,
                 headless: chromium.headless,
             });
             page = await browser.newPage();
-            // User agent de um Chrome real no Windows
-            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36");
+
+            // --- CONFIGURAÇÃO MOBILE ---
+            // Definimos o tamanho da tela como se fosse um celular (iPhone 13)
+            await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+            
+            // User Agent de um iPhone para o Google não pedir as fotos
+            await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1");
         }
 
         await page.goto("https://gestorv3.pro/imperiumtv/central/registrar/", { waitUntil: "networkidle2" });
-        
-        // Simula movimento aleatório do mouse para "aquecer" o reCAPTCHA
-        await page.mouse.move(100, 100);
-        await page.mouse.move(200, 300);
+        await page.waitForSelector('#nome');
 
-        const preencherLento = async (id, valor) => {
-            await page.click(id);
-            await page.keyboard.type(String(valor || ""), { delay: Math.floor(Math.random() * 100) + 50 });
+        // Preenchimento simulando toque na tela
+        const preencherMobile = async (id, valor) => {
+            await page.tap(id); // Usa o comando TAP (toque) em vez de click
+            await new Promise(r => setTimeout(r, 500));
+            await page.keyboard.type(String(valor || ""), { delay: 100 });
         };
 
-        await preencherLento('#nome', pedido.nome);
-        await preencherLento('#sobrenome', pedido.sobrenome);
-        await preencherLento('#user', loginFinal);
-        await preencherLento('#pass', senhaFinal);
-        if (pedido.whatsapp) await preencherLento('#whatsapp', pedido.whatsapp);
+        pedido.mensagem = "📝 Preenchendo via Mobile...";
+        await preencherMobile('#nome', pedido.nome);
+        await preencherMobile('#sobrenome', pedido.sobrenome);
+        await preencherMobile('#user', loginFinal);
+        await preencherMobile('#pass', senhaFinal);
+        if (pedido.whatsapp) await preencherMobile('#whatsapp', pedido.whatsapp);
 
-        // --- INTERAÇÃO COM O CAPTCHA ---
-        console.log("🤖 Tentando marcar o captcha de forma humana...");
+        // --- RECAPTCHA NO MODO MOBILE ---
+        console.log("🤖 Acionando Captcha (Modo Mobile)...");
         const frameHandle = await page.waitForSelector('iframe[src*="api2/anchor"]');
         const frame = await frameHandle.contentFrame();
         
-        // Clica no checkbox do captcha
-        await frame.click('#recaptcha-anchor', { delay: 500 });
+        // No celular, o toque no checkbox costuma validar direto
+        await frame.tap('#recaptcha-anchor');
 
-        // Espera longa (o Google analisa seu comportamento aqui)
-        await new Promise(r => setTimeout(r, 15000)); 
+        await new Promise(r => setTimeout(r, 12000)); 
 
-        // Em vez de forçar o submit, vamos clicar no botão físico como um humano faria
-        console.log("🚀 Clicando no botão Registrar...");
-        const btn = await page.waitForSelector('#btn-cadastrar');
-        await btn.click({ delay: 200 });
+        console.log("🚀 Clicando em Registrar...");
+        await page.tap('#btn-cadastrar');
 
         await new Promise(r => setTimeout(r, 15000));
 
@@ -70,10 +67,9 @@ module.exports = async (pedido, pageExistente = null) => {
             return true;
         }
 
-        // Se falhar, tira um print interno (ajuda no debug do Render)
         const erroTexto = await page.evaluate(() => {
             const el = document.querySelector('.text-danger, .alert');
-            return el ? el.innerText : "O Google pediu desafio de imagens.";
+            return el ? el.innerText : "O Google ainda desconfiou e pediu imagens.";
         });
 
         throw new Error(erroTexto);
