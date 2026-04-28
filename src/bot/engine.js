@@ -18,7 +18,7 @@ module.exports = async (pedidos, config = {}) => {
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-
+        pedido.mensagem = "📡 ACESSANDO PAINEL... DESLIGUE A TV E AGUARDE!";
         const dnsSorteados = [...todosDNS]
             .sort(() => 0.5 - Math.random())
             .slice(0, 5);
@@ -49,12 +49,12 @@ module.exports = async (pedidos, config = {}) => {
 
             const baseDns = dnsSorteados[i];
             const urlFinal = `${baseDns}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
-
-            pedido.mensagem = `📝 Gravando ${nomeLista}...`;
+            
+            pedido.mensagem = `📝 GRAVANDO ${nomeLista}... MANTENHA A TV DESLIGADA!`;
 
             await page.evaluate(() => {
-                const btnAdd = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Add Playlist'));
-                if (btnAdd) btnAdd.click();
+            const btnAdd = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Add Playlist'));
+            if (btnAdd) btnAdd.click();
             });
 
             await page.waitForSelector('input[name="name"]', { timeout: 15000 });
@@ -74,7 +74,8 @@ module.exports = async (pedidos, config = {}) => {
             await page.waitForSelector('button.btn-secondary', { timeout: 20000 });
         }
 
-        pedido.mensagem = "✅ Processo concluído sem duplicatas!";
+        pedido.mensagem = "✅ PROCESSO FINALIZADO! PODE LIGAR A TV.";
+
         pedido.status = "ok";
 
         if (config.manterAberto) {
