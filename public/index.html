@@ -131,42 +131,54 @@
         }
 
         function iniciarMonitoramento(mac) {
-            const barra = document.getElementById('status-barra');
-            const msgTexto = document.getElementById('status-mensagem');
-            const titulo = document.getElementById('status-titulo');
+    const barra = document.getElementById('status-barra');
+    const msgTexto = document.getElementById('status-mensagem');
+    const titulo = document.getElementById('status-titulo');
 
-            if(monitoramento) clearInterval(monitoramento);
+    // Reset inicial para evitar que estados antigos apareçam
+    titulo.innerText = "PROCESSANDO";
+    barra.style.width = "5%";
+    barra.classList.remove('bg-red-600');
+    barra.classList.add('bg-[#22c55e]');
+
+    if(monitoramento) clearInterval(monitoramento);
+    
+    monitoramento = setInterval(async () => {
+        try {
+            const res = await fetch(`/status?mac=${mac}`);
+            const status = await res.json();
             
-            monitoramento = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const status = await res.json();
-                    
-                    if(status.mensagem) {
-                        msgTexto.innerText = status.mensagem.toUpperCase();
+            if(status.mensagem) {
+                msgTexto.innerText = status.mensagem.toUpperCase();
 
-                        // LÓGICA DA BARRA BASEADA NO QUE O BOT ESCREVE
-                        if (status.mensagem.includes("Acessando") || status.mensagem.includes("Conectando")) {
-                            barra.style.width = "30%";
-                        } 
-                        else if (status.mensagem.includes("Gravando") || status.mensagem.includes("Excluindo")) {
-                            barra.style.width = "70%";
-                        } 
-                        else if (status.status === 'ok') {
-                            barra.style.width = "100%";
-                            titulo.innerText = "CONCLUÍDO";
-                            clearInterval(monitoramento);
-                        } 
-                        else if (status.status === 'erro' || status.mensagem.includes("Erro")) {
-                            barra.style.width = "100%";
-                            barra.classList.replace('bg-[#22c55e]', 'bg-red-600');
-                            titulo.innerText = "FALHA";
-                            clearInterval(monitoramento);
-                        }
-                    }
-                } catch (err) {}
-            }, 3000);
+                // 1. Estados de Progresso (Barra se move, mas o título continua PROCESSANDO)
+                if (status.mensagem.includes("ACESSANDO") || status.mensagem.includes("CONECTANDO")) {
+                    barra.style.width = "30%";
+                } 
+                else if (status.mensagem.includes("GRAVANDO") || status.mensagem.includes("EXCLUINDO")) {
+                    barra.style.width = "70%";
+                } 
+                
+                // 2. Estado de Conclusão Real (Somente quando o status do servidor mudar para 'ok')
+                if (status.status === 'ok') {
+                    barra.style.width = "100%";
+                    titulo.innerText = "CONCLUÍDO"; // Só muda aqui agora
+                    clearInterval(monitoramento);
+                } 
+                
+                // 3. Estado de Erro
+                else if (status.status === 'erro' || status.mensagem.includes("Erro")) {
+                    barra.style.width = "100%";
+                    barra.classList.replace('bg-[#22c55e]', 'bg-red-600');
+                    titulo.innerText = "FALHA";
+                    clearInterval(monitoramento);
+                }
+            }
+        } catch (err) {
+            console.error("Erro no monitoramento:", err);
         }
+    }, 3000);
+}
 
         setModo('assinante');
     </script>
