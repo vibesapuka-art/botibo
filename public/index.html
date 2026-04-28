@@ -36,7 +36,7 @@
 
             <div id="campos-consulta" class="space-y-3 hidden">
                 <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Acesso ao Painel</p>
-                <input type="text" id="whatsapp_consulta" placeholder="Digite seu WhatsApp cadastrado" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+                <input type="text" id="whatsapp_consulta" placeholder="WhatsApp (5544...)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
             </div>
 
             <div id="secao-dinamica" class="space-y-4">
@@ -71,6 +71,7 @@
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-consulta', 'tab-mac', 'tab-limpar'];
 
+            // Reseta estilo dos botões
             abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase');
             document.getElementById('status-container').classList.add('hidden');
 
@@ -110,48 +111,54 @@
                 tipo: modoAtual
             };
 
+            // Validações básicas
             if(modoAtual !== 'consulta' && (!data.mac || !data.key)) return alert("MAC e Key são obrigatórios!");
             if(modoAtual === 'consulta' && !data.whatsapp) return alert("Digite seu WhatsApp!");
 
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Processando solicitação...";
+            document.getElementById('status-mensagem').innerText = "Enviando solicitação...";
 
             try {
-                const endpoint = modoAtual === 'consulta' ? '/consultar-sigma' : '/ativar';
-                
-                const res = await fetch(endpoint, {
+                // ROTA ÚNICA PARA EVITAR ERRO DE CONEXÃO
+                const res = await fetch('/ativar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(data)
                 });
                 
-                const result = await res.json();
-                
-                if(modoAtual === 'consulta') {
-                    // Se houver erro, exibe a msg de erro, senão exibe os dados
-                    document.getElementById('status-mensagem').innerText = result.dados || result.erro || "Dados não encontrados.";
+                if(res.ok) {
+                    // Define o ID que o status deve procurar
+                    const idBusca = modoAtual === 'consulta' ? data.whatsapp : data.mac;
+                    iniciarMonitoramento(idBusca);
                 } else {
-                    if(res.ok) iniciarMonitoramento(data.mac);
+                    document.getElementById('status-mensagem').innerText = "Erro ao conectar com o servidor.";
                 }
             } catch (e) {
                 document.getElementById('status-mensagem').innerText = "Erro ao conectar com o bot.";
             }
         }
 
-        function iniciarMonitoramento(mac) {
+        function iniciarMonitoramento(id) {
             if(monitoramento) clearInterval(monitoramento);
             monitoramento = setInterval(async () => {
                 try {
-                    const res = await fetch(`/status?mac=${mac}`);
+                    // Pergunta o status para o ID (MAC ou WhatsApp)
+                    const res = await fetch(`/status?mac=${id}`);
                     const status = await res.json();
+                    
                     if(status.mensagem) {
                         document.getElementById('status-mensagem').innerText = status.mensagem;
-                        if(status.status === 'ok' || status.status === 'erro') clearInterval(monitoramento);
+                        
+                        // Para o loop se o robô terminou (com sucesso ou erro)
+                        if(status.status === 'ok' || status.status === 'erro') {
+                            clearInterval(monitoramento);
+                        }
                     }
                 } catch (err) {}
             }, 3000);
         }
 
+        // Inicia no modo limpar por padrão
         setModo('limpar');
     </script>
 </body>
