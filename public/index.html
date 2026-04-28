@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imperium Bot IBO</title>
+    <title>Imperium TV Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
         input { transition: all 0.3s; }
-        .tab-active-green { background-color: #22c55e; color: black; }
         .tab-active-blue { background-color: #3b82f6; color: white; }
         .tab-active-red { background-color: #dc2626; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
+        .tab-active-green { background-color: #22c55e; color: black; }
         ::placeholder { color: #555 !important; opacity: 1; }
     </style>
 </head>
@@ -23,11 +23,10 @@
         <div class="grid grid-cols-3 gap-2 mb-6">
             <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente</button>
             <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Adicionar Playlists</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase">Limpar Playlists</button>
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar Playlists</button>
         </div>
 
         <div id="form-container" class="space-y-4">
-            
             <div id="conteudo-em-breve" class="hidden text-center py-10">
                 <p class="text-[#22c55e] font-bold text-xl uppercase tracking-widest">Em breve</p>
             </div>
@@ -52,9 +51,16 @@
             </button>
         </div>
 
-        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2">PROCESSANDO</p>
-            <p id="status-mensagem" class="text-gray-400 text-sm italic">Iniciando sistema...</p>
+        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6">
+            <p id="status-titulo" class="text-[#22c55e] font-bold text-center text-sm mb-3 uppercase tracking-widest">Processando</p>
+            
+            <div class="w-full bg-gray-900 rounded-full h-2 mb-4 overflow-hidden border border-gray-800">
+                <div id="status-barra" class="bg-[#22c55e] h-full transition-all duration-700 shadow-[0_0_10px_#22c55e]" style="width: 5%"></div>
+            </div>
+
+            <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center">
+                <p id="status-mensagem" class="text-gray-400 text-[11px] italic uppercase font-bold">Iniciando...</p>
+            </div>
         </div>
     </div>
 
@@ -70,29 +76,23 @@
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
 
-            // Resetar estilos das abas
             abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase');
 
             if (modo === 'ativar') {
-                // Área do Cliente
                 identificacao.classList.add('hidden');
                 iptv.classList.add('hidden');
                 emBreve.classList.remove('hidden');
                 btn.classList.add('hidden');
                 document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
-            } 
-            else if (modo === 'limpar') {
-                // Limpar Playlists
+            } else if (modo === 'limpar') {
                 emBreve.classList.add('hidden');
                 identificacao.classList.remove('hidden');
                 iptv.classList.add('hidden');
                 btn.classList.remove('hidden');
-                btn.innerText = 'Executar Limpeza Profunda';
+                btn.innerText = 'Limpar Playlist';
                 btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                 document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
-            } 
-            else {
-                // Adicionar Playlists (Assinante)
+            } else {
                 emBreve.classList.add('hidden');
                 identificacao.classList.remove('hidden');
                 iptv.classList.remove('hidden');
@@ -115,7 +115,8 @@
             if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
 
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Enviando para o servidor...";
+            document.getElementById('status-mensagem').innerText = "📡 ENVIANDO PARA A FILA...";
+            document.getElementById('status-barra').style.width = "10%";
 
             try {
                 const res = await fetch('/ativar', {
@@ -125,25 +126,48 @@
                 });
                 if(res.ok) iniciarMonitoramento(data.mac);
             } catch (e) {
-                document.getElementById('status-mensagem').innerText = "Erro de conexão.";
+                document.getElementById('status-mensagem').innerText = "❌ ERRO DE CONEXÃO.";
             }
         }
 
         function iniciarMonitoramento(mac) {
+            const barra = document.getElementById('status-barra');
+            const msgTexto = document.getElementById('status-mensagem');
+            const titulo = document.getElementById('status-titulo');
+
             if(monitoramento) clearInterval(monitoramento);
+            
             monitoramento = setInterval(async () => {
                 try {
                     const res = await fetch(`/status?mac=${mac}`);
                     const status = await res.json();
+                    
                     if(status.mensagem) {
-                        document.getElementById('status-mensagem').innerText = status.mensagem;
-                        if(status.status === 'ok' || status.status === 'erro') clearInterval(monitoramento);
+                        msgTexto.innerText = status.mensagem.toUpperCase();
+
+                        // LÓGICA DA BARRA BASEADA NO QUE O BOT ESCREVE
+                        if (status.mensagem.includes("Acessando") || status.mensagem.includes("Conectando")) {
+                            barra.style.width = "30%";
+                        } 
+                        else if (status.mensagem.includes("Gravando") || status.mensagem.includes("Excluindo")) {
+                            barra.style.width = "70%";
+                        } 
+                        else if (status.status === 'ok') {
+                            barra.style.width = "100%";
+                            titulo.innerText = "CONCLUÍDO";
+                            clearInterval(monitoramento);
+                        } 
+                        else if (status.status === 'erro' || status.mensagem.includes("Erro")) {
+                            barra.style.width = "100%";
+                            barra.classList.replace('bg-[#22c55e]', 'bg-red-600');
+                            titulo.innerText = "FALHA";
+                            clearInterval(monitoramento);
+                        }
                     }
                 } catch (err) {}
             }, 3000);
         }
 
-        // Inicia selecionado em Adicionar Playlists
         setModo('assinante');
     </script>
 </body>
