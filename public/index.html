@@ -18,41 +18,37 @@
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUM BOT IBO</h1>
+        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUM TV BOT</h1>
         
         <div class="grid grid-cols-3 gap-2 mb-6">
-            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente (Em criação)</button>
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente</button>
             <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Adicionar Playlists</button>
             <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase">Limpar Playlists</button>
         </div>
 
         <div id="form-container" class="space-y-4">
-            <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Identificação do Aparelho</p>
-            <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-            <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+            
+            <div id="conteudo-em-breve" class="hidden text-center py-10">
+                <p class="text-[#22c55e] font-bold text-xl uppercase tracking-widest">Em breve</p>
+            </div>
+
+            <div id="campos-identificacao">
+                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest mb-4">Identificação do Aparelho</p>
+                <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white mb-4">
+                <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+            </div>
 
             <div id="secao-dinamica" class="space-y-4">
-                <hr id="divisor" class="border-gray-800 hidden">
-                
-                <div id="campos-gestor" class="space-y-3 hidden">
-                    <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Cliente (Gestor)</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="nome" placeholder="Seu nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                        <input type="text" id="sobrenome" placeholder="Seu sobrenome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                    </div>
-                    <input type="text" id="whatsapp" placeholder="WhatsApp (00) 00000-0000" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                    <input type="date" id="aniversario" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                </div>
-
                 <div id="campos-iptv" class="space-y-3 hidden">
+                    <hr class="border-gray-800 my-4">
                     <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Servidor</p>
                     <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
                     <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
                 </div>
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors uppercase mt-4">
-                Executar Limpeza Profunda
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition-colors uppercase mt-4">
+                Sincronizar Playlists
             </button>
         </div>
 
@@ -63,40 +59,47 @@
     </div>
 
     <script>
-        let modoAtual = 'limpar';
+        let modoAtual = 'assinante';
         let monitoramento = null;
 
         function setModo(modo) {
             modoAtual = modo;
             const iptv = document.getElementById('campos-iptv');
-            const gestor = document.getElementById('campos-gestor');
-            const divisor = document.getElementById('divisor');
+            const emBreve = document.getElementById('conteudo-em-breve');
+            const identificacao = document.getElementById('campos-identificacao');
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
 
+            // Resetar estilos das abas
             abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase');
 
-            if (modo === 'limpar') {
+            if (modo === 'ativar') {
+                // Área do Cliente
+                identificacao.classList.add('hidden');
                 iptv.classList.add('hidden');
-                gestor.classList.add('hidden');
-                divisor.classList.add('hidden');
+                emBreve.classList.remove('hidden');
+                btn.classList.add('hidden');
+                document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
+            } 
+            else if (modo === 'limpar') {
+                // Limpar Playlists
+                emBreve.classList.add('hidden');
+                identificacao.classList.remove('hidden');
+                iptv.classList.add('hidden');
+                btn.classList.remove('hidden');
                 btn.innerText = 'Executar Limpeza Profunda';
                 btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                 document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
-            } else {
+            } 
+            else {
+                // Adicionar Playlists (Assinante)
+                emBreve.classList.add('hidden');
+                identificacao.classList.remove('hidden');
                 iptv.classList.remove('hidden');
-                divisor.classList.remove('hidden');
-                if (modo === 'ativar') {
-                    gestor.classList.remove('hidden');
-                    btn.innerText = 'Verificar Cadastro';
-                    btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
-                    document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
-                } else {
-                    gestor.classList.add('hidden');
-                    btn.innerText = 'Sincronizar Playlists';
-                    btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                    document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
-                }
+                btn.classList.remove('hidden');
+                btn.innerText = 'Sincronizar Playlists';
+                btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
+                document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
             }
         }
 
@@ -106,10 +109,6 @@
                 key: document.getElementById('key').value,
                 usuario: document.getElementById('usuario').value,
                 senha: document.getElementById('senha').value,
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                whatsapp: document.getElementById('whatsapp').value,
-                aniversario: document.getElementById('aniversario').value,
                 tipo: modoAtual
             };
 
@@ -143,7 +142,9 @@
                 } catch (err) {}
             }, 3000);
         }
-        setModo('limpar');
+
+        // Inicia selecionado em Adicionar Playlists
+        setModo('assinante');
     </script>
 </body>
 </html>
