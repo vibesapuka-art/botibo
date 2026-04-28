@@ -18,12 +18,12 @@ module.exports = async (pedidos, config = {}) => {
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-        pedido.mensagem = "📡 ACESSANDO PAINEL... DESLIGUE A TV E AGUARDE!";
+        
         const dnsSorteados = [...todosDNS]
             .sort(() => 0.5 - Math.random())
             .slice(0, 5);
 
-        pedido.mensagem = "📡 Acessando painel IBO...";
+        pedido.mensagem = "📡 ACESSANDO PAINEL... DESLIGUE A TV E AGUARDE!";
         await page.goto("https://iboproapp.com/manage-playlists/login/", { waitUntil: "domcontentloaded", timeout: 60000 });
         
         await page.waitForSelector("#mac_address", { timeout: 30000 });
