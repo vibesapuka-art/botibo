@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOTIBO - Painel Inteligente</title>
+    <title>IMPERIUMTV BOT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
@@ -18,7 +18,7 @@
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">BOTIBO</h1>
+        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUMTV BOT</h1>
         
         <div class="grid grid-cols-3 gap-2 mb-6">
             <button onclick="setModo('consulta')" id="tab-consulta" class="p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase">Área Cliente</button>
@@ -55,7 +55,7 @@
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
             <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2">RESULTADO</p>
-            <div id="status-mensagem" class="text-gray-400 text-sm italic whitespace-pre-line bg-[#0f0f0f] p-4 rounded-lg border border-gray-800">Iniciando sistema...</div>
+            <div id="status-mensagem" class="text-gray-400 text-sm italic whitespace-pre-line bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-left">Iniciando sistema...</div>
         </div>
     </div>
 
@@ -71,7 +71,6 @@
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-consulta', 'tab-mac', 'tab-limpar'];
 
-            // Reseta botões
             abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase');
             document.getElementById('status-container').classList.add('hidden');
 
@@ -111,7 +110,6 @@
                 tipo: modoAtual
             };
 
-            // Validação simples
             if(modoAtual !== 'consulta' && (!data.mac || !data.key)) return alert("MAC e Key são obrigatórios!");
             if(modoAtual === 'consulta' && !data.whatsapp) return alert("Digite seu WhatsApp!");
 
@@ -119,7 +117,6 @@
             document.getElementById('status-mensagem').innerText = "Processando solicitação...";
 
             try {
-                // Rota unificada para o servidor
                 const endpoint = modoAtual === 'consulta' ? '/consultar-sigma' : '/ativar';
                 
                 const res = await fetch(endpoint, {
@@ -131,8 +128,8 @@
                 const result = await res.json();
                 
                 if(modoAtual === 'consulta') {
-                    // Exibe o texto do modal diretamente
-                    document.getElementById('status-mensagem').innerText = result.dados || result.erro;
+                    // Se houver erro, exibe a msg de erro, senão exibe os dados
+                    document.getElementById('status-mensagem').innerText = result.dados || result.erro || "Dados não encontrados.";
                 } else {
                     if(res.ok) iniciarMonitoramento(data.mac);
                 }
