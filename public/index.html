@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMPERIUMTV BOT</title>
+    <title>Imperium Bot IBO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
@@ -18,30 +18,33 @@
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUMTV BOT</h1>
+        <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUM BOT IBO</h1>
         
         <div class="grid grid-cols-3 gap-2 mb-6">
-            <button onclick="setModo('consulta')" id="tab-consulta" class="p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase">Área Cliente</button>
-            <button onclick="setModo('mac')" id="tab-mac" class="p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase">Cadastrar MAC</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-active-red font-bold text-[9px] uppercase">Limpar</button>
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente (Em criação)</button>
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Adicionar Playlists</button>
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase">Limpar Playlists</button>
         </div>
 
         <div id="form-container" class="space-y-4">
-            
-            <div id="campos-aparelho" class="space-y-4">
-                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Identificação do Aparelho</p>
-                <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-                <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-            </div>
-
-            <div id="campos-consulta" class="space-y-3 hidden">
-                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Acesso ao Painel</p>
-                <input type="text" id="whatsapp_consulta" placeholder="WhatsApp (5544...)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-            </div>
+            <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Identificação do Aparelho</p>
+            <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+            <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
 
             <div id="secao-dinamica" class="space-y-4">
+                <hr id="divisor" class="border-gray-800 hidden">
+                
+                <div id="campos-gestor" class="space-y-3 hidden">
+                    <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Cliente (Gestor)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="nome" placeholder="Seu nome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                        <input type="text" id="sobrenome" placeholder="Seu sobrenome" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                    </div>
+                    <input type="text" id="whatsapp" placeholder="WhatsApp (00) 00000-0000" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                    <input type="date" id="aniversario" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
+                </div>
+
                 <div id="campos-iptv" class="space-y-3 hidden">
-                    <hr class="border-gray-800 mb-4">
                     <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Servidor</p>
                     <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
                     <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
@@ -54,8 +57,8 @@
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6 text-center">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2">RESULTADO</p>
-            <div id="status-mensagem" class="text-gray-400 text-sm italic whitespace-pre-line bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-left">Iniciando sistema...</div>
+            <p id="status-titulo" class="text-[#22c55e] font-bold text-xl mb-2">PROCESSANDO</p>
+            <p id="status-mensagem" class="text-gray-400 text-sm italic">Iniciando sistema...</p>
         </div>
     </div>
 
@@ -65,39 +68,35 @@
 
         function setModo(modo) {
             modoAtual = modo;
-            const camposAparelho = document.getElementById('campos-aparelho');
-            const camposConsulta = document.getElementById('campos-consulta');
             const iptv = document.getElementById('campos-iptv');
+            const gestor = document.getElementById('campos-gestor');
+            const divisor = document.getElementById('divisor');
             const btn = document.getElementById('btn-acao');
-            const abas = ['tab-consulta', 'tab-mac', 'tab-limpar'];
+            const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
 
-            // Reseta estilo dos botões
-            abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[9px] uppercase');
-            document.getElementById('status-container').classList.add('hidden');
+            abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase');
 
             if (modo === 'limpar') {
-                camposAparelho.classList.remove('hidden');
-                camposConsulta.classList.add('hidden');
                 iptv.classList.add('hidden');
+                gestor.classList.add('hidden');
+                divisor.classList.add('hidden');
                 btn.innerText = 'Executar Limpeza Profunda';
                 btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[9px] uppercase';
-            } 
-            else if (modo === 'mac') {
-                camposAparelho.classList.remove('hidden');
-                camposConsulta.classList.add('hidden');
+                document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
+            } else {
                 iptv.classList.remove('hidden');
-                btn.innerText = 'Cadastrar no IBO';
-                btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-mac').className = 'p-2 rounded-lg tab-active-blue font-bold text-[9px] uppercase';
-            }
-            else if (modo === 'consulta') {
-                camposAparelho.classList.add('hidden');
-                camposConsulta.classList.remove('hidden');
-                iptv.classList.add('hidden');
-                btn.innerText = 'Ver Meus Dados';
-                btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-consulta').className = 'p-2 rounded-lg tab-active-green font-bold text-[9px] uppercase';
+                divisor.classList.remove('hidden');
+                if (modo === 'ativar') {
+                    gestor.classList.remove('hidden');
+                    btn.innerText = 'Verificar Cadastro';
+                    btn.className = 'w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-4 rounded-lg uppercase mt-4';
+                    document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
+                } else {
+                    gestor.classList.add('hidden');
+                    btn.innerText = 'Sincronizar Playlists';
+                    btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
+                    document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
+                }
             }
         }
 
@@ -107,58 +106,43 @@
                 key: document.getElementById('key').value,
                 usuario: document.getElementById('usuario').value,
                 senha: document.getElementById('senha').value,
-                whatsapp: document.getElementById('whatsapp_consulta').value,
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                aniversario: document.getElementById('aniversario').value,
                 tipo: modoAtual
             };
 
-            // Validações básicas
-            if(modoAtual !== 'consulta' && (!data.mac || !data.key)) return alert("MAC e Key são obrigatórios!");
-            if(modoAtual === 'consulta' && !data.whatsapp) return alert("Digite seu WhatsApp!");
+            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
 
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "Enviando solicitação...";
+            document.getElementById('status-mensagem').innerText = "Enviando para o servidor...";
 
             try {
-                // ROTA ÚNICA PARA EVITAR ERRO DE CONEXÃO
                 const res = await fetch('/ativar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(data)
                 });
-                
-                if(res.ok) {
-                    // Define o ID que o status deve procurar
-                    const idBusca = modoAtual === 'consulta' ? data.whatsapp : data.mac;
-                    iniciarMonitoramento(idBusca);
-                } else {
-                    document.getElementById('status-mensagem').innerText = "Erro ao conectar com o servidor.";
-                }
+                if(res.ok) iniciarMonitoramento(data.mac);
             } catch (e) {
-                document.getElementById('status-mensagem').innerText = "Erro ao conectar com o bot.";
+                document.getElementById('status-mensagem').innerText = "Erro de conexão.";
             }
         }
 
-        function iniciarMonitoramento(id) {
+        function iniciarMonitoramento(mac) {
             if(monitoramento) clearInterval(monitoramento);
             monitoramento = setInterval(async () => {
                 try {
-                    // Pergunta o status para o ID (MAC ou WhatsApp)
-                    const res = await fetch(`/status?mac=${id}`);
+                    const res = await fetch(`/status?mac=${mac}`);
                     const status = await res.json();
-                    
                     if(status.mensagem) {
                         document.getElementById('status-mensagem').innerText = status.mensagem;
-                        
-                        // Para o loop se o robô terminou (com sucesso ou erro)
-                        if(status.status === 'ok' || status.status === 'erro') {
-                            clearInterval(monitoramento);
-                        }
+                        if(status.status === 'ok' || status.status === 'erro') clearInterval(monitoramento);
                     }
                 } catch (err) {}
             }, 3000);
         }
-
-        // Inicia no modo limpar por padrão
         setModo('limpar');
     </script>
 </body>
