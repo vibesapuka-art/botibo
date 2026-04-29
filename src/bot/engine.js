@@ -48,7 +48,8 @@ module.exports = async (pedidos, config = {}) => {
             }
 
             const baseDns = dnsSorteados[i];
-            const urlFinal = `${baseDns}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=ts`;
+            const urlFinal = `${baseDns}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=mpegts`;
+
             
             pedido.mensagem = `📝 GRAVANDO ${nomeLista}... MANTENHA A TV DESLIGADA!`;
 
