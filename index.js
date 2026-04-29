@@ -2,50 +2,46 @@ const express = require('express');
 const app = express();
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
-const gestor = require('./src/bot/gestor'); 
 
 app.use(express.json());
 app.use(express.static('public'));
 
 let pedidos = [];
+let processandoAgora = false; // Este é o cadeado do seu servidor
 
-// ROTA PARA RECEBER OS PEDIDOS DO SITE
+// 1. Recebe a solicitação e joga no FINAL da fila
 app.post('/ativar', (req, res) => {
-    const { mac, key, usuario, senha, tipo, nome, sobrenome, whatsapp, aniversario } = req.body;
+    const { mac, key, usuario, senha, tipo } = req.body;
     
     const novoPedido = {
         mac: mac.trim(),
         key: key.trim(),
         user: usuario,
         pass: senha,
-        nome: nome,
-        sobrenome: sobrenome,
-        whatsapp: whatsapp,
-        aniversario: aniversario,
         tipo: tipo,
-        status: "pendente",
-        mensagem: "⏳ Na fila de processamento..."
+        status: "pendente", // Todo mundo começa como pendente
+        mensagem: "⏳ AGUARDANDO NA FILA...",
+        data: new Date()
     };
 
-    // Remove duplicados antes de adicionar
+    // Evita duplicados: se o mesmo MAC pedir de novo, remove o anterior da fila
     pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
     pedidos.push(novoPedido);
+    
     res.json({ success: true });
 });
 
-// ROTA DE STATUS (O index.html lê isso para a barra de progresso)
+// 2. O Status informa quem está na frente
 app.get('/status', (req, res) => {
     const macConsultado = req.query.mac;
-    // Encontra o index do pedido atual na lista total de pedidos
     const indexAtual = pedidos.findIndex(p => p.mac === macConsultado);
     
     if (indexAtual !== -1) {
         const pedido = pedidos[indexAtual];
         
-        // Conta quantos pedidos com status "pendente" ou "processando" existem ANTES dele
-        const naFrente = pedidos.slice(0, indexAtual).filter(p => 
-            p.status === "pendente" || p.status === "processando"
-        ).length;
+        // A mágica acontece aqui: 
+        // Ele conta quantos pedidos existem no Array ANTES da posição dele.
+        const naFrente = indexAtual; 
 
         res.json({ 
             status: pedido.status, 
@@ -57,43 +53,55 @@ app.get('/status', (req, res) => {
     }
 });
 
+// 3. O MOTOR DA FILA (Processa um por um)
+async function gerenciarFila() {
+    // Se já tiver algo rodando, não faz nada e tenta de novo em 3 segundos
+    if (processandoAgora) {
+        setTimeout(gerenciarFila, 3000);
+        return;
+    }
 
-// LOOP DE PROCESSAMENTO - O CORAÇÃO DO BOT
-setInterval(async () => {
-    const pedido = pedidos.find(p => p.status === "pendente");
-    if (!pedido) return;
+    // Pega o primeiro pedido da lista (Posição 0)
+    const pedido = pedidos[0]; 
 
+    // Se não houver ninguém na lista, espera e tenta de novo
+    if (!pedido) {
+        setTimeout(gerenciarFila, 3000);
+        return;
+    }
+
+    // Se o primeiro da lista já terminou (status ok ou erro), removemos ele para o próximo subir
+    if (pedido.status === 'ok' || pedido.status === 'erro') {
+        pedidos.shift(); // Remove o primeiro elemento da lista
+        setTimeout(gerenciarFila, 1000);
+        return;
+    }
+
+    // FECHA O CADEADO - Agora ninguém mais entra até terminar
+    processandoAgora = true;
     pedido.status = "processando";
-    console.log(`🤖 Iniciando tarefa: ${pedido.tipo} para o MAC: ${pedido.mac}`);
+    console.log(`🤖 Iniciando processo para o MAC: ${pedido.mac}`);
 
     try {
         if (pedido.tipo === 'limpar') {
-            // O cleaner.js define a mensagem: "✅ Tudo limpo! Aparelho liberado."
             await cleaner(pedido);
-            pedido.status = "ok";
-        } 
-        else if (pedido.tipo === 'assinante') {
-            // O engine.js define as mensagens: "📡 Acessando...", "📝 Gravando..."
-            await engine([pedido]); 
-            // Garante que a mensagem final seja a do Engine (Sucesso na Playlist)
-            pedido.status = "ok";
+        } else {
+            await engine([pedido]);
         }
-        else if (pedido.tipo === 'ativar') {
-            const cadastroOk = await gestor(pedido);
-            if (cadastroOk) {
-                await engine([pedido]);
-                pedido.status = "ok";
-            } else {
-                pedido.status = "erro";
-                pedido.mensagem = "❌ Falha no cadastro do gestor.";
-            }
-        }
+        pedido.status = "ok";
+        pedido.mensagem = "✅ FINALIZADO COM SUCESSO!";
     } catch (err) {
-        console.error("Erro no processamento:", err.message);
         pedido.status = "erro";
-        pedido.mensagem = "❌ Erro crítico: " + err.message;
+        pedido.mensagem = "❌ ERRO: " + err.message;
+    } finally {
+        // ABRE O CADEADO - Só agora o próximo pedido pode ser processado
+        processandoAgora = false;
+        console.log(`🏁 Finalizado MAC: ${pedido.mac}. Próximo da fila...`);
+        gerenciarFila(); // Chama o próximo imediatamente
     }
-}, 5000);
+}
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Servidor ImperiumTV rodando na porta ${PORT}`));
+// Inicia o gerenciador de fila assim que o servidor liga
+gerenciarFila();
+
+app.listen(10000, () => console.log("Servidor Imperium TV Ativo na porta 10000"));
