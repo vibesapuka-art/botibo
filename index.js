@@ -35,13 +35,28 @@ app.post('/ativar', (req, res) => {
 
 // ROTA DE STATUS (O index.html lê isso para a barra de progresso)
 app.get('/status', (req, res) => {
-    const pedido = pedidos.find(p => p.mac === req.query.mac);
-    if (pedido) {
-        res.json({ status: pedido.status, mensagem: pedido.mensagem });
+    const macConsultado = req.query.mac;
+    // Encontra o index do pedido atual na lista total de pedidos
+    const indexAtual = pedidos.findIndex(p => p.mac === macConsultado);
+    
+    if (indexAtual !== -1) {
+        const pedido = pedidos[indexAtual];
+        
+        // Conta quantos pedidos com status "pendente" ou "processando" existem ANTES dele
+        const naFrente = pedidos.slice(0, indexAtual).filter(p => 
+            p.status === "pendente" || p.status === "processando"
+        ).length;
+
+        res.json({ 
+            status: pedido.status, 
+            mensagem: pedido.mensagem,
+            naFrente: naFrente 
+        });
     } else {
         res.json({ status: "erro", mensagem: "Pedido não encontrado." });
     }
 });
+
 
 // LOOP DE PROCESSAMENTO - O CORAÇÃO DO BOT
 setInterval(async () => {
