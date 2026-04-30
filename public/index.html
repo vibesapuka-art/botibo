@@ -27,8 +27,28 @@
         </div>
 
         <div id="form-container" class="space-y-4">
-            <div id="conteudo-em-breve" class="hidden text-center py-10">
-                <p class="text-[#22c55e] font-bold text-xl uppercase tracking-widest">Em breve</p>
+            
+            <div id="area-cliente-content" class="hidden space-y-4">
+                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Consultar Assinatura</p>
+                <input type="text" id="id-consulta" placeholder="WhatsApp ou MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+                <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] hover:bg-green-700 text-black font-bold py-3 rounded-lg uppercase transition-colors text-sm">
+                    Verificar Status
+                </button>
+                
+                <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2">
+                    <p class="text-[10px] text-gray-500 uppercase">Cliente</p>
+                    <p id="res-nome" class="text-white font-bold uppercase text-sm">---</p>
+                    <div class="grid grid-cols-2 gap-2 pt-2">
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase">Status</p>
+                            <p id="res-status" class="font-bold uppercase text-xs">---</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase">Vencimento</p>
+                            <p id="res-venc" class="text-white font-bold text-xs uppercase">---</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="campos-identificacao">
@@ -53,11 +73,9 @@
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6">
             <p id="status-titulo" class="text-[#22c55e] font-bold text-center text-sm mb-3 uppercase tracking-widest">Processando</p>
-            
             <div class="w-full bg-gray-900 rounded-full h-2 mb-4 overflow-hidden border border-gray-800">
                 <div id="status-barra" class="bg-[#22c55e] h-full transition-all duration-700 shadow-[0_0_10px_#22c55e]" style="width: 5%"></div>
             </div>
-
             <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center">
                 <p id="status-mensagem" class="text-gray-400 text-[11px] italic uppercase font-bold">Iniciando...</p>
             </div>
@@ -71,7 +89,7 @@
         function setModo(modo) {
             modoAtual = modo;
             const iptv = document.getElementById('campos-iptv');
-            const emBreve = document.getElementById('conteudo-em-breve');
+            const areaCliente = document.getElementById('area-cliente-content');
             const identificacao = document.getElementById('campos-identificacao');
             const btn = document.getElementById('btn-acao');
             const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
@@ -81,11 +99,11 @@
             if (modo === 'ativar') {
                 identificacao.classList.add('hidden');
                 iptv.classList.add('hidden');
-                emBreve.classList.remove('hidden');
+                areaCliente.classList.remove('hidden');
                 btn.classList.add('hidden');
                 document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
             } else if (modo === 'limpar') {
-                emBreve.classList.add('hidden');
+                areaCliente.classList.add('hidden');
                 identificacao.classList.remove('hidden');
                 iptv.classList.add('hidden');
                 btn.classList.remove('hidden');
@@ -93,13 +111,42 @@
                 btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                 document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
             } else {
-                emBreve.classList.add('hidden');
+                areaCliente.classList.add('hidden');
                 identificacao.classList.remove('hidden');
                 iptv.classList.remove('hidden');
                 btn.classList.remove('hidden');
                 btn.innerText = 'Sincronizar Playlists';
                 btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
                 document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
+            }
+        }
+
+        // FUNÇÃO DE CONSULTA (CHAMA O WEBHOOK NO SERVIDOR)
+        async function consultarAssinatura() {
+            const id = document.getElementById('id-consulta').value;
+            if (!id) return alert("Digite o WhatsApp ou MAC!");
+
+            const card = document.getElementById('resultado-consulta');
+            card.classList.add('hidden');
+
+            try {
+                const res = await fetch(`/api/cliente?id=${id}`);
+                const json = await res.json();
+
+                if (json.success) {
+                    document.getElementById('res-nome').innerText = json.dados.nome;
+                    document.getElementById('res-status').innerText = json.dados.status;
+                    document.getElementById('res-venc').innerText = json.dados.vencimento;
+                    
+                    const statusElem = document.getElementById('res-status');
+                    statusElem.className = json.dados.status.toLowerCase().includes('venc') ? 'font-bold uppercase text-red-500 text-xs' : 'font-bold uppercase text-[#22c55e] text-xs';
+                    
+                    card.classList.remove('hidden');
+                } else {
+                    alert(json.mensagem);
+                }
+            } catch (e) {
+                alert("Erro ao conectar com o servidor.");
             }
         }
 
@@ -150,13 +197,11 @@
                     if(status) {
                         if (status.status === "pendente") {
                             titulo.innerText = "NA FILA DE ESPERA";
-                            
                             if (status.naFrente > 0) {
                                 msgTexto.innerText = `⏳ EXISTEM ${status.naFrente} PROCESSO(S) NA SUA FRENTE. AGUARDE...`;
                             } else {
                                 msgTexto.innerText = "⏳ VOCÊ É O PRÓXIMO! PREPARANDO O MOTOR...";
                             }
-                            
                             barra.style.width = "10%";
                             barra.classList.add('animate-pulse');
                         } else {
@@ -165,7 +210,6 @@
 
                             if (status.mensagem) {
                                 msgTexto.innerText = status.mensagem.toUpperCase();
-
                                 if (status.mensagem.includes("ACESSANDO") || status.mensagem.includes("CONECTANDO")) {
                                     barra.style.width = "30%";
                                 } 
