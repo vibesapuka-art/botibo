@@ -2,12 +2,33 @@ const express = require('express');
 const app = express();
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
+// Adicionado: Importação do módulo de Webhook
+const webhookHandler = require('./webhook'); 
 
 app.use(express.json());
 app.use(express.static('public'));
 
 let pedidos = [];
 let processandoAgora = false; // Este é o cadeado do seu servidor
+
+// --- ROTAS DO WEBHOOK E ÁREA DO CLIENTE ---
+
+// Rota para o GestorV3 enviar os dados (Pagar, Vencer, Cadastrar)
+app.post('/webhook-gestor', webhookHandler.processarWebhook);
+
+// Rota para o seu site consultar dados por WhatsApp ou MAC
+app.get('/api/cliente', (req, res) => {
+    const busca = req.query.id; 
+    const resultado = webhookHandler.consultarCliente(busca);
+
+    if (resultado) {
+        res.json({ success: true, dados: resultado });
+    } else {
+        res.json({ success: false, mensagem: "Cliente não localizado. Verifique os dados ou fale com o suporte." });
+    }
+});
+
+// --- FIM DAS NOVAS ROTAS ---
 
 // 1. Recebe a solicitação e joga no FINAL da fila
 app.post('/ativar', (req, res) => {
@@ -104,4 +125,5 @@ async function gerenciarFila() {
 // Inicia o gerenciador de fila assim que o servidor liga
 gerenciarFila();
 
-app.listen(10000, () => console.log("Servidor Imperium TV Ativo na porta 10000"));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Servidor Imperium TV Ativo na porta ${PORT}`));
