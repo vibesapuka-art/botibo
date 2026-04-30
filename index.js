@@ -3,7 +3,7 @@ const app = express();
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 // Adicionado: Importação do módulo de Webhook
-const webhookHandler = require('./webhook'); 
+const webhookHandler = require('./src/bot/webhook');
 
 app.use(express.json());
 app.use(express.static('public'));
