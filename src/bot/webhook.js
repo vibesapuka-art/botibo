@@ -21,70 +21,54 @@ const Cliente = mongoose.model('Cliente', ClienteSchema);
 
 /**
  * processarWebhook
- * Agora aceita 'contato', 'whatsapp' ou 'telefone'
+ * AJUSTADO: Agora aceita "WhatsApp" (com W maiúsculo) e outros formatos do GestorV3
  */
 const processarWebhook = async (req, res) => {
     try {
         const dados = req.body;
-        console.log("📥 Webhook Recebido:", JSON.stringify(dados));
+        console.log("📥 Dados recebidos do Gestor:", JSON.stringify(dados));
 
-        // Tenta encontrar o número do cliente em vários campos possíveis
-        const telBruto = dados.whatsapp || dados.contato || dados.telefone || dados.celular || "";
-        const whatsapp = telBruto ? telBruto.toString().replace(/\D/g, "") : null;
-        
-        // Tenta encontrar o MAC
-        const mac = dados.mac ? dados.mac.trim().toUpperCase() : null;
-        
-        // Identificador final (prioriza WhatsApp, depois MAC)
-        const idPrincipal = whatsapp || mac;
+        // Captura o número do WhatsApp ignorando maiúsculas/minúsculas
+        const telBruto = dados.WhatsApp || dados.whatsapp || dados.contato || dados.telefone || "";
+        const identificadorFinal = telBruto.toString().replace(/\D/g, "");
 
-        if (!idPrincipal) {
-            console.log("⚠️ Webhook ignorado: Nenhum WhatsApp ou MAC encontrado nos dados.");
-            return res.status(400).send("Identificador ausente");
+        if (!identificadorFinal) {
+            console.log("⚠️ Nenhum número de WhatsApp encontrado no envio.");
+            return res.status(400).send("Sem Identificador");
         }
 
-        // Salva ou Atualiza
+        // Salva ou atualiza os dados no banco
         await Cliente.findOneAndUpdate(
-            { identificador: idPrincipal },
+            { identificador: identificadorFinal },
             {
-                nome: dados.nome || dados.cliente_nome || "Cliente Imperium",
-                status: dados.status || "Ativo",
-                vencimento: dados.vencimento || dados.data_vencimento || "---",
+                nome: dados.Cliente || dados.nome || "Cliente Imperium",
+                status: "Ativo",
+                vencimento: dados.vencimento || "Verificar no Painel",
                 plano: dados.plano || "Assinatura IPTV",
                 lastUpdate: new Date()
             },
             { upsert: true, new: true }
         );
 
-        console.log(`✅ [BANCO] Cliente ${idPrincipal} sincronizado.`);
+        console.log(`✅ [SUCESSO] Cliente ${identificadorFinal} gravado no banco.`);
         res.status(200).send("OK");
     } catch (error) {
-        console.error("❌ [ERRO WEBHOOK]:", error.message);
+        console.error("❌ [ERRO NO PROCESSAMENTO]:", error.message);
         res.status(500).send("Erro interno");
     }
 };
 
 /**
  * consultarCliente
- * Busca flexível (aceita o que o usuário digitar)
+ * Ajustado para buscar pelo número exato enviado pelo gestor
  */
 const consultarCliente = async (identificador) => {
     try {
         if (!identificador) return null;
-        const busca = identificador.trim();
-        
-        // Busca 1: Exatamente como digitado (bom para MAC)
-        let resultado = await Cliente.findOne({ identificador: busca });
-
-        // Busca 2: Apenas números (bom para WhatsApp)
-        if (!resultado) {
-            const apenasNumeros = identificador.replace(/\D/g, "");
-            resultado = await Cliente.findOne({ identificador: apenasNumeros });
-        }
-
-        return resultado;
+        const busca = identificador.trim().replace(/\D/g, ""); // Busca apenas os números
+        return await Cliente.findOne({ identificador: busca });
     } catch (error) {
-        console.error("❌ [ERRO CONSULTA]:", error.message);
+        console.error("❌ [ERRO NA CONSULTA]:", error.message);
         return null;
     }
 };
