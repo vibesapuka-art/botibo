@@ -31,19 +31,23 @@ async function processarWebhook(req, res) {
     const client = new MongoClient(uri);
     try {
         const d = req.body; 
+        
         const clienteData = {
             whatsapp: d.whatsapp ? d.whatsapp.replace(/\D/g, '') : '',
-            nome: d.nome || 'Cliente Imperium',
-            usuario_iptv: d.login_usuario || d.usuario || '',
-            senha_iptv: d.senha_usuario || d.senha || '',
-            vencimento: d.data_vencimento || '',
+            // Ajustado para 'nome_cliente' conforme seu JSON
+            nome: d.nome_cliente || d.nome || 'Cliente Imperium',
+            usuario_iptv: d.usuario || '',
+            senha_iptv: d.senha || '',
+            vencimento: d.vencimento || '',
             valor: d.valor_plano || '',
-            servidor: d.url_servidor || 'MultServidor',
-            // O botão amarelo só aparece se houver um link válido aqui
-            link_fatura: (d.link_fatura && d.link_fatura.includes('http')) ? d.link_fatura : '',
-            status_fatura: d.status_fatura || '',
+            // Ajustado para 'nome_servidor' conforme seu JSON
+            servidor: d.nome_servidor || 'MultServidor',
+            // Agora garantido em minúsculo conforme seu JSON
+            link_fatura: d.link_fatura || '',
+            status_fatura: d.status_fatura || 'Pendente',
             data_atualizacao: new Date()
         };
+
         await client.connect();
         const db = client.db("ImperiumDB");
         await db.collection("clientes").updateOne(
