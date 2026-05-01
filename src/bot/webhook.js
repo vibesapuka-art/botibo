@@ -1,76 +1,64 @@
-const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
+// Use a sua URL do MongoDB que já funciona
+const uri = process.env.MONGO_URI || "sua_string_de_conexao_aqui";
+const client = new MongoClient(uri);
 
-// Link de conexão com a sua senha aplicada
-const mongoURI = "mongodb+srv://vibesapuka_db_user:fG9c7WwavgNkYSoR@cluster0.q3bhsxo.mongodb.net/ImperiumDB?retryWrites=true&w=majority";
-
-mongoose.connect(mongoURI)
-    .then(() => console.log("✅ Conectado ao MongoDB Atlas com sucesso!"))
-    .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
-
-// Modelo de dados do Cliente
-const ClienteSchema = new mongoose.Schema({
-    identificador: { type: String, unique: true, required: true },
-    nome: String,
-    status: String,
-    vencimento: String,
-    plano: String,
-    lastUpdate: { type: Date, default: Date.now }
-});
-
-const Cliente = mongoose.model('Cliente', ClienteSchema);
-
-/**
- * processarWebhook
- * AJUSTADO: Agora aceita "WhatsApp" (com W maiúsculo) e outros formatos do GestorV3
- */
-const processarWebhook = async (req, res) => {
+async function processarWebhook(req, res) {
     try {
         const dados = req.body;
-        console.log("📥 Dados recebidos do Gestor:", JSON.stringify(dados));
+        console.log("📥 Recebido do GestorV3:", JSON.stringify(dados));
 
-        // Captura o número do WhatsApp ignorando maiúsculas/minúsculas
-        const telBruto = dados.WhatsApp || dados.whatsapp || dados.contato || dados.telefone || "";
-        const identificadorFinal = telBruto.toString().replace(/\D/g, "");
-
-        if (!identificadorFinal) {
-            console.log("⚠️ Nenhum número de WhatsApp encontrado no envio.");
-            return res.status(400).send("Sem Identificador");
+        // Captura o número do WhatsApp (o Gestor usa 'WhatsApp' com W maiúsculo)
+        const whatsappRaw = dados.WhatsApp || dados.whatsapp;
+        
+        if (!whatsappRaw) {
+            return res.status(200).send("OK - Sem número");
         }
 
-        // Salva ou atualiza os dados no banco
-        await Cliente.findOneAndUpdate(
-            { identificador: identificadorFinal },
-            {
-                nome: dados.Cliente || dados.nome || "Cliente Imperium",
-                status: "Ativo",
-                vencimento: dados.vencimento || "Verificar no Painel",
-                plano: dados.plano || "Assinatura IPTV",
-                lastUpdate: new Date()
-            },
-            { upsert: true, new: true }
+        const whatsapp = whatsappRaw.toString().replace(/\D/g, '');
+        
+        await client.connect();
+        const db = client.db('ImperiumDB');
+        const colecao = db.collection('clientes');
+
+        // Salva os dados conforme o padrão do vídeo
+        const dadosCliente = {
+            whatsapp: whatsapp,
+            nome: dados.Nome || "Cliente",
+            ultima_mensagem: dados.Mensagem || "",
+            data_recebimento: new Date()
+        };
+
+        await colecao.updateOne(
+            { whatsapp: whatsapp },
+            { $set: dadosCliente },
+            { upsert: true }
         );
 
-        console.log(`✅ [SUCESSO] Cliente ${identificadorFinal} gravado no banco.`);
+        console.log(`✅ Cliente ${whatsapp} atualizado com sucesso.`);
         res.status(200).send("OK");
     } catch (error) {
-        console.error("❌ [ERRO NO PROCESSAMENTO]:", error.message);
-        res.status(500).send("Erro interno");
+        console.error("❌ Erro no Webhook:", error);
+        res.status(500).send("Erro");
     }
-};
+}
 
-/**
- * consultarCliente
- * Ajustado para buscar pelo número exato enviado pelo gestor
- */
-const consultarCliente = async (identificador) => {
+async function consultarCliente(id) {
     try {
-        if (!identificador) return null;
-        const busca = identificador.trim().replace(/\D/g, ""); // Busca apenas os números
-        return await Cliente.findOne({ identificador: busca });
+        const busca = id.replace(/\D/g, '');
+        await client.connect();
+        const db = client.db('ImperiumDB');
+        const colecao = db.collection('clientes');
+
+        return await colecao.findOne({
+            $or: [
+                { whatsapp: busca },
+                { whatsapp: "55" + busca }
+            ]
+        });
     } catch (error) {
-        console.error("❌ [ERRO NA CONSULTA]:", error.message);
         return null;
     }
-};
+}
 
 module.exports = { processarWebhook, consultarCliente };
