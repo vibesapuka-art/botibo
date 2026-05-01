@@ -20,7 +20,7 @@ app.get('/api/cliente', async (req, res) => {
     try {
         const resultado = await consultarCliente(whatsappDigitado);
         if (resultado) {
-            // Envia os dados encontrados para o painel exibir
+            // Envia os dados encontrados para o painel exibir (incluindo o link_fatura salvo pelo webhook)
             res.json({ success: true, dados: resultado });
         } else {
             res.json({ success: false, mensagem: "Número não localizado." });
@@ -75,12 +75,21 @@ async function gerenciarFila() {
     }
     processandoAgora = true;
     pedido.status = "processando";
+    
+    // Adicionado apenas uma mensagem de log para você acompanhar no console do Render
+    pedido.mensagem = "⚙️ PROCESSANDO NO SERVIDOR...";
+    console.log(`🤖 Iniciando automação para MAC: ${pedido.mac}`);
+
     try {
-        if (pedido.tipo === 'limpar') { await cleaner(pedido); } 
-        else { await engine([pedido]); }
+        if (pedido.tipo === 'limpar') { 
+            await cleaner(pedido); 
+        } else { 
+            await engine([pedido]); 
+        }
         pedido.status = "ok";
         pedido.mensagem = "✅ FINALIZADO COM SUCESSO!";
     } catch (err) {
+        console.error("❌ Erro na automação:", err.message);
         pedido.status = "erro";
         pedido.mensagem = "❌ ERRO: " + err.message;
     } finally {
