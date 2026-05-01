@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 
-// URL do seu banco ImperiumDB
+// String de conexão direta para evitar falhas de variáveis
 const uri = "mongodb+srv://vibesapuka_db_user:fG9c7WwavgNkYSoR@cluster0.q3bhsxo.mongodb.net/ImperiumDB?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
 
@@ -9,11 +9,11 @@ async function processarWebhook(req, res) {
         const dados = req.body;
         console.log("📥 DADOS RECEBIDOS:", JSON.stringify(dados));
 
-        // O GestorV3 envia 'WhatsApp' com W maiúsculo
+        // Tenta capturar o WhatsApp em qualquer formato (GestorV3 usa 'WhatsApp')
         const whatsappRaw = dados.WhatsApp || dados.whatsapp || dados.contato;
         
         if (!whatsappRaw) {
-            console.log("⚠️ Webhook recebido sem campo de WhatsApp.");
+            console.log("⚠️ Webhook ignorado: campo de número não localizado.");
             return res.status(200).send("OK");
         }
 
@@ -23,10 +23,13 @@ async function processarWebhook(req, res) {
         const db = client.db('ImperiumDB');
         const colecao = db.collection('clientes');
 
+        // Mapeia os campos do GestorV3 (Maiúsculos) ou do seu teste (Minúsculos)
         const dadosCliente = {
             whatsapp: whatsapp,
-            nome: dados.Nome || dados.nome || "Cliente",
+            nome: dados.Nome || dados.nome || "Cliente Imperium",
             ultima_mensagem: dados.Mensagem || dados.mensagem || "",
+            status_pagamento: dados.status_pagamento || "pago",
+            vencimento: dados.vencimento || "",
             data_recebimento: new Date()
         };
 
