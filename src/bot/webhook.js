@@ -1,19 +1,18 @@
 const { MongoClient } = require('mongodb');
 
-// String de conexão direta para evitar falhas de variáveis
 const uri = "mongodb+srv://vibesapuka_db_user:fG9c7WwavgNkYSoR@cluster0.q3bhsxo.mongodb.net/ImperiumDB?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
 
 async function processarWebhook(req, res) {
     try {
         const dados = req.body;
-        console.log("📥 DADOS RECEBIDOS:", JSON.stringify(dados));
+        console.log("📥 Dados recebidos do GestorV3:", JSON.stringify(dados));
 
-        // Tenta capturar o WhatsApp em qualquer formato (GestorV3 usa 'WhatsApp')
-        const whatsappRaw = dados.WhatsApp || dados.whatsapp || dados.contato;
+        // Captura o WhatsApp exatamente como vem na variável
+        const whatsappRaw = dados.whatsapp; 
         
         if (!whatsappRaw) {
-            console.log("⚠️ Webhook ignorado: campo de número não localizado.");
+            console.log("⚠️ Webhook sem número de WhatsApp.");
             return res.status(200).send("OK");
         }
 
@@ -23,26 +22,31 @@ async function processarWebhook(req, res) {
         const db = client.db('ImperiumDB');
         const colecao = db.collection('clientes');
 
-        // Mapeia os campos do GestorV3 (Maiúsculos) ou do seu teste (Minúsculos)
+        // Mapeamento baseado nas variáveis reais que você enviou
         const dadosCliente = {
             whatsapp: whatsapp,
-            nome: dados.Nome || dados.nome || "Cliente Imperium",
-            ultima_mensagem: dados.Mensagem || dados.mensagem || "",
-            status_pagamento: dados.status_pagamento || "pago",
-            vencimento: dados.vencimento || "",
-            data_recebimento: new Date()
+            nome: dados.nome_cliente,
+            vencimento: dados.vencimento,
+            plano: dados.nome_plano,
+            valor: dados.valor_plano,
+            usuario_iptv: dados.usuario,
+            senha_iptv: dados.senha,
+            fatura_atual: dados.numero_fatura,
+            link_fatura: dados.link_fatura,
+            data_atualizacao: new Date()
         };
 
+        // Salva ou atualiza os dados do cliente no banco
         await colecao.updateOne(
             { whatsapp: whatsapp },
             { $set: dadosCliente },
             { upsert: true }
         );
 
-        console.log(`✅ [SUCESSO] Cliente ${whatsapp} salvo no MongoDB!`);
+        console.log(`✅ [SUCESSO] Cliente ${dadosCliente.nome} atualizado.`);
         res.status(200).send("OK");
     } catch (error) {
-        console.error("❌ ERRO NO WEBHOOK:", error);
+        console.error("❌ Erro no Webhook:", error);
         res.status(500).send("Erro");
     }
 }
@@ -64,7 +68,7 @@ async function consultarCliente(id) {
             ]
         });
     } catch (error) {
-        console.error("❌ ERRO NA CONSULTA:", error);
+        console.error("❌ Erro na consulta:", error);
         return null;
     }
 }
