@@ -1,8 +1,12 @@
 const express = require('express');
+const cors = require('cors'); // ADICIONADO: Necessário para o site conectar ao servidor
 const app = express();
+
+// Configuração de Permissões
+app.use(cors()); // ADICIONADO: Resolve o erro de "Conexão com o servidor" no navegador
+
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
-// Importação correta do módulo de Webhook e Consulta
 const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
 
 app.use(express.json());
@@ -13,16 +17,16 @@ let processandoAgora = false;
 
 // --- ROTAS DO WEBHOOK E ÁREA DO CLIENTE ---
 
-// AJUSTE: Rota alterada para /webhook para coincidir com o seu teste e o padrão do Gestor
+// Recebe dados do GestorV3 e salva no MongoDB
 app.post('/webhook', processarWebhook);
 
-// AJUSTE: Rota de consulta do site configurada para buscar no MongoDB
+// Consulta dados para o Painel do Cliente
 app.get('/api/cliente', async (req, res) => {
     const busca = req.query.id; 
-    // Como o consultarCliente busca no MongoDB, ele precisa do 'await'
     const resultado = await consultarCliente(busca);
 
     if (resultado) {
+        // Retorna o sucesso e os dados mapeados do seu webhook (Login, Senha, Vencimento, etc)
         res.json({ success: true, dados: resultado });
     } else {
         res.json({ 
