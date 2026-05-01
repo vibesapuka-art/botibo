@@ -1,18 +1,19 @@
 const { MongoClient } = require('mongodb');
 
+// Ligação direta ao ImperiumDB
 const uri = "mongodb+srv://vibesapuka_db_user:fG9c7WwavgNkYSoR@cluster0.q3bhsxo.mongodb.net/ImperiumDB?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
 
 async function processarWebhook(req, res) {
     try {
         const dados = req.body;
-        console.log("📥 Dados recebidos do GestorV3:", JSON.stringify(dados));
+        console.log("📥 DADOS RECEBIDOS:", JSON.stringify(dados));
 
-        // Captura o WhatsApp exatamente como vem na variável
-        const whatsappRaw = dados.whatsapp; 
+        // Usa a variável 'whatsapp' que confirmamos no Webhook.site
+        const whatsappRaw = dados.whatsapp;
         
         if (!whatsappRaw) {
-            console.log("⚠️ Webhook sem número de WhatsApp.");
+            console.log("⚠️ Webhook ignorado: campo 'whatsapp' não encontrado.");
             return res.status(200).send("OK");
         }
 
@@ -22,31 +23,28 @@ async function processarWebhook(req, res) {
         const db = client.db('ImperiumDB');
         const colecao = db.collection('clientes');
 
-        // Mapeamento baseado nas variáveis reais que você enviou
+        // Mapeamento das variáveis reais do GestorV3
         const dadosCliente = {
             whatsapp: whatsapp,
-            nome: dados.nome_cliente,
-            vencimento: dados.vencimento,
-            plano: dados.nome_plano,
-            valor: dados.valor_plano,
-            usuario_iptv: dados.usuario,
-            senha_iptv: dados.senha,
-            fatura_atual: dados.numero_fatura,
-            link_fatura: dados.link_fatura,
+            nome: dados.nome_cliente || "Cliente",
+            vencimento: dados.vencimento || "",
+            usuario_iptv: dados.usuario || "",
+            senha_iptv: dados.senha || "",
+            plano: dados.nome_plano || "",
+            valor: dados.valor_plano || "",
             data_atualizacao: new Date()
         };
 
-        // Salva ou atualiza os dados do cliente no banco
         await colecao.updateOne(
             { whatsapp: whatsapp },
             { $set: dadosCliente },
             { upsert: true }
         );
 
-        console.log(`✅ [SUCESSO] Cliente ${dadosCliente.nome} atualizado.`);
+        console.log(`✅ [SUCESSO] Cliente ${whatsapp} guardado no ImperiumDB.`);
         res.status(200).send("OK");
     } catch (error) {
-        console.error("❌ Erro no Webhook:", error);
+        console.error("❌ ERRO NO PROCESSAMENTO:", error);
         res.status(500).send("Erro");
     }
 }
@@ -55,7 +53,6 @@ async function consultarCliente(id) {
     try {
         if (!id) return null;
         const busca = id.replace(/\D/g, '');
-        
         await client.connect();
         const db = client.db('ImperiumDB');
         const colecao = db.collection('clientes');
@@ -68,7 +65,7 @@ async function consultarCliente(id) {
             ]
         });
     } catch (error) {
-        console.error("❌ Erro na consulta:", error);
+        console.error("❌ ERRO NA CONSULTA:", error);
         return null;
     }
 }
