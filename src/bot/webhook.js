@@ -1,100 +1,83 @@
 const { MongoClient } = require('mongodb');
 
-// Configuração do Banco de Dados ImperiumDB
-const uri = "mongodb+srv://vibesapuka_db_user:fG9c7WwavgNkYSoR@cluster0.q3bhsxo.mongodb.net/ImperiumDB?retryWrites=true&w=majority";
+// URL de conexão (Certifique-se de que a variável de ambiente MONGO_URL esteja configurada no Render)
+const uri = process.env.MONGO_URL;
 const client = new MongoClient(uri);
 
 /**
- * 1. PROCESSAR WEBHOOK (Recebe dados do GestorV3)
- * Este bloco salva os dados sempre que algo acontece no GestorV3.
+ * Processa os dados recebidos do Webhook do GestorV3
  */
 async function processarWebhook(req, res) {
     try {
         const dados = req.body;
-        console.log("📥 DADOS DO GESTOR RECEBIDOS:", JSON.stringify(dados));
 
-        const whatsappRaw = dados.whatsapp;
-        
-        if (!whatsappRaw) {
-            console.log("⚠️ Webhook ignorado: campo 'whatsapp' ausente.");
-            return res.status(200).send("OK");
-        }
-
-        // Limpa o número para salvar apenas dígitos
-        const whatsapp = whatsappRaw.toString().replace(/\D/g, '');
-        
-        await client.connect();
-        const db = client.db('ImperiumDB');
-        const colecao = db.collection('clientes');
-
-        // MAPEAMENTO DAS VARIÁVEIS REAIS DO GESTORV3
-        const dadosCliente = {
-            whatsapp: whatsapp,
-            nome: dados.nome_cliente || "Cliente Imperium",
-            vencimento: dados.vencimento || "A definir",
-            usuario_iptv: dados.usuario || "Gerando...",
-            senha_iptv: dados.senha || "Gerando...",
-            plano: dados.nome_plano || "Nenhum plano ativo",
-            valor: dados.valor_plano || "R$ 0,00",
-            link_fatura: dados.link_fatura || "",
+        // Mapeia os campos do GestorV3 para o seu banco ImperiumDB
+        const clienteData = {
+            whatsapp: dados.whatsapp ? dados.whatsapp.replace(/\D/g, '') : '', // Remove caracteres não numéricos
+            nome: dados.nome || 'Cliente Novo',
+            plano: dados.plano || '',
+            usuario_iptv: dados.login_usuario || dados.usuario || '',
+            senha_iptv: dados.senha_usuario || dados.senha || '',
+            vencimento: dados.data_vencimento || '',
+            valor: dados.valor_plano || '',
+            link_fatura: dados.link_fatura || '',
             data_atualizacao: new Date()
         };
 
-        // Salva ou atualiza no MongoDB
+        await client.connect();
+        const db = client.db("ImperiumDB");
+        const colecao = db.collection("clientes");
+
+        // Salva ou atualiza os dados do cliente usando o WhatsApp como chave única
         await colecao.updateOne(
-            { whatsapp: whatsapp },
-            { $set: dadosCliente },
+            { whatsapp: clienteData.whatsapp },
+            { $set: clienteData },
             { upsert: true }
         );
 
-        console.log(`✅ [SUCESSO] Dados de ${whatsapp} atualizados no banco.`);
-        res.status(200).send("OK");
+        console.log(`✅ Dados do cliente ${clienteData.nome} atualizados via Webhook.`);
+        res.status(200).send("Webhook recebido com sucesso!");
+
     } catch (error) {
-        console.error("❌ ERRO NO PROCESSAMENTO DO WEBHOOK:", error);
-        res.status(500).send("Erro Interno");
+        console.error("❌ Erro ao processar Webhook:", error);
+        res.status(500).send("Erro interno ao salvar dados.");
+    } finally {
+        await client.close();
     }
 }
 
 /**
- * 2. CONSULTAR CLIENTE (Envia dados para o seu Painel Web)
- * Este bloco é usado quando o cliente clica em "Verificar Status".
+ * Consulta o cliente no MongoDB pelo número de WhatsApp
  */
-async function consultarCliente(id) {
+async function consultarCliente(numeroWhatsApp) {
     try {
-        if (!id) return null;
-        
-        // Limpa o ID/WhatsApp para a busca
-        const busca = id.toString().replace(/\D/g, '');
+        // Limpa o número para garantir que a busca seja apenas numérica
+        const numeroLimpo = numeroWhatsApp.replace(/\D/g, '');
         
         await client.connect();
-        const db = client.db('ImperiumDB');
-        const colecao = db.collection('clientes');
+        const db = client.db("ImperiumDB");
+        const colecao = db.collection("clientes");
 
-        // Busca flexível (tenta encontrar com ou sem o 55 do Brasil)
-        const cliente = await colecao.findOne({
-            $or: [
-                { whatsapp: busca },
-                { whatsapp: "55" + busca },
-                { whatsapp: busca.startsWith("55") ? busca.substring(2) : busca }
-            ]
-        });
+        // Busca exata pelo campo 'whatsapp' conforme visto no seu Atlas
+        const cliente = await colecao.findOne({ whatsapp: numeroLimpo });
 
-        if (!cliente) return null;
+        if (cliente) {
+            console.log(`🔎 Cliente localizado: ${cliente.nome}`);
+            return cliente;
+        } else {
+            console.log(`⚠️ Nenhum cliente encontrado para o número: ${numeroLimpo}`);
+            return null;
+        }
 
-        // Retorna apenas os campos que o seu painel vai exibir
-        return {
-            nome: cliente.nome,
-            usuario_iptv: cliente.usuario_iptv,
-            senha_iptv: cliente.senha_iptv,
-            vencimento: cliente.vencimento,
-            valor: cliente.valor,
-            link_fatura: cliente.link_fatura,
-            plano: cliente.plano
-        };
     } catch (error) {
-        console.error("❌ ERRO NA CONSULTA AO BANCO:", error);
-        return null;
+        console.error("❌ Erro na consulta ao MongoDB:", error);
+        throw error;
+    } finally {
+        await client.close();
     }
 }
 
-module.exports = { processarWebhook, consultarCliente };
+module.exports = {
+    processarWebhook,
+    consultarCliente
+};
