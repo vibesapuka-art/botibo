@@ -1,9 +1,9 @@
 const express = require('express');
-const cors = require('cors'); // ADICIONADO: Necessário para o site conectar ao servidor
+const cors = require('cors'); // Para permitir que o site consulte o servidor
 const app = express();
 
-// Configuração de Permissões
-app.use(cors()); // ADICIONADO: Resolve o erro de "Conexão com o servidor" no navegador
+// Ativa as permissões de acesso
+app.use(cors());
 
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
@@ -15,36 +15,38 @@ app.use(express.static('public'));
 let pedidos = [];
 let processandoAgora = false;
 
-// --- ROTAS DO WEBHOOK E ÁREA DO CLIENTE ---
+// --- ROTAS DE INTEGRAÇÃO GESTORV3 ---
 
-// Recebe dados do GestorV3 e salva no MongoDB
+// Recebe dados do GestorV3 (webhook)
 app.post('/webhook', processarWebhook);
 
-// Consulta dados para o Painel do Cliente
+// Rota de consulta do Painel (Front-end)
 app.get('/api/cliente', async (req, res) => {
     const busca = req.query.id; 
-    const resultado = await consultarCliente(busca);
-
-    if (resultado) {
-        // Retorna o sucesso e os dados mapeados do seu webhook (Login, Senha, Vencimento, etc)
-        res.json({ success: true, dados: resultado });
-    } else {
-        res.json({ 
-            success: false, 
-            mensagem: "Cliente não localizado. Verifique os dados ou fale com o suporte." 
-        });
+    try {
+        const resultado = await consultarCliente(busca);
+        if (resultado) {
+            res.json({ success: true, dados: resultado });
+        } else {
+            res.json({ 
+                success: false, 
+                mensagem: "Cliente não localizado. Verifique o número ou fale com o suporte." 
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, mensagem: "Erro ao consultar banco de dados." });
     }
 });
 
-// --- FIM DAS NOVAS ROTAS ---
+// --- FIM DAS ROTAS DE INTEGRAÇÃO ---
 
-// 1. Recebe a solicitação e joga no FINAL da fila
+// 1. Recebe a solicitação de ativação e joga na fila
 app.post('/ativar', (req, res) => {
     const { mac, key, usuario, senha, tipo } = req.body;
     
     const novoPedido = {
-        mac: mac.trim(),
-        key: key.trim(),
+        mac: mac ? mac.trim() : "",
+        key: key ? key.trim() : "",
         user: usuario,
         pass: senha,
         tipo: tipo,
@@ -78,7 +80,7 @@ app.get('/status', (req, res) => {
     }
 });
 
-// 3. Motor da Fila
+// 3. Motor de Processamento (Fila)
 async function gerenciarFila() {
     if (processandoAgora) {
         setTimeout(gerenciarFila, 3000);
