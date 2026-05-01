@@ -7,240 +7,118 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
-        input { transition: all 0.3s; }
         .tab-active-blue { background-color: #3b82f6; color: white; }
         .tab-active-red { background-color: #dc2626; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
         .tab-active-green { background-color: #22c55e; color: black; }
-        ::placeholder { color: #555 !important; opacity: 1; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
-
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
         <h1 class="text-3xl font-bold text-[#22c55e] text-center mb-6 italic uppercase tracking-tighter">IMPERIUM TV BOT</h1>
         
         <div class="grid grid-cols-3 gap-2 mb-6">
             <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente</button>
-            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Adicionar Playlists</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar Playlists</button>
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Playlists</button>
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar</button>
         </div>
 
-        <div id="form-container" class="space-y-4">
-            
+        <div class="space-y-4">
             <div id="area-cliente-content" class="hidden space-y-4">
-                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Consultar Assinatura</p>
-                <input type="text" id="id-consulta" placeholder="WhatsApp ou MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
-                <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] hover:bg-green-700 text-black font-bold py-3 rounded-lg uppercase transition-colors text-sm">
-                    Verificar Status
-                </button>
+                <input type="text" id="id-consulta" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">Verificar Status</button>
                 
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
-                    <div>
-                        <p class="text-[10px] text-gray-500 uppercase">Cliente</p>
-                        <p id="res-nome" class="text-white font-bold uppercase text-sm">---</p>
+                    <div><p class="text-[10px] text-gray-500 uppercase">Cliente</p><p id="res-nome" class="font-bold uppercase text-sm">---</p></div>
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Usuário</p><p id="res-user" class="text-[#22c55e] font-bold text-xs">---</p></div>
+                        <div><p class="text-[10px] text-gray-500 uppercase">Senha</p><p id="res-pass" class="text-[#22c55e] font-bold text-xs">---</p></div>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Usuário IPTV</p>
-                            <p id="res-user" class="text-[#22c55e] font-bold text-xs">---</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Senha IPTV</p>
-                            <p id="res-pass" class="text-[#22c55e] font-bold text-xs">---</p>
-                        </div>
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Servidor</p><p id="res-servidor" class="text-blue-400 font-bold text-[10px]">---</p></div>
+                        <div><p class="text-[10px] text-gray-500 uppercase">Valor</p><p id="res-valor" class="font-bold text-[10px]">---</p></div>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Servidor</p>
-                            <p id="res-servidor" class="text-blue-400 font-bold text-xs">MultServidor</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Valor</p>
-                            <p id="res-valor" class="text-white font-bold text-xs italic">---</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Status</p>
-                            <p id="res-status" class="font-bold uppercase text-[10px]">---</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase">Vencimento</p>
-                            <p id="res-venc" class="text-white font-bold text-[10px] uppercase">---</p>
-                        </div>
-                    </div>
-
-                    <div id="container-fatura" class="hidden pt-2">
-                        <a id="btn-fatura" href="#" target="_blank" class="block w-full bg-yellow-600 hover:bg-yellow-700 text-black text-center font-extrabold py-2 rounded-lg uppercase text-[10px] transition-all">
-                            💳 Pagar Fatura Online
-                        </a>
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Vencimento</p><p id="res-venc" class="text-red-500 font-bold text-[10px]">---</p></div>
+                        <div id="container-fatura" class="hidden"><a id="btn-fatura" href="#" target="_blank" class="block bg-yellow-600 text-black text-center font-bold py-1 rounded text-[10px]">PAGAR</a></div>
                     </div>
                 </div>
             </div>
 
             <div id="campos-identificacao">
-                <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest mb-4">Identificação do Aparelho</p>
-                <input type="text" id="mac" placeholder="Digite o MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white mb-4">
-                <input type="text" id="key" placeholder="Digite o Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+                <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none mb-4">
+                <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <div id="secao-dinamica" class="space-y-4">
-                <div id="campos-iptv" class="space-y-3 hidden">
-                    <hr class="border-gray-800 my-4">
-                    <p class="text-[#22c55e] text-[10px] font-bold uppercase tracking-widest">Dados do Servidor</p>
-                    <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                    <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none text-white">
-                </div>
+            <div id="campos-iptv" class="hidden space-y-3">
+                <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition-colors uppercase mt-4">
-                Sincronizar Playlists
-            </button>
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg uppercase">Sincronizar</button>
         </div>
 
-        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-6">
-            <p id="status-titulo" class="text-[#22c55e] font-bold text-center text-sm mb-3 uppercase tracking-widest">Processando</p>
-            <div class="w-full bg-gray-900 rounded-full h-2 mb-4 overflow-hidden border border-gray-800">
-                <div id="status-barra" class="bg-[#22c55e] h-full transition-all duration-700 shadow-[0_0_10px_#22c55e]" style="width: 5%"></div>
-            </div>
-            <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center">
-                <p id="status-mensagem" class="text-gray-400 text-[11px] italic uppercase font-bold">Iniciando...</p>
-            </div>
+        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-4 text-center">
+            <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2"><div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div></div>
+            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold">Iniciando...</p>
         </div>
     </div>
 
     <script>
         let modoAtual = 'assinante';
-        let monitoramento = null;
-
-        function setModo(modo) {
-            modoAtual = modo;
-            const iptv = document.getElementById('campos-iptv');
-            const areaCliente = document.getElementById('area-cliente-content');
-            const identificacao = document.getElementById('campos-identificacao');
-            const btn = document.getElementById('btn-acao');
-            const abas = ['tab-ativar', 'tab-assinante', 'tab-limpar'];
-
-            abas.forEach(id => document.getElementById(id).className = 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase');
-
-            if (modo === 'ativar') {
-                identificacao.classList.add('hidden');
-                iptv.classList.add('hidden');
-                areaCliente.classList.remove('hidden');
-                btn.classList.add('hidden');
-                document.getElementById('tab-ativar').className = 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase';
-            } else if (modo === 'limpar') {
-                areaCliente.classList.add('hidden');
-                identificacao.classList.remove('hidden');
-                iptv.classList.add('hidden');
-                btn.classList.remove('hidden');
-                btn.innerText = 'Limpar Playlist';
-                btn.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-limpar').className = 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase';
-            } else {
-                areaCliente.classList.add('hidden');
-                identificacao.classList.remove('hidden');
-                iptv.classList.remove('hidden');
-                btn.classList.remove('hidden');
-                btn.innerText = 'Sincronizar Playlists';
-                btn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase mt-4';
-                document.getElementById('tab-assinante').className = 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase';
-            }
+        function setModo(m) {
+            modoAtual = m;
+            document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
+            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
+            document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
+            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
+            
+            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
         }
 
         async function consultarAssinatura() {
             const id = document.getElementById('id-consulta').value;
-            if (!id) return alert("Digite o WhatsApp!");
-
-            const card = document.getElementById('resultado-consulta');
-            const containerFatura = document.getElementById('container-fatura');
-            const btnFatura = document.getElementById('btn-fatura');
-            
-            card.classList.add('hidden');
-            containerFatura.classList.add('hidden');
-
             try {
                 const res = await fetch(`/api/cliente?id=${id}`);
                 const json = await res.json();
-
                 if (json.success) {
-                    document.getElementById('res-nome').innerText = json.dados.nome || 'NÃO LOCALIZADO';
-                    document.getElementById('res-user').innerText = json.dados.usuario_iptv || '---';
-                    document.getElementById('res-pass').innerText = json.dados.senha_iptv || '---';
+                    document.getElementById('res-nome').innerText = json.dados.nome;
+                    document.getElementById('res-user').innerText = json.dados.usuario_iptv;
+                    document.getElementById('res-pass').innerText = json.dados.senha_iptv;
                     document.getElementById('res-servidor').innerText = json.dados.servidor || 'MultServidor';
                     document.getElementById('res-valor').innerText = json.dados.valor ? `R$ ${json.dados.valor}` : 'R$ 35,00';
-                    document.getElementById('res-venc').innerText = json.dados.vencimento || '---';
-                    document.getElementById('res-status').innerText = "ASSINANTE ATIVO";
-                    document.getElementById('res-status').className = 'font-bold uppercase text-[#22c55e] text-[10px]';
-
-                    // Lógica do Link da Fatura
-                    if (json.dados.link_fatura && json.dados.link_fatura !== "") {
-                        btnFatura.href = json.dados.link_fatura;
-                        containerFatura.classList.remove('hidden');
-                    }
-
-                    if (json.dados.usuario_iptv) document.getElementById('usuario').value = json.dados.usuario_iptv;
-                    if (json.dados.senha_iptv) document.getElementById('senha').value = json.dados.senha_iptv;
+                    document.getElementById('res-venc').innerText = json.dados.vencimento;
                     
-                    card.classList.remove('hidden');
-                } else {
-                    alert(json.mensagem);
-                }
-            } catch (e) {
-                alert("Erro ao conectar com o servidor.");
-            }
+                    if (json.dados.link_fatura) {
+                        document.getElementById('btn-fatura').href = json.dados.link_fatura;
+                        document.getElementById('container-fatura').classList.remove('hidden');
+                    }
+                    
+                    document.getElementById('usuario').value = json.dados.usuario_iptv;
+                    document.getElementById('senha').value = json.dados.senha_iptv;
+                    document.getElementById('resultado-consulta').classList.remove('hidden');
+                } else alert(json.mensagem);
+            } catch (e) { alert("Erro de conexão."); }
         }
 
         async function processar() {
-            const data = {
-                mac: document.getElementById('mac').value,
-                key: document.getElementById('key').value,
-                usuario: document.getElementById('usuario').value,
-                senha: document.getElementById('senha').value,
-                tipo: modoAtual
-            };
-
-            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
-
+            const data = { mac: document.getElementById('mac').value, key: document.getElementById('key').value, usuario: document.getElementById('usuario').value, senha: document.getElementById('senha').value, tipo: modoAtual };
+            if(!data.mac || !data.key) return alert("MAC/Key obrigatórios");
             document.getElementById('status-container').classList.remove('hidden');
-            document.getElementById('status-mensagem').innerText = "📡 ENVIANDO PARA A FILA...";
-            document.getElementById('status-barra').style.width = "10%";
-
             try {
-                const res = await fetch('/ativar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if(res.ok) iniciarMonitoramento(data.mac);
-            } catch (e) {
-                document.getElementById('status-mensagem').innerText = "❌ ERRO DE CONEXÃO.";
-            }
+                await fetch('/ativar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                iniciarMonitoramento(data.mac);
+            } catch (e) { alert("Erro ao enviar."); }
         }
 
         function iniciarMonitoramento(mac) {
-            const barra = document.getElementById('status-barra');
-            const msgTexto = document.getElementById('status-mensagem');
-            const titulo = document.getElementById('status-titulo');
-            if(monitoramento) clearInterval(monitoramento);
-            monitoramento = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${mac}`);
-                    const status = await res.json();
-                    if(status) {
-                        msgTexto.innerText = status.mensagem.toUpperCase();
-                        if (status.status === "pendente") barra.style.width = "15%";
-                        else if (status.status === "processando") barra.style.width = "60%";
-                        else if (status.status === "ok") {
-                            barra.style.width = "100%";
-                            clearInterval(monitoramento);
-                        }
-                    }
-                } catch (err) { console.error(err); }
+            setInterval(async () => {
+                const res = await fetch(`/status?mac=${mac}`);
+                const s = await res.json();
+                document.getElementById('status-mensagem').innerText = s.mensagem;
+                document.getElementById('status-barra').style.width = s.status === "ok" ? "100%" : "50%";
             }, 3000);
         }
         setModo('assinante');
