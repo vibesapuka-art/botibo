@@ -121,25 +121,29 @@
             }
         }
 
-        // FUNÇÃO DE CONSULTA (CHAMA O WEBHOOK NO SERVIDOR)
+        // FUNÇÃO DE CONSULTA (ATUALIZADA)
         async function consultarAssinatura() {
             const id = document.getElementById('id-consulta').value;
-            if (!id) return alert("Digite o WhatsApp ou MAC!");
+            if (!id) return alert("Digite o WhatsApp!");
 
             const card = document.getElementById('resultado-consulta');
             card.classList.add('hidden');
 
             try {
+                // Chama a rota do seu servidor no Render
                 const res = await fetch(`/api/cliente?id=${id}`);
                 const json = await res.json();
 
                 if (json.success) {
-                    document.getElementById('res-nome').innerText = json.dados.nome;
-                    document.getElementById('res-status').innerText = json.dados.status;
-                    document.getElementById('res-venc').innerText = json.dados.vencimento;
-                    
-                    const statusElem = document.getElementById('res-status');
-                    statusElem.className = json.dados.status.toLowerCase().includes('venc') ? 'font-bold uppercase text-red-500 text-xs' : 'font-bold uppercase text-[#22c55e] text-xs';
+                    // Preenche o card visual
+                    document.getElementById('res-nome').innerText = json.dados.nome || 'NÃO INFORMADO';
+                    document.getElementById('res-venc').innerText = json.dados.vencimento || 'NÃO CONSTA';
+                    document.getElementById('res-status').innerText = "ASSINANTE ATIVO";
+                    document.getElementById('res-status').className = 'font-bold uppercase text-[#22c55e] text-xs';
+
+                    // AUTO-PREENCHIMENTO DOS CAMPOS IPTV (MÁGICA AQUI)
+                    if (json.dados.usuario_iptv) document.getElementById('usuario').value = json.dados.usuario_iptv;
+                    if (json.dados.senha_iptv) document.getElementById('senha').value = json.dados.senha_iptv;
                     
                     card.classList.remove('hidden');
                 } else {
@@ -197,33 +201,17 @@
                     if(status) {
                         if (status.status === "pendente") {
                             titulo.innerText = "NA FILA DE ESPERA";
-                            if (status.naFrente > 0) {
-                                msgTexto.innerText = `⏳ EXISTEM ${status.naFrente} PROCESSO(S) NA SUA FRENTE. AGUARDE...`;
-                            } else {
-                                msgTexto.innerText = "⏳ VOCÊ É O PRÓXIMO! PREPARANDO O MOTOR...";
-                            }
+                            msgTexto.innerText = status.naFrente > 0 ? `⏳ EXISTEM ${status.naFrente} PROCESSO(S) NA SUA FRENTE.` : "⏳ VOCÊ É O PRÓXIMO!";
                             barra.style.width = "10%";
-                            barra.classList.add('animate-pulse');
                         } else {
                             titulo.innerText = "PROCESSANDO";
-                            barra.classList.remove('animate-pulse');
-
-                            if (status.mensagem) {
-                                msgTexto.innerText = status.mensagem.toUpperCase();
-                                if (status.mensagem.includes("ACESSANDO") || status.mensagem.includes("CONECTANDO")) {
-                                    barra.style.width = "30%";
-                                } 
-                                else if (status.mensagem.includes("GRAVANDO") || status.mensagem.includes("EXCLUINDO")) {
-                                    barra.style.width = "70%";
-                                } 
-                            }
+                            if (status.mensagem) msgTexto.innerText = status.mensagem.toUpperCase();
                             
                             if (status.status === 'ok') {
                                 barra.style.width = "100%";
                                 titulo.innerText = "CONCLUÍDO";
                                 clearInterval(monitoramento);
-                            } 
-                            else if (status.status === 'erro' || (status.mensagem && status.mensagem.includes("Erro"))) {
+                            } else if (status.status === 'erro') {
                                 barra.style.width = "100%";
                                 barra.classList.replace('bg-[#22c55e]', 'bg-red-600');
                                 titulo.innerText = "FALHA";
