@@ -105,27 +105,32 @@
         }
 
         function setModo(m) {
-            modoAtual = m;
-            document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
-            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
-            document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
-            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
-            
-            // Cores das Abas
-            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            
-            // Muda cor do botão principal
-            const btn = document.getElementById('btn-acao');
-            if (m === 'limpar') {
-                btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
-                btn.innerText = "Limpar Playlists";
-            } else {
-                btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
-                btn.innerText = "Sincronizar";
-            }
-        }
+    modoAtual = m;
+    
+    // Mostra/Esconde as seções de conteúdo
+    document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
+    document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
+    document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
+    
+    // CORREÇÃO AQUI: Esconde o botão Sincronizar/Limpar na Área do Cliente
+    document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
+    
+    // Cores das Abas
+    document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+    document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+    document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+    
+    // Ajusta o texto e cor do botão para as outras abas
+    const btn = document.getElementById('btn-acao');
+    if (m === 'limpar') {
+        btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+        btn.innerText = "Limpar Playlists";
+    } else if (m === 'assinante') {
+        btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+        btn.innerText = "Sincronizar";
+    }
+}
+
 
         async function consultarAssinatura() {
             const id = document.getElementById('id-consulta').value;
