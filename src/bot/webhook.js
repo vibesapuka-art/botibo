@@ -30,7 +30,7 @@ async function processarWebhook(req, res) {
     if (!uri) return res.status(500).send("Sem URL do Banco");
     const client = new MongoClient(uri);
     try {
-        const d = req.body; // Dados vindos do GestorV3
+        const d = req.body; 
         const clienteData = {
             whatsapp: d.whatsapp ? d.whatsapp.replace(/\D/g, '') : '',
             nome: d.nome || 'Cliente Imperium',
@@ -39,7 +39,8 @@ async function processarWebhook(req, res) {
             vencimento: d.data_vencimento || '',
             valor: d.valor_plano || '',
             servidor: d.url_servidor || 'MultServidor',
-            link_fatura: d.link_fatura || '',
+            // O botão amarelo só aparece se houver um link válido aqui
+            link_fatura: (d.link_fatura && d.link_fatura.includes('http')) ? d.link_fatura : '',
             status_fatura: d.status_fatura || '',
             data_atualizacao: new Date()
         };
