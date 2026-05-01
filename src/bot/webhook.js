@@ -2,45 +2,43 @@ const { MongoClient } = require('mongodb');
 const uri = process.env.MONGO_URL;
 
 async function consultarCliente(numeroWhatsApp) {
-    if (!uri) throw new Error("MONGO_URL não configurada.");
+    if (!uri) throw new Error("MONGO_URL não configurada no Render.");
     const client = new MongoClient(uri);
     try {
         let numeroLimpo = numeroWhatsApp.replace(/\D/g, '');
-        
         await client.connect();
         const db = client.db("ImperiumDB");
         const colecao = db.collection("clientes");
 
-        console.log(`🔎 Tentando localizar: ${numeroLimpo}`);
+        console.log(`🔎 Buscando no banco: ${numeroLimpo}`);
 
-        // Criamos uma lista de tentativas para não ter erro
+        // Busca com ou sem o código 55 para garantir o resultado
         let tentativas = [numeroLimpo];
-        
         if (numeroLimpo.startsWith('55')) {
-            tentativas.push(numeroLimpo.substring(2)); // Tenta sem o 55
+            tentativas.push(numeroLimpo.substring(2));
         } else {
-            tentativas.push('55' + numeroLimpo); // Tenta com o 55
+            tentativas.push('55' + numeroLimpo);
         }
 
-        // Busca por qualquer uma das variações
-        const cliente = await colecao.findOne({ 
-            whatsapp: { $in: tentativas } 
-        });
-
-        if (cliente) {
-            console.log(`✅ Cliente encontrado: ${cliente.nome}`);
-            return cliente;
+        const resultado = await colecao.findOne({ whatsapp: { $in: tentativas } });
+        
+        if (resultado) {
+            console.log(`✅ Cliente encontrado: ${resultado.nome}`);
         } else {
-            console.log(`⚠️ Nenhum registro encontrado para as variações: ${tentativas}`);
-            return null;
+            console.log(`⚠️ Nenhum registro encontrado para: ${tentativas}`);
         }
+        
+        return resultado;
+    } catch (err) {
+        console.error("❌ Erro no MongoDB:", err.message);
+        throw err;
     } finally {
         await client.close();
     }
 }
 
 async function processarWebhook(req, res) {
-    if (!uri) return res.status(500).send("Erro de configuração");
+    if (!uri) return res.status(500).send("Sem URL do Banco");
     const client = new MongoClient(uri);
     try {
         const dados = req.body;
@@ -51,6 +49,7 @@ async function processarWebhook(req, res) {
             senha_iptv: dados.senha_usuario || dados.senha || '',
             vencimento: dados.data_vencimento || '',
             valor: dados.valor_plano || '',
+            link_fatura: dados.link_fatura || '',
             data_atualizacao: new Date()
         };
         await client.connect();
