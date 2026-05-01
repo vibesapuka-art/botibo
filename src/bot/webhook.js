@@ -2,33 +2,45 @@ const { MongoClient } = require('mongodb');
 const uri = process.env.MONGO_URL;
 
 async function consultarCliente(numeroWhatsApp) {
-    if (!uri) throw new Error("MONGO_URL não configurada no Render.");
-    
+    if (!uri) throw new Error("MONGO_URL não configurada.");
     const client = new MongoClient(uri);
-    
     try {
-        // Remove espaços ou traços caso o cliente digite errado no site
-        const numeroLimpo = numeroWhatsApp.replace(/\D/g, '');
+        let numeroLimpo = numeroWhatsApp.replace(/\D/g, '');
         
         await client.connect();
         const db = client.db("ImperiumDB");
         const colecao = db.collection("clientes");
 
-        console.log(`🔎 Buscando no banco pelo WhatsApp: ${numeroLimpo}`);
+        console.log(`🔎 Tentando localizar: ${numeroLimpo}`);
+
+        // Criamos uma lista de tentativas para não ter erro
+        let tentativas = [numeroLimpo];
         
-        // Busca o documento onde o campo 'whatsapp' é igual ao número digitado
-        const resultado = await colecao.findOne({ whatsapp: numeroLimpo });
-        return resultado;
-    } catch (err) {
-        console.error("❌ Erro na consulta ao MongoDB:", err.message);
-        throw err;
+        if (numeroLimpo.startsWith('55')) {
+            tentativas.push(numeroLimpo.substring(2)); // Tenta sem o 55
+        } else {
+            tentativas.push('55' + numeroLimpo); // Tenta com o 55
+        }
+
+        // Busca por qualquer uma das variações
+        const cliente = await colecao.findOne({ 
+            whatsapp: { $in: tentativas } 
+        });
+
+        if (cliente) {
+            console.log(`✅ Cliente encontrado: ${cliente.nome}`);
+            return cliente;
+        } else {
+            console.log(`⚠️ Nenhum registro encontrado para as variações: ${tentativas}`);
+            return null;
+        }
     } finally {
         await client.close();
     }
 }
 
 async function processarWebhook(req, res) {
-    if (!uri) return res.status(500).send("Variável de banco ausente.");
+    if (!uri) return res.status(500).send("Erro de configuração");
     const client = new MongoClient(uri);
     try {
         const dados = req.body;
@@ -39,10 +51,8 @@ async function processarWebhook(req, res) {
             senha_iptv: dados.senha_usuario || dados.senha || '',
             vencimento: dados.data_vencimento || '',
             valor: dados.valor_plano || '',
-            link_fatura: dados.link_fatura || '',
             data_atualizacao: new Date()
         };
-
         await client.connect();
         const db = client.db("ImperiumDB");
         await db.collection("clientes").updateOne(
@@ -52,7 +62,7 @@ async function processarWebhook(req, res) {
         );
         res.status(200).send("OK");
     } catch (err) {
-        res.status(500).send("Erro ao salvar: " + err.message);
+        res.status(500).send(err.message);
     } finally {
         await client.close();
     }
