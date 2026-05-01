@@ -3,12 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imperium TV Bot</title>
+    <title>Imperium TV - Painel do Cliente</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
     <style>
         body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
         .tab-active-green { background-color: #22c55e; color: black; }
+        .tab-active-blue { background-color: #3b82f6; color: white; }
+        .tab-active-red { background-color: #dc2626; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
+        input { transition: all 0.3s; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -26,7 +35,7 @@
 
         <div class="space-y-4">
             <div id="area-cliente-content" class="hidden space-y-4">
-                <input type="text" id="id-consulta" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                <input type="text" id="id-consulta" placeholder="WhatsApp (ex: 4498031789)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
                 <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">Verificar Status</button>
                 
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
@@ -51,8 +60,8 @@
             </div>
 
             <div id="campos-identificacao">
-                <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none mb-2">
-                <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none mb-2 focus:border-blue-500">
+                <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
             </div>
 
             <div id="campos-iptv" class="hidden space-y-2">
@@ -60,20 +69,40 @@
                 <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase">Sincronizar</button>
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Sincronizar</button>
+            
+            <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-4 text-center">
             <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2">
                 <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
             </div>
-            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold">Iniciando...</p>
+            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
         </div>
     </div>
 
     <script>
         let modoAtual = 'assinante';
         let intervaloStatus = null;
+        let instalador;
+
+        // Captura o evento de instalação do PWA
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            instalador = e;
+            document.getElementById('btn-instalar').classList.remove('hidden');
+        });
+
+        async function instalarApp() {
+            if (instalador) {
+                instalador.prompt();
+                const { outcome } = await instalador.userChoice;
+                if (outcome === 'accepted') document.getElementById('btn-instalar').classList.add('hidden');
+            } else {
+                alert("Para criar o atalho:\n1. Clique nos 3 pontinhos do navegador\n2. Selecione 'Instalar Aplicativo' ou 'Adicionar à tela inicial'.");
+            }
+        }
 
         function setModo(m) {
             modoAtual = m;
@@ -82,7 +111,20 @@
             document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
             document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
             
-            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            // Cores das Abas
+            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            
+            // Muda cor do botão principal
+            const btn = document.getElementById('btn-acao');
+            if (m === 'limpar') {
+                btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Limpar Playlists";
+            } else {
+                btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Sincronizar";
+            }
         }
 
         async function consultarAssinatura() {
@@ -110,26 +152,56 @@
                     document.getElementById('senha').value = json.dados.senha_iptv || '';
                     document.getElementById('resultado-consulta').classList.remove('hidden');
                 } else alert(json.mensagem);
-            } catch (e) { alert("Erro ao consultar dados."); }
+            } catch (e) { alert("Erro ao conectar com o servidor."); }
         }
 
         async function processar() {
-            const data = { mac: document.getElementById('mac').value, key: document.getElementById('key').value, usuario: document.getElementById('usuario').value, senha: document.getElementById('senha').value, tipo: modoAtual };
-            if(!data.mac || !data.key) return alert("MAC e Key obrigatórios");
+            const data = { 
+                mac: document.getElementById('mac').value, 
+                key: document.getElementById('key').value, 
+                usuario: document.getElementById('usuario').value, 
+                senha: document.getElementById('senha').value, 
+                tipo: modoAtual 
+            };
+            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
+
             document.getElementById('status-container').classList.remove('hidden');
-            fetch('/ativar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            iniciarMonitoramento(data.mac);
+            document.getElementById('status-mensagem').innerText = "ENVIANDO SOLICITAÇÃO...";
+
+            try {
+                await fetch('/ativar', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(data) 
+                });
+                iniciarMonitoramento(data.mac);
+            } catch (e) { alert("Erro ao enviar dados."); }
         }
 
         function iniciarMonitoramento(mac) {
             if(intervaloStatus) clearInterval(intervaloStatus);
+            document.getElementById('status-barra').style.width = "20%";
             intervaloStatus = setInterval(async () => {
-                const res = await fetch(`/status?mac=${mac}`);
-                const s = await res.json();
-                document.getElementById('status-mensagem').innerText = s.mensagem;
-                if(s.status === "ok" || s.status === "erro") clearInterval(intervaloStatus);
+                try {
+                    const res = await fetch(`/status?mac=${mac}`);
+                    const s = await res.json();
+                    document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
+                    
+                    if (s.status === "ok") {
+                        document.getElementById('status-barra').style.width = "100%";
+                        clearInterval(intervaloStatus);
+                    } else if (s.status === "erro") {
+                        document.getElementById('status-barra').style.width = "100%";
+                        document.getElementById('status-barra').classList.replace('bg-[#22c55e]', 'bg-red-600');
+                        clearInterval(intervaloStatus);
+                    } else {
+                        document.getElementById('status-barra').style.width = "60%";
+                    }
+                } catch (e) { console.error("Erro status"); }
             }, 3000);
         }
+
+        // Inicia na aba de consulta
         setModo('ativar');
     </script>
 </body>
