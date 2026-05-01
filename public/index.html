@@ -11,6 +11,7 @@
         .tab-active-red { background-color: #dc2626; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
         .tab-active-green { background-color: #22c55e; color: black; }
+        input { transition: all 0.3s; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -25,7 +26,7 @@
 
         <div class="space-y-4">
             <div id="area-cliente-content" class="hidden space-y-4">
-                <input type="text" id="id-consulta" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e]">
+                <input type="text" id="id-consulta" placeholder="WhatsApp" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
                 <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">Verificar Status</button>
                 
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
@@ -40,7 +41,11 @@
                     </div>
                     <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
                         <div><p class="text-[10px] text-gray-500 uppercase">Vencimento</p><p id="res-venc" class="text-red-500 font-bold text-[10px]">---</p></div>
-                        <div id="container-fatura" class="hidden"><a id="btn-fatura" href="#" target="_blank" class="block bg-yellow-600 text-black text-center font-bold py-1 rounded text-[10px]">PAGAR</a></div>
+                        <div id="container-fatura" class="hidden">
+                            <a id="btn-fatura" href="#" target="_blank" class="block bg-yellow-500 hover:bg-yellow-600 text-black text-center font-extrabold py-1 rounded text-[10px] uppercase shadow-lg">
+                                💳 PAGAR AGORA
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -55,17 +60,21 @@
                 <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg uppercase">Sincronizar</button>
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all">Sincronizar</button>
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-4 text-center">
-            <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2"><div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div></div>
-            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold">Iniciando...</p>
+            <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2">
+                <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
+            </div>
+            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
         </div>
     </div>
 
     <script>
         let modoAtual = 'assinante';
+        let intervaloStatus = null;
+
         function setModo(m) {
             modoAtual = m;
             document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
@@ -80,45 +89,75 @@
 
         async function consultarAssinatura() {
             const id = document.getElementById('id-consulta').value;
+            if (!id) return;
+
+            const containerFatura = document.getElementById('container-fatura');
+            containerFatura.classList.add('hidden'); // Esconde o botão antes de nova busca
+
             try {
                 const res = await fetch(`/api/cliente?id=${id}`);
                 const json = await res.json();
                 if (json.success) {
-                    document.getElementById('res-nome').innerText = json.dados.nome;
-                    document.getElementById('res-user').innerText = json.dados.usuario_iptv;
-                    document.getElementById('res-pass').innerText = json.dados.senha_iptv;
+                    document.getElementById('res-nome').innerText = json.dados.nome || '---';
+                    document.getElementById('res-user').innerText = json.dados.usuario_iptv || '---';
+                    document.getElementById('res-pass').innerText = json.dados.senha_iptv || '---';
                     document.getElementById('res-servidor').innerText = json.dados.servidor || 'MultServidor';
                     document.getElementById('res-valor').innerText = json.dados.valor ? `R$ ${json.dados.valor}` : 'R$ 35,00';
-                    document.getElementById('res-venc').innerText = json.dados.vencimento;
+                    document.getElementById('res-venc').innerText = json.dados.vencimento || '---';
                     
-                    if (json.dados.link_fatura) {
+                    // Mostra o botão apenas se o link de fatura existir
+                    if (json.dados.link_fatura && json.dados.link_fatura.length > 5) {
                         document.getElementById('btn-fatura').href = json.dados.link_fatura;
-                        document.getElementById('container-fatura').classList.remove('hidden');
+                        containerFatura.classList.remove('hidden');
                     }
                     
-                    document.getElementById('usuario').value = json.dados.usuario_iptv;
-                    document.getElementById('senha').value = json.dados.senha_iptv;
+                    // Preenche campos de ativação automaticamente
+                    document.getElementById('usuario').value = json.dados.usuario_iptv || '';
+                    document.getElementById('senha').value = json.dados.senha_iptv || '';
+                    
                     document.getElementById('resultado-consulta').classList.remove('hidden');
                 } else alert(json.mensagem);
-            } catch (e) { alert("Erro de conexão."); }
+            } catch (e) { alert("Erro de conexão com o servidor."); }
         }
 
         async function processar() {
-            const data = { mac: document.getElementById('mac').value, key: document.getElementById('key').value, usuario: document.getElementById('usuario').value, senha: document.getElementById('senha').value, tipo: modoAtual };
-            if(!data.mac || !data.key) return alert("MAC/Key obrigatórios");
+            const data = { 
+                mac: document.getElementById('mac').value, 
+                key: document.getElementById('key').value, 
+                usuario: document.getElementById('usuario').value, 
+                senha: document.getElementById('senha').value, 
+                tipo: modoAtual 
+            };
+            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
+
             document.getElementById('status-container').classList.remove('hidden');
+            document.getElementById('status-mensagem').innerText = "ENVIANDO SOLICITAÇÃO...";
+
             try {
-                await fetch('/ativar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                await fetch('/ativar', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(data) 
+                });
                 iniciarMonitoramento(data.mac);
-            } catch (e) { alert("Erro ao enviar."); }
+            } catch (e) { alert("Erro ao enviar dados."); }
         }
 
         function iniciarMonitoramento(mac) {
-            setInterval(async () => {
-                const res = await fetch(`/status?mac=${mac}`);
-                const s = await res.json();
-                document.getElementById('status-mensagem').innerText = s.mensagem;
-                document.getElementById('status-barra').style.width = s.status === "ok" ? "100%" : "50%";
+            if(intervaloStatus) clearInterval(intervaloStatus);
+            intervaloStatus = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status?mac=${mac}`);
+                    const s = await res.json();
+                    document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
+                    
+                    if (s.status === "ok" || s.status === "erro") {
+                        document.getElementById('status-barra').style.width = "100%";
+                        clearInterval(intervaloStatus);
+                    } else {
+                        document.getElementById('status-barra').style.width = "50%";
+                    }
+                } catch (e) { console.error("Erro status"); }
             }, 3000);
         }
         setModo('assinante');
