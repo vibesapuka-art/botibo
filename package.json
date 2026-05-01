@@ -7,6 +7,12 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
+  "keywords": [
+    "iptv",
+    "bot",
+    "puppeteer",
+    "automation"
+  ],
   "author": "Jefferson",
   "license": "ISC",
   "dependencies": {
