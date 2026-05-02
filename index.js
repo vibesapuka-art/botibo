@@ -16,16 +16,25 @@ let processandoAgora = false;
 
 // --- ROTA DE CONSULTA PARA O PAINEL ---
 app.get('/api/cliente', async (req, res) => {
-    const whatsappDigitado = req.query.id; 
+    // O painel envia os últimos 8 dígitos via parâmetro 'id'
+    const finalWhatsApp = req.query.id; 
+    
+    if (!finalWhatsApp) {
+        return res.json({ success: false, mensagem: "ID não fornecido." });
+    }
+
     try {
-        const resultado = await consultarCliente(whatsappDigitado);
+        // Agora a função consultarCliente usa Regex para achar o final do número
+        const resultado = await consultarCliente(finalWhatsApp);
+        
         if (resultado) {
-            // Envia os dados encontrados para o painel exibir (incluindo o link_fatura salvo pelo webhook)
+            // Envia os dados encontrados para o painel exibir
             res.json({ success: true, dados: resultado });
         } else {
-            res.json({ success: false, mensagem: "Número não localizado." });
+            res.json({ success: false, mensagem: "Número não localizado no banco de dados." });
         }
     } catch (error) {
+        console.error("❌ Erro na rota de consulta:", error.message);
         res.status(500).json({ success: false, mensagem: "Erro ao conectar com o banco de dados." });
     }
 });
@@ -76,7 +85,6 @@ async function gerenciarFila() {
     processandoAgora = true;
     pedido.status = "processando";
     
-    // Adicionado apenas uma mensagem de log para você acompanhar no console do Render
     pedido.mensagem = "⚙️ PROCESSANDO NO SERVIDOR...";
     console.log(`🤖 Iniciando automação para MAC: ${pedido.mac}`);
 
