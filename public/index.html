@@ -35,7 +35,7 @@
 
         <div class="space-y-4">
             <div id="area-cliente-content" class="hidden space-y-4">
-                <input type="text" id="id-consulta" placeholder="WhatsApp (ex: 4498031789)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+                <input type="text" id="id-consulta" placeholder="WhatsApp (ex: 44 98031789)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
                 <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">Verificar Status</button>
                 
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
@@ -87,7 +87,6 @@
         let intervaloStatus = null;
         let instalador;
 
-        // Captura o evento de instalação do PWA
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             instalador = e;
@@ -105,41 +104,45 @@
         }
 
         function setModo(m) {
-    modoAtual = m;
-    
-    // Mostra/Esconde as seções de conteúdo
-    document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
-    document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
-    document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
-    
-    // CORREÇÃO AQUI: Esconde o botão Sincronizar/Limpar na Área do Cliente
-    document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
-    
-    // Cores das Abas
-    document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-    document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-    document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-    
-    // Ajusta o texto e cor do botão para as outras abas
-    const btn = document.getElementById('btn-acao');
-    if (m === 'limpar') {
-        btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
-        btn.innerText = "Limpar Playlists";
-    } else if (m === 'assinante') {
-        btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
-        btn.innerText = "Sincronizar";
-    }
-}
-
+            modoAtual = m;
+            document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
+            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
+            document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
+            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
+            
+            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            
+            const btn = document.getElementById('btn-acao');
+            if (m === 'limpar') {
+                btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Limpar Playlists";
+            } else if (m === 'assinante') {
+                btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Sincronizar";
+            }
+        }
 
         async function consultarAssinatura() {
-            const id = document.getElementById('id-consulta').value;
+            const inputVal = document.getElementById('id-consulta').value;
             const containerFatura = document.getElementById('container-fatura');
+            
+            // LIMPEZA DO NÚMERO: Deixa só dígitos e pega os 8 finais
+            let numeroLimpo = inputVal.replace(/\D/g, '');
+            
+            if (numeroLimpo.length < 8) {
+                return alert("Por favor, digite seu WhatsApp com DDD.");
+            }
+
+            const finalDoNumero = numeroLimpo.slice(-8);
             containerFatura.classList.add('hidden');
 
             try {
-                const res = await fetch(`/api/cliente?id=${id}`);
+                // Envia apenas os 8 finais para o servidor processar com Regex
+                const res = await fetch(`/api/cliente?id=${finalDoNumero}`);
                 const json = await res.json();
+                
                 if (json.success) {
                     document.getElementById('res-nome').innerText = json.dados.nome || '---';
                     document.getElementById('res-user').innerText = json.dados.usuario_iptv || '---';
@@ -156,8 +159,12 @@
                     document.getElementById('usuario').value = json.dados.usuario_iptv || '';
                     document.getElementById('senha').value = json.dados.senha_iptv || '';
                     document.getElementById('resultado-consulta').classList.remove('hidden');
-                } else alert(json.mensagem);
-            } catch (e) { alert("Erro ao conectar com o servidor."); }
+                } else {
+                    alert(json.mensagem);
+                }
+            } catch (e) { 
+                alert("Erro ao conectar com o servidor."); 
+            }
         }
 
         async function processar() {
@@ -206,7 +213,6 @@
             }, 3000);
         }
 
-        // Inicia na aba de consulta
         setModo('ativar');
     </script>
 </body>
