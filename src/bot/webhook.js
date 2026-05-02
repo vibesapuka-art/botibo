@@ -3,25 +3,29 @@ const uri = process.env.MONGO_URL;
 
 /**
  * Função para buscar os dados do cliente no MongoDB
+ * ATUALIZADA: Agora busca pelos 8 últimos dígitos para evitar erros de 55 ou 9o dígito.
  */
 async function consultarCliente(numeroWhatsApp) {
     if (!uri) throw new Error("MONGO_URL não configurada.");
     const client = new MongoClient(uri);
     try {
         let numeroLimpo = numeroWhatsApp.replace(/\D/g, '');
+        
+        // Pega apenas os 8 últimos dígitos para a busca inteligente
+        const finalBusca = numeroLimpo.slice(-8);
+
         await client.connect();
         const db = client.db("ImperiumDB");
         const colecao = db.collection("clientes");
 
-        // Tenta buscar com e sem o prefixo 55
-        let tentativas = [numeroLimpo];
-        if (numeroLimpo.startsWith('55')) {
-            tentativas.push(numeroLimpo.substring(2));
-        } else {
-            tentativas.push('55' + numeroLimpo);
-        }
+        console.log(`🔍 Buscando cliente que termine com: ${finalBusca}`);
 
-        return await colecao.findOne({ whatsapp: { $in: tentativas } });
+        // O segredo do $regex com o $: procura qualquer número que TERMINE com o finalBusca
+        // Isso acha '5544998031789' mesmo se buscar apenas por '98031789'
+        return await colecao.findOne({ 
+            whatsapp: { $regex: finalBusca + "$" } 
+        });
+
     } catch (err) {
         console.error("❌ Erro ao consultar MongoDB:", err.message);
         throw err;
@@ -43,13 +47,11 @@ async function processarWebhook(req, res) {
     try {
         const d = req.body; 
         
-        // Verifica se recebemos o dado principal (WhatsApp)
         if (!d.whatsapp) {
-            console.log("⚠️ Webhook recebido, mas sem campo WhatsApp. Verifique as variáveis do Gestor.");
+            console.log("⚠️ Webhook recebido, mas sem campo WhatsApp.");
             return res.status(200).send("Recebido, mas sem WhatsApp"); 
         }
 
-        // Mapeamento inteligente: tenta pegar o dado de vários nomes possíveis
         const clienteData = {
             whatsapp: d.whatsapp.replace(/\D/g, ''),
             nome: d.nome_cliente || d.nome || d.cliente || 'Cliente Imperium',
@@ -67,7 +69,6 @@ async function processarWebhook(req, res) {
         const db = client.db("ImperiumDB");
         const colecao = db.collection("clientes");
 
-        // Salva ou Atualiza (upsert) baseado no número do WhatsApp
         await colecao.updateOne(
             { whatsapp: clienteData.whatsapp },
             { $set: clienteData },
