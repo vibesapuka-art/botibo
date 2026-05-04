@@ -8,8 +8,6 @@ module.exports = [
     "http://od.blc-atena.com",
     "http://ecps.blc-atena.com",
     "http://tita.playblc.work",
-    "http://vr766.com",
-    "http://hades.blcplay2.work",
     "http://ifx.blc-atena.com",
     "http://ntb.blc-atena.com",
     "http://flash.netpl4y.com",
