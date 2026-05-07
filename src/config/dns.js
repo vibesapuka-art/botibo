@@ -1,9 +1,11 @@
 module.exports = [
     "http://x25.acxll.shop",
+    "http://wv.ntxv8s.site",
     "http://xw.pluss.fun",
     "http://mainxs.site:80",
     "http://prd.blc-atena.com",
     "http://lunar.blcplay3.work",
+    "http://spd.blc-atena.com",
     "http://solar.playblc.work",
     "http://yd.blc-atena.com",
     "http://atbx.blc-atena.com",
