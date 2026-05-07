@@ -17,4 +17,4 @@ module.exports = [
     "http://sev.ontv.fun",
     "http://ifx.blc-atena.com",
     "http://ntb.blc-atena.com"
-]
+];
