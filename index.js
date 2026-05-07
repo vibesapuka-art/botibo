@@ -1,32 +1,24 @@
-import express from 'express';
-import cors from 'cors';
-import { createRequire } from 'module';
-
-// Cria a ponte para aceitar require em arquivos locais
-const require = createRequire(import.meta.url);
-
-// Importações dos seus módulos (CommonJS)
-const engine = require('./src/bot/engine');
-const cleaner = require('./src/bot/cleaner');
-const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
-const listaDns = require('./src/config/dns.js');
-
+const express = require('express');
+const cors = require('cors'); 
 const app = express();
 
-// Configurações
+// IMPORTAÇÃO DA LISTA DE DNS
+const listaDns = require('./src/config/dns.js');
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+const engine = require('./src/bot/engine');
+const cleaner = require('./src/bot/cleaner');
+const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
+
 let pedidos = [];
 let processandoAgora = false;
 
-// --- ROTA DE CONSULTA PARA O PAINEL ---
 app.get('/api/cliente', async (req, res) => {
     const finalWhatsApp = req.query.id; 
-    if (!finalWhatsApp) {
-        return res.json({ success: false, mensagem: "ID não fornecido." });
-    }
+    if (!finalWhatsApp) return res.json({ success: false, mensagem: "ID não fornecido." });
 
     try {
         const resultado = await consultarCliente(finalWhatsApp);
@@ -36,15 +28,12 @@ app.get('/api/cliente', async (req, res) => {
             res.json({ success: false, mensagem: "Número não localizado." });
         }
     } catch (error) {
-        console.error("❌ Erro na rota de consulta:", error.message);
         res.status(500).json({ success: false, mensagem: "Erro ao conectar com o banco." });
     }
 });
 
-// --- ROTA DO WEBHOOK ---
 app.post('/webhook', processarWebhook);
 
-// --- ROTAS DE AUTOMAÇÃO ---
 app.post('/ativar', (req, res) => {
     const { mac, key, usuario, senha, tipo } = req.body;
     const novoPedido = {
@@ -87,7 +76,6 @@ async function gerenciarFila() {
     processandoAgora = true;
     pedido.status = "processando";
     pedido.mensagem = "⚙️ PROCESSANDO NO SERVIDOR...";
-    console.log(`🤖 Iniciando automação para MAC: ${pedido.mac}`);
 
     try {
         if (pedido.tipo === 'limpar') { 
@@ -98,7 +86,6 @@ async function gerenciarFila() {
         pedido.status = "ok";
         pedido.mensagem = "✅ FINALIZADO COM SUCESSO!";
     } catch (err) {
-        console.error("❌ Erro na automação:", err.message);
         pedido.status = "erro";
         pedido.mensagem = "❌ ERRO: " + err.message;
     } finally {
