@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors'); 
 const app = express();
 
+// IMPORTAÇÃO DA LISTA DE DNS
+const listaDns = require('./src/config/dns.cjs');
+
 // Liberação de segurança para o site ler os dados do servidor
 app.use(cors());
 app.use(express.json());
@@ -16,7 +19,6 @@ let processandoAgora = false;
 
 // --- ROTA DE CONSULTA PARA O PAINEL ---
 app.get('/api/cliente', async (req, res) => {
-    // O painel envia os últimos 8 dígitos via parâmetro 'id'
     const finalWhatsApp = req.query.id; 
     
     if (!finalWhatsApp) {
@@ -24,11 +26,9 @@ app.get('/api/cliente', async (req, res) => {
     }
 
     try {
-        // Agora a função consultarCliente usa Regex para achar o final do número
         const resultado = await consultarCliente(finalWhatsApp);
         
         if (resultado) {
-            // Envia os dados encontrados para o painel exibir
             res.json({ success: true, dados: resultado });
         } else {
             res.json({ success: false, mensagem: "Número não localizado no banco de dados." });
@@ -92,6 +92,7 @@ async function gerenciarFila() {
         if (pedido.tipo === 'limpar') { 
             await cleaner(pedido); 
         } else { 
+            // Aqui a engine pode usar a listaDns se necessário
             await engine([pedido]); 
         }
         pedido.status = "ok";
