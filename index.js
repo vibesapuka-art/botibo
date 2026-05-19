@@ -167,7 +167,7 @@ async function gerenciarFila() {
     } catch (err) {
         console.error(err.message);
         pedido.status = "erro";
-    } pack {
+    } finally {
         processandoAgora = false;
         gerenciarFila();
     }
