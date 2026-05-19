@@ -77,7 +77,8 @@
 
                 <div id="step2" class="step-panel space-y-3">
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 2: Instale o Aplicativo</p>
-                    <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm"></div>
+                    <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm">
+                        </div>
                     <button onclick="irParaPasso(3)" class="w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg">Já instalei o Aplicativo! 👍</button>
                     <button onclick="voltarParaPasso(1)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
@@ -122,7 +123,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                 <div id="step4" class="step-panel text-center py-4">
                     <div id="teste-carregando" class="space-y-2">
                         <p class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 GERANDO SEU ACESSO NA NETPLAY...</p>
-                        <p class="text-[10px] text-gray-500">Aguarde, validando número contra duplicidade e sincronizando painéis...</p>
+                        <p class="text-[10px] text-gray-500">Aguarde, validando número contra duplicidade...</p>
                     </div>
                     
                     <div id="teste-resultado" class="hidden text-left space-y-3">
@@ -252,6 +253,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             }
         }
 
+        // CORREÇÃO EFETUADA AQUI: Enviando explicitamente os campos validados de termos
         async function solicitarTesteNetplay(tipo) {
             const nome = document.getElementById('teste-nome').value.trim();
             const whatsapp = document.getElementById('teste-whatsapp').value.trim();
@@ -266,28 +268,16 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             document.getElementById('teste-resultado').style.display = 'none';
 
             try {
-                // ETAPA 1: Pré-geração em background das credenciais da Netplay
-                const preRes = await fetch('/api/pre-gerar-teste', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ whatsapp, tipoTeste: tipo })
-                });
-                const preJson = await preRes.json();
-
-                if (!preJson.success || !preJson.dados) {
-                    throw new Error(preJson.mensagem || "Falha ao pré-gerar dados na Netplay.");
-                }
-
-                // ETAPA 2: Acoplamento e envio final acoplado ao GestorV3
                 const response = await fetch('/api/teste-gratis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         whatsapp: whatsapp,
+                        tipoTeste: tipo,
                         nomeCliente: nome || 'Cliente',
-                        dispositivo: dispositivoSelecionado,
-                        username: preJson.dados.username,
-                        password: preJson.dados.password
+                        termoAceito: aceito,
+                        aceitou_termos: "sim", // Garante compatibilidade direta com a validação do painel V3
+                        termos: true
                     })
                 });
 
@@ -296,19 +286,20 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                 const divResult = document.getElementById('teste-resultado');
 
                 if (json.success) {
-                    document.getElementById('t-res-dns').innerText = preJson.dados.dns || "http://galaxy.blcplay.com";
-                    document.getElementById('t-res-user').innerText = preJson.dados.username;
-                    document.getElementById('t-res-pass').innerText = preJson.dados.password;
-                    document.getElementById('t-res-venc').innerText = preJson.dados.validade || "Válido por 12 Horas";
+                    document.getElementById('t-res-dns').innerText = json.dados.dns;
+                    document.getElementById('t-res-user').innerText = json.dados.username;
+                    document.getElementById('t-res-pass').innerText = json.dados.password;
+                    document.getElementById('t-res-venc').innerText = json.dados.validade;
                     divResult.style.display = 'block';
                 } else {
-                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ NÃO FOI POSSÍVEL REGISTRAR</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                    // Exibe a mensagem real retornada pela API ou o alerta de limite atingido
+                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ AVISO DO SISTEMA</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem || 'Limite diário de testes atingido no servidor master.'}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                     divResult.style.display = 'block';
                 }
             } catch (e) {
                 document.getElementById('teste-carregando').style.display = 'none';
                 const divResult = document.getElementById('teste-resultado');
-                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA NO FLUXO</p><p class="text-center text-[11px] text-gray-400 mt-2">${e.message || "Erro interno de comunicação."}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA NA CONEXÃO</p><p class="text-center text-[11px] text-gray-400 mt-2">O servidor não respondeu. Tente novamente mais tarde.</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                 divResult.style.display = 'block';
             }
         }
@@ -376,7 +367,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             } catch (e) { alert("Erro ao enviar dados."); }
         }
 
-        function iM(mac) {
+        function iniciarMonitoramento(mac) {
             if(intervaloStatus) clearInterval(intervaloStatus);
             document.getElementById('status-barra').style.width = "20%";
             intervaloStatus = setInterval(async () => {
