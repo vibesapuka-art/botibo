@@ -35,17 +35,30 @@ async function gerarTesteGratis(req, res) {
         console.log("📤 [BACKEND] Enviando dados para a Netplay...");
         const respostaNetplay = await axios.post(urlNetplay, payloadNetplay);
 
-        console.log("✨ [BACKEND] Status Netplay:", respostaNetplay.status);
-        console.log("📦 [BACKEND] Retorno Netplay:", JSON.stringify(respostaNetplay.data, null, 2));
+        console.log("✨ [BACKEND] Status HTTP da Netplay:", respostaNetplay.status);
+        console.log("📦 [BACKEND] Resposta Bruta recebida da Netplay:", JSON.stringify(respostaNetplay.data, null, 2));
+
+        // Verificação de segurança para evitar o erro de "undefined" caso a estrutura venha vazia ou diferente
+        if (!respostaNetplay.data) {
+            console.error("❌ [BACKEND] A resposta da Netplay veio completamente vazia (null/undefined).");
+            return res.json({
+                success: false,
+                mensagem: "O servidor da Netplay respondeu com dados inválidos ou vazios."
+            });
+        }
 
         const { username, password, dns, package: nomePacote, expiresAtFormatted } = respostaNetplay.data;
 
         // 4. Verificação de integridade das credenciais entregues
         if (!username || !password) {
-            console.warn("⚠️ [BACKEND] Netplay não retornou credenciais válidas.");
+            console.warn("⚠️ [BACKEND] Netplay respondeu, mas não gerou usuário/senha válidos. Pode ser número duplicado, falta de créditos ou formato inesperado.");
+            
+            // Se a Netplay enviou alguma mensagem de erro no corpo, nós capturamos e mandamos pro cliente
+            const mensagemErroInterno = respostaNetplay.data.mensagem || respostaNetplay.data.message || "Verifique se o número já possui teste recente ou o saldo do painel.";
+            
             return res.json({ 
                 success: false, 
-                mensagem: "Não foi possível gerar o teste. Verifique se o número já possui teste recente ou o saldo do painel." 
+                mensagem: "Não foi possível gerar o teste: " + mensagemErroInterno
             });
         }
 
@@ -64,10 +77,12 @@ async function gerarTesteGratis(req, res) {
         });
 
     } catch (error) {
-        console.error("❌ [BACKEND] Erro crítico na API Netplay:", error.message);
+        console.error("❌ [BACKEND] Erro crítico na requisição para a Netplay:", error.message);
 
         if (error.response) {
             console.error("👉 Resposta de Erro da Netplay:", JSON.stringify(error.response.data, null, 2));
+            const msgErro = error.response.data.mensagem || error.response.data.message || error.message;
+            return res.json({ success: false, mensagem: "A Netplay recusou o pedido: " + msgErro });
         }
 
         return res.status(500).json({ 
