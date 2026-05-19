@@ -1,47 +1,60 @@
 const axios = require('axios');
 
 /**
- * Controla a geração de testes automáticos via painel vinculando ao qpainel da Netplay
+ * Controla a geração de testes automáticos com logs detalhados de depuração
  */
 async function gerarTesteGratis(req, res) {
-    // Coleta as informações vindas do Passo 4 do formulário do Painel
+    console.log("\n============================================================");
+    console.log("📥 [BACKEND LOG] REQUISIÇÃO RECEBIDA EM /api/teste-gratis");
+    console.log("👉 Corpo completo da requisição (req.body):", JSON.stringify(req.body, null, 2));
+    console.log("============================================================");
+
     const { whatsapp, tipoTeste, nomeCliente } = req.body;
 
-    // 1. Validação do número de WhatsApp
+    // 1. Validação básica de campo obrigatório
     if (!whatsapp) {
+        console.error("❌ [BACKEND LOG] Validação falhou: Número de WhatsApp está ausente.");
         return res.json({ success: false, mensagem: "O número de WhatsApp é obrigatório para gerar o teste." });
     }
 
-    // 2. Define os endpoints da Netplay (Com ou Sem Adulto)
+    // 2. Determinação da URL da Netplay
     let urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/we6Wn50DK8"; // Sem Adulto
     if (tipoTeste === 'com_adulto') {
         urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/bOxLA7yWZ7"; // Com Adulto
     }
 
+    console.log(`🛰️ [BACKEND LOG] URL selecionada da Netplay: ${urlNetplay}`);
+    
+    // Montagem dos dados que serão disparados para o painel externo
+    const payloadNetplay = {
+        phone: whatsapp,
+        name: nomeCliente || "Cliente do Painel"
+    };
+
+    console.log("📤 [BACKEND LOG] Disparando POST para a Netplay com dados:", JSON.stringify(payloadNetplay, null, 2));
+
     try {
-        console.log(`📡 [Teste Grátis] Solicitando na Netplay para: ${whatsapp} | Nome: ${nomeCliente} | Tipo: ${tipoTeste}`);
+        const respostaNetplay = await axios.post(urlNetplay, payloadNetplay);
 
-        // 3. Dispara os dados para a API da Netplay registrar no painel deles com Nome e Telefone
-        const respostaNetplay = await axios.post(urlNetplay, {
-            phone: whatsapp,
-            name: nomeCliente || "Cliente do Painel"
-        });
+        console.log("✨ [BACKEND LOG] Netplay respondeu com status HTTP:", respostaNetplay.status);
+        console.log("📦 [BACKEND LOG] Dados brutos retornados pela Netplay:", JSON.stringify(respostaNetplay.data, null, 2));
 
-        // Captura o retorno do servidor da Netplay
         const { username, password, dns, package: nomePacote, expiresAtFormatted } = respostaNetplay.data;
 
-        // 4. Se a Netplay recusar ou não devolver credenciais (ex: número duplicado ou sem créditos)
+        // 4. Validação do retorno da API
         if (!username || !password) {
+            console.warn("⚠️ [BACKEND LOG] Netplay respondeu com sucesso HTTP, mas os campos 'username' ou 'password' vieram vazios!");
             return res.json({ 
                 success: false, 
-                mensagem: "Não foi possível gerar o teste. Este número pode já ter consumido um teste recente ou o painel atingiu o limite." 
+                mensagem: "Não foi possível gerar o teste. Verifique se o número já possui teste ativo ou se há saldo no painel." 
             });
         }
 
-        // 5. Devolve as credenciais com sucesso para o front-end (index.html) exibir na tela
+        console.log(`✅ [BACKEND LOG] Teste criado com sucesso! User: ${username} | Pass: ${password}`);
+        
         return res.json({
             success: true,
-            mensagem: "Teste gerado e vinculado com sucesso!",
+            mensagem: "Teste gerado com sucesso!",
             dados: {
                 username,
                 password,
@@ -52,7 +65,16 @@ async function gerarTesteGratis(req, res) {
         });
 
     } catch (error) {
-        console.error("❌ Erro ao processar teste_gratis:", error.message);
+        console.error("❌ [BACKEND LOG] Erro catastrófico ao chamar a API da Netplay!");
+        console.error("👉 Mensagem do Erro:", error.message);
+
+        if (error.response) {
+            console.error("👉 Status de Erro da Netplay:", error.response.status);
+            console.error("👉 Detalhes/Corpo do erro retornado pela Netplay:", JSON.stringify(error.response.data, null, 2));
+        } else {
+            console.error("👉 O erro ocorreu antes de obter uma resposta da Netplay (Problema de rede/DNS).");
+        }
+
         return res.status(500).json({ 
             success: false, 
             mensagem: "Erro ao se conectar com o servidor da Netplay: " + error.message 
