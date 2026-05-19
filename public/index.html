@@ -16,8 +16,11 @@
         .tab-active-green { background-color: #22c55e; color: black; }
         .tab-active-blue { background-color: #3b82f6; color: white; }
         .tab-active-red { background-color: #dc2626; color: white; }
+        .tab-active-purple { background-color: #a855f7; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
         input { transition: all 0.3s; }
+        .step-panel { display: none; }
+        .step-panel.active { display: block; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -27,10 +30,11 @@
             <img src="logo.png" alt="Imperium TV" class="w-64 h-auto object-contain">
         </div>
         
-        <div class="grid grid-cols-3 gap-2 mb-6">
-            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente</button>
-            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Playlists</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar</button>
+        <div class="grid grid-cols-4 gap-1 mb-6">
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Área Cliente</button>
+            <button onclick="setModo('teste_gratis')" id="tab-teste" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Teste Grátis</button>
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Playlists</button>
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Limpar</button>
         </div>
 
         <div class="space-y-4">
@@ -59,6 +63,88 @@
                 </div>
             </div>
 
+            <div id="area-teste-content" class="hidden space-y-4">
+                
+                <div id="step1" class="step-panel active space-y-3">
+                    <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 1: Onde você vai assistir?</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="irParaPasso(2, 'smart_tv')" class="p-3 bg-[#262626] hover:bg-gray-800 rounded-lg font-bold text-xs border border-gray-700 transition">📺 SMART TV<br><span class="text-[9px] font-normal text-gray-400">Samsung / LG / Roku</span></button>
+                        <button onclick="irParaPasso(2, 'android_tv')" class="p-3 bg-[#262626] hover:bg-gray-800 rounded-lg font-bold text-xs border border-gray-700 transition">🤖 ANDROID TV<br><span class="text-[9px] font-normal text-gray-400">TV Box / Mi Stick</span></button>
+                        <button onclick="irParaPasso(2, 'fire_stick')" class="p-3 bg-[#262626] hover:bg-gray-800 rounded-lg font-bold text-xs border border-gray-700 transition">🔥 FIRE STICK<br><span class="text-[9px] font-normal text-gray-400">Amazon Fire TV</span></button>
+                        <button onclick="irParaPasso(2, 'smartphone')" class="p-3 bg-[#262626] hover:bg-gray-800 rounded-lg font-bold text-xs border border-gray-700 transition">📱 CELULAR<br><span class="text-[9px] font-normal text-gray-400">Android / iPhone</span></button>
+                    </div>
+                </div>
+
+                <div id="step2" class="step-panel space-y-3">
+                    <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 2: Instale o Aplicativo</p>
+                    <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm">
+                        </div>
+                    <button onclick="irParaPasso(3)" class="w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg">Já instalei o Aplicativo! 👍</button>
+                    <button onclick="voltarParaPasso(1)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
+                </div>
+
+                <div id="step3" class="step-panel space-y-3">
+                    <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 3: Termos de Uso</p>
+                    <div class="bg-[#0f0f0f] p-3 rounded-lg border border-gray-800 text-[10px] text-gray-400 max-h-32 overflow-y-auto space-y-2 whitespace-pre-line">
+⚠️ AVISO IMPORTANTE SOBRE O APLICATIVO:
+
+Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas para garantir máxima estabilidade e zero travamentos.
+
+✅ PERÍODO DE TESTE: O uso dos aplicativos é TOTALMENTE GRATUITO durante o seu teste.
+
+🚀 DIFERENCIAL DE AUTONOMIA: No IB PLAYER PRO, adicionamos 5 LISTAS de reprodução diferentes. Se um servidor falhar ou travar, você mesmo troca a lista na hora, sem depender do suporte! O mesmo vale para o NETPLAY.
+
+• TAXA DOS APLICATIVOS: R$ 15,00 (Pagamento ANUAL). Cobrado apenas se você decidir assinar após o teste.
+
+• COBRANÇA: Valor por DISPOSITIVO (exceto Netplay, que é por LOGIN).
+
+• OBSERVAÇÃO: Este valor NÃO faz parte da mensalidade; é a licença da ferramenta para uso por 1 ano sem propagandas.
+
+Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
+                    </div>
+                    
+                    <div class="flex items-start gap-2 pt-1">
+                        <input type="checkbox" id="check-termos" onchange="toggleBotoesTeste()" class="mt-0.5 accent-[#a855f7]">
+                        <label for="check-termos" class="text-[11px] text-gray-300">Estou ciente e aceito os termos das ferramentas descritos acima.</label>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-gray-800">
+                        <input type="text" id="teste-nome" placeholder="Seu Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+                        <input type="text" id="teste-whatsapp" placeholder="WhatsApp com DDD (ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button id="btn-gerar-sem" disabled onclick="solicitarTesteNetplay('sem_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Sem Adulto 🍃</button>
+                        <button id="btn-gerar-com" disabled onclick="solicitarTesteNetplay('com_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Com Adulto 🔥</button>
+                    </div>
+                    <button onclick="voltarParaPasso(2)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
+                </div>
+
+                <div id="step4" class="step-panel text-center py-4">
+                    <div id="teste-carregando" class="space-y-2">
+                        <p class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 GERANDO SEU ACESSO NA NETPLAY...</p>
+                        <p class="text-[10px] text-gray-500">Aguarde, validando número contra duplicidade...</p>
+                    </div>
+                    
+                    <div id="teste-resultado" class="hidden text-left space-y-3">
+                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider mb-2">🎉 TESTE CRIADO COM SUCESSO!</p>
+                        <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2">
+                            <div><p class="text-[9px] text-gray-500 uppercase">URL / PORTAL / DNS</p><p id="t-res-dns" class="font-mono text-xs text-blue-400 select-all bg-gray-900 p-1.5 rounded mt-1">---</p></div>
+                            <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                                <div><p class="text-[9px] text-gray-500 uppercase">Usuário</p><p id="t-res-user" class="font-mono font-bold text-sm text-[#a855f7] select-all bg-gray-900 p-1.5 rounded mt-1">---</p></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase">Senha</p><p id="t-res-pass" class="font-mono font-bold text-sm text-[#a855f7] select-all bg-gray-900 p-1.5 rounded mt-1">---</p></div>
+                            </div>
+                            <div class="border-t border-gray-800 pt-2 text-center">
+                                <p class="text-[9px] text-gray-500 uppercase">Válido Até</p>
+                                <p id="t-res-venc" class="font-bold text-xs text-red-400">---</p>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-center text-gray-500 uppercase mt-2">📢 Os lembretes de expiração foram enviados para o seu WhatsApp!</p>
+                    </div>
+                </div>
+
+            </div>
+
             <div id="campos-identificacao">
                 <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none mb-2 focus:border-blue-500">
                 <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
@@ -84,6 +170,7 @@
 
     <script>
         let modoAtual = 'assinante';
+        let dispositivoSelecionado = '';
         let intervaloStatus = null;
         let instalador;
 
@@ -103,16 +190,19 @@
             }
         }
 
+        // LÓGICA DE ABAS ORIGINAL PRESERVADA E EXPANDIDA
         function setModo(m) {
             modoAtual = m;
             document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
-            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
+            document.getElementById('area-teste-content').classList.toggle('hidden', m !== 'teste_gratis');
+            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar' || m === 'teste_gratis');
             document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
-            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
+            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar' || m === 'teste_gratis');
             
-            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-1 rounded-lg tab-active-green font-bold text-[9px] uppercase shadow-inner' : 'p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase';
+            document.getElementById('tab-teste').className = m === 'teste_gratis' ? 'p-1 rounded-lg tab-active-purple font-bold text-[9px] uppercase shadow-inner' : 'p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase';
+            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-1 rounded-lg tab-active-blue font-bold text-[9px] uppercase shadow-inner' : 'p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase';
+            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-1 rounded-lg tab-active-red font-bold text-[9px] uppercase shadow-inner' : 'p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase';
             
             const btn = document.getElementById('btn-acao');
             if (m === 'limpar') {
@@ -124,11 +214,99 @@
             }
         }
 
+        // CONTROLADORES DOS PASSOS DO TESTE GRÁTIS
+        function irParaPasso(passo, info = '') {
+            if(info) dispositivoSelecionado = info;
+
+            if(passo === 2) {
+                const appBox = document.getElementById('app-recomendado');
+                if(dispositivoSelecionado === 'smart_tv') {
+                    appBox.innerHTML = `<p class="font-bold text-[#a855f7] mb-1">Recomendado: IBO PLAYER PRO ou NETPLAY</p><p class="text-[11px] text-gray-400">Abra a App Store da sua TV (Samsung / LG), procure por um deles e instale na sua TV antes de prosseguir.</p>`;
+                } else if(dispositivoSelecionado === 'android_tv' || dispositivoSelecionado === 'fire_stick') {
+                    appBox.innerHTML = `<p class="font-bold text-[#a855f7] mb-1">Recomendado: NETPLAY APP</p><p class="text-[11px] text-gray-400">Instale pela Google Play Store da TV ou use o aplicativo Downloader.</p>`;
+                } else {
+                    appBox.innerHTML = `<p class="font-bold text-[#a855f7] mb-1">Recomendado: PLAYER MOBILE</p><p class="text-[11px] text-gray-400">Disponível para download gratuito direto na App Store (iPhone) ou Play Store (Android).</p>`;
+                }
+            }
+
+            document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${passo}`).classList.add('active');
+        }
+
+        function voltarParaPasso(passo) {
+            document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${passo}`).classList.add('active');
+        }
+
+        function toggleBotoesTeste() {
+            const aceito = document.getElementById('check-termos').checked;
+            const bSem = document.getElementById('btn-gerar-sem');
+            const bCom = document.getElementById('btn-gerar-com');
+            
+            bSem.disabled = !aceito;
+            bCom.disabled = !aceito;
+            
+            if (aceito) {
+                bSem.className = "p-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs uppercase transition";
+                bCom.className = "p-3 bg-[#a855f7] hover:bg-purple-600 text-white font-bold rounded-lg text-xs uppercase transition shadow-lg";
+            } else {
+                bSem.className = "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
+                bCom.className = "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
+            }
+        }
+
+        // REQUISIÇÃO PARA O BACKEND DO TESTE GRÁTIS (NETPLAY)
+        async function solicitarTesteNetplay(tipo) {
+            const nome = document.getElementById('teste-nome').value.trim();
+            const whatsapp = document.getElementById('teste-whatsapp').value.trim();
+            const aceito = document.getElementById('check-termos').checked;
+
+            if (!whatsapp || whatsapp.length < 10) {
+                return alert("Por favor, digite um número de WhatsApp válido com o DDD para controle do teste.");
+            }
+
+            irParaPasso(4);
+            document.getElementById('teste-carregando').style.display = 'block';
+            document.getElementById('teste-resultado').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/teste-gratis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        whatsapp: whatsapp,
+                        tipoTeste: tipo,
+                        nomeCliente: nome || 'Cliente',
+                        termoAceito: aceito
+                    })
+                });
+
+                const json = await response.json();
+                document.getElementById('teste-carregando').style.display = 'none';
+                const divResult = document.getElementById('teste-resultado');
+
+                if (json.success) {
+                    document.getElementById('t-res-dns').innerText = json.dados.dns;
+                    document.getElementById('t-res-user').innerText = json.dados.username;
+                    document.getElementById('t-res-pass').innerText = json.dados.password;
+                    document.getElementById('t-res-venc').innerText = json.dados.validade;
+                    divResult.style.display = 'block';
+                } else {
+                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ NÃO FOI POSSÍVEL GERAR</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                    divResult.style.display = 'block';
+                }
+            } catch (e) {
+                document.getElementById('teste-carregando').style.display = 'none';
+                const divResult = document.getElementById('teste-resultado');
+                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA NA CONEXÃO</p><p class="text-center text-[11px] text-gray-400 mt-2">O servidor não respondeu. Tente novamente mais tarde.</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                divResult.style.display = 'block';
+            }
+        }
+
+        // CONSULTA DE CLIENTE ORIGINAL PRESERVADA
         async function consultarAssinatura() {
             const inputVal = document.getElementById('id-consulta').value;
             const containerFatura = document.getElementById('container-fatura');
-            
-            // LIMPEZA DO NÚMERO: Deixa só dígitos e pega os 8 finais
             let numeroLimpo = inputVal.replace(/\D/g, '');
             
             if (numeroLimpo.length < 8) {
@@ -139,7 +317,6 @@
             containerFatura.classList.add('hidden');
 
             try {
-                // Envia apenas os 8 finais para o servidor processar com Regex
                 const res = await fetch(`/api/cliente?id=${finalDoNumero}`);
                 const json = await res.json();
                 
@@ -167,6 +344,7 @@
             }
         }
 
+        // PROCESSAMENTO DE AUTOMAÇÃO ORIGINAL PRESERVADO
         async function processar() {
             const data = { 
                 mac: document.getElementById('mac').value, 
@@ -190,6 +368,7 @@
             } catch (e) { alert("Erro ao enviar dados."); }
         }
 
+        // MONITORAMENTO ORIGINAL PRESERVADO
         function iniciarMonitoramento(mac) {
             if(intervaloStatus) clearInterval(intervaloStatus);
             document.getElementById('status-barra').style.width = "20%";
@@ -213,6 +392,7 @@
             }, 3000);
         }
 
+        // Inicializa na aba principal
         setModo('ativar');
     </script>
 </body>
