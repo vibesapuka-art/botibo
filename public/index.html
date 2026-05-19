@@ -32,7 +32,7 @@
         
         <div class="grid grid-cols-4 gap-1 mb-6">
             <button onclick="setModo('ativar')" id="tab-ativar" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Área Cliente</button>
-            <button onclick="setModo('teste_gratis')" id="tab-teste" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Teste Grátis</button>
+            <button onclick="setModo('teste_gratis')" id="tab-teste" class="p-1 rounded-lg tab-active-purple font-bold text-[9px] uppercase shadow-inner">Teste Grátis</button>
             <button onclick="setModo('assinante')" id="tab-assinante" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Playlists</button>
             <button onclick="setModo('limpar')" id="tab-limpar" class="p-1 rounded-lg tab-inactive font-bold text-[9px] uppercase">Limpar</button>
         </div>
@@ -51,7 +51,7 @@
                 </div>
             </div>
 
-            <div id="area-teste-content" class="hidden space-y-4">
+            <div id="area-teste-content" class="space-y-4">
                 
                 <div id="step1" class="step-panel active space-y-3">
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 1: Onde você vai assistir?</p>
@@ -74,80 +74,87 @@
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 3: Termos de Uso</p>
                     <div class="bg-[#0f0f0f] p-3 rounded-lg border border-gray-800 text-[10px] text-gray-400 max-h-32 overflow-y-auto space-y-2 whitespace-pre-line">
 ⚠️ AVISO IMPORTANTE SOBRE O APLICATIVO:
-Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas para garantir estabilidade. O teste é gratuito. Caso decida assinar, há uma taxa anual da licença do app de R$15,00.
+
+Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas para garantir máxima estabilidade e zero travamentos.
+
+✅ PERÍODO DE TESTE: O uso dos aplicativos é TOTALMENTE GRATUITO durante o seu teste.
+
+🚀 DIFERENCIAL DE AUTONOMIA: No IB PLAYER PRO, adicionamos 5 LISTAS de reprodução diferentes. Se um servidor falhar ou travar, você mesmo troca a lista na hora, sem depender do suporte! O mesmo vale para o NETPLAY.
+
+• TAXA DOS APLICATIVOS: R$ 15,00 (Pagamento ANUAL). Cobrado apenas se você decidir assinar após o teste.
+
+• COBRANÇA: Valor por DISPOSITIVO (exceto Netplay, que é por LOGIN).
+
+• OBSERVAÇÃO: Este valor NÃO faz parte da mensalidade; é a licença da ferramenta para uso por 1 ano sem propagandas.
+
+Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                     </div>
                     
                     <div class="flex items-start gap-2 pt-1">
                         <input type="checkbox" id="check-termos" onchange="toggleBotoesTermos()" class="mt-0.5 accent-[#a855f7]">
-                        <label for="check-termos" class="text-[11px] text-gray-300">Estou ciente e aceito os termos descritos acima.</label>
+                        <label for="check-termos" class="text-[11px] text-gray-300">Estou ciente e aceito os termos das ferramentas descritos acima.</label>
                     </div>
 
-                    <div class="space-y-2 pt-2 border-t border-gray-800">
-                        <input type="text" id="pre-nome" placeholder="Seu Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none">
-                        <input type="text" id="pre-whatsapp" placeholder="WhatsApp com DDD (ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <button id="btn-termos-sem" disabled onclick="gerarAcessoNetplay('sem_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Sem Adulto 🍃</button>
-                        <button id="btn-termos-com" disabled onclick="gerarAcessoNetplay('com_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Com Adulto 🔥</button>
-                    </div>
+                    <button id="btn-avancar-termos" disabled onclick="irParaPasso(4)" class="w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed transition">Avançar para Identificação ➡️</button>
+                    <button onclick="voltarParaPasso(2)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
 
                 <div id="step4" class="step-panel space-y-3">
-                    <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">Passo 4: Confirmar Cadastro no Gestor</p>
+                    <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">Passo 4: Informe seus Dados</p>
                     
-                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 text-[11px] text-gray-400 text-center">
-                        As credenciais foram criadas pelo servidor master. Clique abaixo para registrar o cliente no Gestor.
-                    </div>
-
                     <div class="space-y-2">
-                        <div>
-                            <label class="text-[10px] text-gray-500 uppercase font-bold pl-1">Usuário Gerado</label>
-                            <input type="text" id="teste-usuario" readonly class="w-full p-2.5 bg-[#0b0b0b] border border-purple-900 rounded-lg text-xs text-purple-400 font-mono font-bold outline-none cursor-not-allowed">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-gray-500 uppercase font-bold pl-1">Senha Gerada</label>
-                            <input type="text" id="teste-senha" readonly class="w-full p-2.5 bg-[#0b0b0b] border border-purple-900 rounded-lg text-xs text-purple-400 font-mono font-bold outline-none cursor-not-allowed">
-                        </div>
+                        <input type="text" id="teste-nome" placeholder="Seu Nome completo" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+                        <input type="text" id="teste-whatsapp" placeholder="WhatsApp com DDD (ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
                     </div>
 
-                    <button onclick="enviarSomenteAoGestor()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold py-3.5 rounded-lg uppercase text-xs shadow-lg tracking-wider mt-2">
-                        ✅ Salvar no Gestor de Clientes
-                    </button>
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
+                        <button onclick="gerarAcessoNetplayCompleto('sem_adulto')" class="p-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs uppercase transition">Sem Adulto 🍃</button>
+                        <button onclick="gerarAcessoNetplayCompleto('com_adulto')" class="p-3 bg-[#a855f7] hover:bg-purple-600 text-white font-bold rounded-lg text-xs uppercase transition shadow-lg">Com Adulto 🔥</button>
+                    </div>
                 </div>
 
                 <div id="step5" class="step-panel space-y-3">
-                    <p class="text-center text-xs text-blue-400 font-bold uppercase tracking-wider">Passo 5: Vincular Aplicativo da TV</p>
+                    <p class="text-center text-xs text-green-400 font-bold uppercase tracking-wider">Acesso Liberado com Sucesso!</p>
                     
-                    <div class="bg-gray-900 p-3 rounded-lg border border-blue-900/30 text-[11px] text-gray-400 text-center">
-                        Cliente registrado com sucesso! Agora informe as credenciais de conexão da sua TV para fazer a injeção da lista.
+                    <div class="grid grid-cols-2 gap-2 bg-gray-900 p-2.5 rounded-lg border border-purple-950">
+                        <div>
+                            <label class="text-[9px] text-gray-500 uppercase font-bold pl-1">Seu Usuário</label>
+                            <input type="text" id="teste-usuario" readonly class="w-full p-2 bg-[#0b0b0b] text-xs text-purple-400 font-mono font-bold outline-none cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-gray-500 uppercase font-bold pl-1">Sua Senha</label>
+                            <input type="text" id="teste-senha" readonly class="w-full p-2 bg-[#0b0b0b] text-xs text-purple-400 font-mono font-bold outline-none cursor-not-allowed">
+                        </div>
                     </div>
 
-                    <div class="space-y-2">
+                    <div id="bloco-smart-tv" class="hidden space-y-2 pt-1">
+                        <div class="bg-blue-950/20 p-2 rounded border border-blue-900/40 text-[10px] text-gray-400 text-center">
+                            Preencha os dados abaixo do aplicativo instalado na sua Smart TV para fazermos a vinculação automática.
+                        </div>
                         <input type="text" id="teste-mac" placeholder="MAC Address (ex: AA:BB:CC:11:22:33)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500">
                         <input type="text" id="teste-key" placeholder="Device Key / Senha do Aplicativo" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500">
                     </div>
 
-                    <button onclick="vincularMacEAtivar()" class="w-full bg-green-500 hover:bg-green-600 text-black font-extrabold py-3.5 rounded-lg uppercase text-xs shadow-lg tracking-wider mt-2">
-                        🚀 Injetar Lista & Ativar Aplicativo
+                    <button onclick="executarAcaoFinal()" id="btn-final-fluxo" class="w-full bg-green-500 hover:bg-green-600 text-black font-extrabold py-3.5 rounded-lg uppercase text-xs shadow-lg tracking-wider mt-1">
+                        🚀 Concluir Configuração
                     </button>
                 </div>
 
                 <div id="step6" class="step-panel text-center py-4">
                     <div id="teste-carregando" class="space-y-2">
-                        <p class="text-xs text-[#22c55e] font-bold uppercase tracking-widest animate-pulse">📡 PROCESSANDO ATIVAÇÃO FINAL...</p>
+                        <p class="text-xs text-[#22c55e] font-bold uppercase tracking-widest animate-pulse">📡 CONFIGURANDO SEU APLICATIVO...</p>
                     </div>
                     <div id="teste-resultado" class="hidden text-left space-y-3">
-                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider">🎉 CONCLUÍDO COM SUCESSO!</p>
+                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider">🎉 TUDO PRONTO!</p>
                         <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-xs text-gray-300">
-                            Sua Smart TV foi sincronizada e as 5 listas configuradas. Já pode abrir o app na TV!
+                            Suas listas foram injetadas. Abra seu aplicativo na TV e aproveite os seus canais!
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <div id="campos-identificacao">
+            <div id="campos-identificacao" class="hidden">
                 <input type="text" id="mac" placeholder="MAC Address" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none mb-2 focus:border-blue-500">
                 <input type="text" id="key" placeholder="Device Key" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
             </div>
@@ -157,14 +164,14 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Sincronizar</button>
+            <button id="btn-acao" onclick="processar()" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Sincronizar</button>
         </div>
     </div>
 
     <script>
-        let modoAtual = 'assinante';
+        let modoAtual = 'teste_gratis';
         let dispositivoSelecionado = '';
-        let dadosTemporariosTeste = {};
+        let dadosLocaisAcesso = {};
 
         function setModo(m) {
             modoAtual = m;
@@ -194,98 +201,95 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
 
         function toggleBotoesTermos() {
             const aceito = document.getElementById('check-termos').checked;
-            document.getElementById('btn-termos-sem').disabled = !aceito;
-            document.getElementById('btn-termos-com').disabled = !aceito;
-            
-            document.getElementById('btn-termos-sem').className = aceito ? "p-3 bg-gray-700 text-white font-bold rounded-lg text-xs uppercase" : "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
-            document.getElementById('btn-termos-com').className = aceito ? "p-3 bg-[#a855f7] text-white font-bold rounded-lg text-xs uppercase shadow-lg" : "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
+            const btn = document.getElementById('btn-avancar-termos');
+            btn.disabled = !aceito;
+            btn.className = aceito ? "w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg transition" : "w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed transition";
         }
 
-        // 1. GERA NA NETPLAY E COLOCA NA TELA (PASSO 4)
-        async function gerarAcessoNetplay(tipo) {
-            const nome = document.getElementById('pre-nome').value.trim();
-            const whatsapp = document.getElementById('pre-whatsapp').value.trim();
+        // PASSO 4 -> DISPARA A REQUISIÇÃO CONTENDO NOME E WHATSAPP JUNTOS PARA A SUA API REPASSAR À NETPLAY
+        async function gerarAcessoNetplayCompleto(tipo) {
+            const nome = document.getElementById('teste-nome').value.trim();
+            const whatsapp = document.getElementById('teste-whatsapp').value.trim();
 
-            if (!whatsapp || whatsapp.length < 10) return alert("WhatsApp inválido.");
+            if (!nome || !whatsapp || whatsapp.length < 10) {
+                return alert("Por favor, preencha seu Nome e um número de WhatsApp válido com DDD.");
+            }
 
             try {
+                // Modifica o POST enviando os campos para sua API tratar e repassar pro painel master
                 const response = await fetch('/api/teste-gratis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ whatsapp, tipoTeste: tipo, nomeCliente: nome || 'Cliente' })
+                    body: JSON.stringify({ 
+                        whatsapp: whatsapp,
+                        nomeCliente: nome,
+                        tipoTeste: tipo 
+                    })
                 });
 
                 const json = await response.json();
 
                 if (json.success) {
-                    dadosTemporariosTeste = {
-                        whatsapp: whatsapp,
-                        nome: nome || 'Cliente',
+                    dadosLocaisAcesso = {
                         usuario: json.dados.username,
-                        senha: json.dados.password,
-                        tipo: tipo
+                        senha: json.dados.password
                     };
 
+                    // Insere os dados fixados na tela do passo 5
                     document.getElementById('teste-usuario').value = json.dados.username;
                     document.getElementById('teste-senha').value = json.dados.password;
 
-                    irParaPasso(4);
-                } else {
-                    alert(json.mensagem || "Erro no Servidor Master.");
-                }
-            } catch (e) { alert("Erro de rede."); }
-        }
+                    // Condiciona a exibição do MAC/Key apenas se for Smart TV
+                    const blocoSmart = document.getElementById('bloco-smart-tv');
+                    const btnFinal = document.getElementById('btn-final-fluxo');
+                    
+                    if (dispositivoSelecionado === 'smart_tv') {
+                        blocoSmart.classList.remove('hidden');
+                        btnFinal.innerText = "📺 Vincular e Configurar minha TV";
+                    } else {
+                        blocoSmart.classList.add('hidden');
+                        btnFinal.innerText = "🚀 Finalizar e Começar a Assistir";
+                    }
 
-        // 2. ENVIA APENAS O FORMULÁRIO PARA O SEU GESTOR DE CLIENTES (PASSO 4 -> PASSO 5)
-        async function enviarSomenteAoGestor() {
-            try {
-                // Rota fictícia ou de webhook que salva os dados limpos no seu MongoDB/Gestor
-                await fetch('/api/salvar-gestor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        whatsapp: dadosTemporariosTeste.whatsapp,
-                        nome: dadosTemporariosTeste.nome,
-                        usuario: dadosTemporariosTeste.usuario,
-                        senha: dadosTemporariosTeste.senha,
-                        tipo: dadosTemporariosTeste.tipo
-                    })
-                });
-
-                // Se o dispositivo for celular/computador que não usa MAC, pula direto para o fim
-                if (dispositivoSelecionado !== 'smart_tv') {
-                    irParaPasso(6);
-                    document.getElementById('teste-carregando').style.display = 'none';
-                    document.getElementById('teste-resultado').style.display = 'block';
-                } else {
-                    // Se for Smart TV, avança para colher e processar o MAC/Key
                     irParaPasso(5);
+                } else {
+                    alert(json.mensagem || "Erro ao solicitar teste ao painel master.");
                 }
-            } catch(e) {
-                alert("Erro ao registrar no Gestor. Verifique o servidor.");
+            } catch (e) { 
+                alert("Falha na comunicação de dados com o painel."); 
             }
         }
 
-        // 3. PASSO 5: PEGA O MAC E A KEY GUARDADOS PARA REALIZAR A ATIVAÇÃO FINAL
-        async function vincularMacEAtivar() {
+        // PASSO 5 -> TRATA O DESVIO SE DEVE ENVIAR MAC OU SE JÁ PODE CONCLUIR DIRETO
+        async function executarAcaoFinal() {
+            if (dispositivoSelecionado !== 'smart_tv') {
+                // Caso não use TV, pula para a conclusão sem enviar MAC
+                irParaPasso(6);
+                document.getElementById('teste-carregando').style.display = 'none';
+                document.getElementById('teste-resultado').style.display = 'block';
+                return;
+            }
+
             const mac = document.getElementById('teste-mac').value.trim();
             const key = document.getElementById('teste-key').value.trim();
 
-            if (!mac || !key) return alert("MAC e Key são obrigatórios para configurar a TV.");
+            if (!mac || !key) {
+                return alert("O preenchimento do MAC e Key da sua TV é obrigatório.");
+            }
 
             irParaPasso(6);
             document.getElementById('teste-carregando').style.display = 'block';
 
             try {
-                // Envia para a rota original que faz a mágica do Puppeteer / API de injeção na TV
+                // Dispara o pareamento do MAC utilizando as credenciais recém geradas
                 await fetch('/ativar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         mac: mac,
                         key: key,
-                        usuario: dadosTemporariosTeste.usuario,
-                        senha: dadosTemporariosTeste.senha,
+                        usuario: dadosLocaisAcesso.usuario,
+                        senha: dadosLocaisAcesso.senha,
                         tipo: 'teste_gratis'
                     })
                 });
@@ -293,20 +297,16 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 document.getElementById('teste-carregando').style.display = 'none';
                 document.getElementById('teste-resultado').style.display = 'block';
             } catch (e) {
-                alert("Erro ao injetar lista no aplicativo.");
+                alert("Erro ao sincronizar as listas com a sua TV.");
                 irParaPasso(5);
             }
         }
 
-        async function consultarAssinatura() {
-            // ... (mantido funcionalidade original de consulta por id)
-        }
+        async function consultarAssinatura() { /* mantido original */ }
+        async function processar() { /* mantido original */ }
 
-        async function processar() {
-            // ... (mantido sincronismo manual original)
-        }
-
-        setModo('ativar');
+        // Inicializa focado na aba de Teste Grátis
+        setModo('teste_gratis');
     </script>
 </body>
 </html>
