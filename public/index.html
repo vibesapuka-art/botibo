@@ -112,7 +112,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                 </div>
 
                 <div id="step5" class="step-panel space-y-3">
-                    <p class="text-center text-xs text-green-400 font-bold uppercase tracking-wider">Acesso Criado!</p>
+                    <p class="text-center text-xs text-green-400 font-bold uppercase tracking-wider">Acesso Criado com Sucesso!</p>
                     
                     <div class="grid grid-cols-2 gap-2 bg-gray-900 p-2.5 rounded-lg border border-purple-950">
                         <div>
@@ -127,25 +127,25 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
                     <div id="bloco-smart-tv" class="hidden space-y-2 pt-1">
                         <div class="bg-blue-950/20 p-2 rounded border border-blue-900/40 text-[10px] text-gray-400 text-center">
-                            Insira o MAC e Device Key do aplicativo da sua TV para injetarmos as 5 listas automaticamente.
+                            Insira o MAC e Device Key do aplicativo instalado na sua TV para fazermos a vinculação automática.
                         </div>
                         <input type="text" id="teste-mac" placeholder="MAC Address (ex: AA:BB:CC:11:22:33)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500">
                         <input type="text" id="teste-key" placeholder="Device Key / Senha do Aplicativo" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500">
                     </div>
 
                     <button onclick="finalizarFluxo()" id="btn-final-fluxo" class="w-full bg-green-500 hover:bg-green-600 text-black font-extrabold py-3.5 rounded-lg uppercase text-xs shadow-lg tracking-wider mt-1">
-                        🚀 Vincular e Ativar TV
+                        🚀 Sincronizar Aplicativo
                     </button>
                 </div>
 
                 <div id="step6" class="step-panel text-center py-4">
                     <div id="teste-carregando" class="space-y-2">
-                        <p class="text-xs text-[#22c55e] font-bold uppercase tracking-widest animate-pulse">📡 PROCESSANDO SOLICITAÇÃO...</p>
+                        <p class="text-xs text-[#22c55e] font-bold uppercase tracking-widest animate-pulse">📡 PROCESSANDO ASSINATURA...</p>
                     </div>
                     <div id="teste-resultado" class="hidden text-left space-y-3">
-                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider">🎉 CONCLUÍDO COM SUCESSO!</p>
+                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider">🎉 PROTOCOLO FINALIZADO!</p>
                         <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-xs text-gray-300">
-                            Seu teste foi ativado com sucesso! Caso tenha usado Smart TV, suas listas já foram injetadas no aplicativo. Aproveite!
+                            Acesso configurado. Caso use Smart TV, as listas foram enviadas ao dispositivo. Já pode abrir o app e assistir!
                         </div>
                     </div>
                 </div>
@@ -204,7 +204,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             btn.className = aceito ? "w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg transition" : "w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed transition";
         }
 
-        // PASSO 4: ENVIA NOME E WHATSAPP DIRETO PARA A SUA API GERAR O TESTE NA NETPLAY
+        // ENVIANDO NOME E WHATSAPP DIRETO PARA A SUA API EXECUTAR NO PAINEL MASTER
         async function gerarAcessoNetplay(tipo) {
             const nome = document.getElementById('teste-nome').value.trim();
             const whatsapp = document.getElementById('teste-whatsapp').value.trim();
@@ -213,11 +213,12 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                 return alert("Por favor, preencha o Nome e o WhatsApp com DDD corretamente.");
             }
 
-            irParaPasso(6); // Mostra carregando enquanto a API processa
+            irParaPasso(6);
             document.getElementById('teste-carregando').style.display = 'block';
             document.getElementById('teste-resultado').style.display = 'none';
 
             try {
+                // Aqui faz o POST enviando os parâmetros coletados limpos
                 const response = await fetch('/api/teste-gratis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -252,7 +253,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
                     irParaPasso(5);
                 } else {
-                    alert(json.mensagem || "Erro ao obter credenciais da Netplay.");
+                    alert(json.mensagem || "Erro na criação do acesso.");
                     irParaPasso(4);
                 }
             } catch (e) { 
@@ -261,7 +262,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             }
         }
 
-        // PASSO 5: AÇÃO DO BOTÃO FINAL (SE FOR SMART TV TRATA O MAC, SENÃO SÓ CONCLUI)
+        // FINALIZAÇÃO SEM INTERMEDIÁRIOS
         async function finalizarFluxo() {
             if (dispositivoSelecionado !== 'smart_tv') {
                 irParaPasso(6);
@@ -274,7 +275,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             const key = document.getElementById('teste-key').value.trim();
 
             if (!mac || !key) {
-                return alert("MAC e Key do aplicativo são obrigatórios.");
+                return alert("O MAC e a Key são obrigatórios para parear sua TV.");
             }
 
             irParaPasso(6);
@@ -297,13 +298,13 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                 document.getElementById('teste-carregando').style.display = 'none';
                 document.getElementById('teste-resultado').style.display = 'block';
             } catch (e) {
-                alert("Erro ao enviar dados para a TV.");
+                alert("Erro ao sincronizar listas na TV.");
                 irParaPasso(5);
             }
         }
 
-        async function consultarAssinatura() { /* mantido original */ }
-        async function processar() { /* mantido original */ }
+        async function consultarAssinatura() { /* ... */ }
+        async function processar() { /* ... */ }
 
         setModo('teste_gratis');
     </script>
