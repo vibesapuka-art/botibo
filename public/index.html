@@ -77,95 +77,56 @@
 
                 <div id="step2" class="step-panel space-y-3">
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 2: Instale o Aplicativo</p>
-                    <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm">
-                    </div>
+                    <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm"></div>
                     <button onclick="irParaPasso(3)" class="w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg">Já instalei o Aplicativo! 👍</button>
                     <button onclick="voltarParaPasso(1)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
 
                 <div id="step3" class="step-panel space-y-3">
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 3: Termos de Uso</p>
-                    <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-[11px] text-gray-300 max-h-48 overflow-y-auto space-y-3 whitespace-pre-line leading-relaxed">
+                    <div class="bg-[#0f0f0f] p-3 rounded-lg border border-gray-800 text-[10px] text-gray-400 max-h-32 overflow-y-auto space-y-2 whitespace-pre-line">
 ⚠️ AVISO IMPORTANTE SOBRE O APLICATIVO:
+
 Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas para garantir máxima estabilidade e zero travamentos.
 
-✅ PERÍODO DE TESTE: O uso dos aplicativos é TOTALMENTE GRATUITO durante o seu período de teste gerado agora.
+✅ PERÍODO DE TESTE: O uso dos aplicativos é TOTALMENTE GRATUITO durante o seu teste.
 
 🚀 DIFERENCIAL DE AUTONOMIA: No IB PLAYER PRO, adicionamos 5 LISTAS de reprodução diferentes. Se um servidor falhar ou travar, você mesmo troca a lista na hora, sem depender do suporte! O mesmo vale para o NETPLAY.
+
+• TAXA DOS APLICATIVOS: R$ 15,00 (Pagamento ANUAL). Cobrado apenas se você decidir assinar após o teste.
+
+• COBRANÇA: Valor por DISPOSITIVO (exceto Netplay, que é por LOGIN).
+
+• OBSERVAÇÃO: Este valor NÃO faz parte da mensalidade; é a licença da ferramenta para uso por 1 ano sem propagandas.
+
+Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                     </div>
                     
-                    <div class="flex items-start gap-2 pt-2 pb-1">
-                        <input type="checkbox" id="check-termos" onchange="toggleBotaoTermos()" class="mt-0.5 w-4 h-4 accent-[#a855f7]">
-                        <label for="check-termos" class="text-xs text-gray-200 select-none">Estou ciente e aceito os termos das ferramentas descritos acima.</label>
+                    <div class="flex items-start gap-2 pt-1">
+                        <input type="checkbox" id="check-termos" onchange="toggleBotoesTeste()" class="mt-0.5 accent-[#a855f7]">
+                        <label for="check-termos" class="text-[11px] text-gray-300">Estou ciente e aceito os termos das ferramentas descritos acima.</label>
                     </div>
 
-                    <button id="btn-aceitar-termos" disabled onclick="preGerarAcessoNetplay()" class="w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed flex items-center justify-center gap-2 transition shadow-lg">
-                        <span>Aceitar e Continuar ➡️</span>
-                    </button>
+                    <div class="space-y-2 pt-2 border-t border-gray-800">
+                        <input type="text" id="teste-nome" placeholder="Seu Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+                        <input type="text" id="teste-whatsapp" placeholder="WhatsApp com DDD (ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button id="btn-gerar-sem" disabled onclick="solicitarTesteNetplay('sem_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Sem Adulto 🍃</button>
+                        <button id="btn-gerar-com" disabled onclick="solicitarTesteNetplay('com_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Com Adulto 🔥</button>
+                    </div>
                     <button onclick="voltarParaPasso(2)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
 
-                <div id="step4" class="step-panel space-y-3">
-                    <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 4: Seus Dados de Cadastro</p>
-                    
-                    <div class="space-y-2 pt-1">
-                        <div class="grid grid-cols-2 gap-2 bg-purple-950/20 p-2 rounded-lg border border-purple-900/30">
-                            <div>
-                                <label class="block text-[8px] text-purple-400 uppercase font-bold pl-1 mb-0.5">Usuário IPTV Liberado</label>
-                                <input type="text" id="teste-usuario-gerado" disabled class="w-full p-2 bg-black/50 border border-purple-900/40 rounded-lg text-xs text-purple-300 font-mono text-center cursor-not-allowed">
-                            </div>
-                            <div>
-                                <label class="block text-[8px] text-purple-400 uppercase font-bold pl-1 mb-0.5">Senha IPTV Liberada</label>
-                                <input type="text" id="teste-senha-gerada" disabled class="w-full p-2 bg-black/50 border border-purple-900/40 rounded-lg text-xs text-purple-300 font-mono text-center cursor-not-allowed">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="teste-nome" placeholder="Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
-                            <input type="text" id="teste-sobrenome" placeholder="Sobrenome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
-                        </div>
-                        
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="col-span-2">
-                                <label class="block text-[9px] text-gray-500 uppercase pl-1 mb-0.5">Data de Nascimento</label>
-                                <input type="date" id="teste-nascimento" class="w-full p-2 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-gray-400 outline-none focus:border-[#a855f7]">
-                            </div>
-                            <div>
-                                <label class="block text-[9px] text-gray-500 uppercase pl-1 mb-0.5">DDI</label>
-                                <input type="text" id="teste-codpais" value="55" placeholder="55" class="w-full p-2 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white text-center outline-none focus:border-[#a855f7]">
-                            </div>
-                        </div>
-
-                        <div>
-                            <input type="text" id="teste-whatsapp" placeholder="WhatsApp com DDD (ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
-                        </div>
-
-                        <div id="campos-smart-tv-teste" class="hidden space-y-2 pt-2 border-t border-purple-950/40">
-                            <p class="text-[9px] text-purple-400 font-bold uppercase pl-1">🔌 Configuração da TV:</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="teste-mac" placeholder="MAC Address" class="w-full p-2.5 bg-[#0f0f0f] border border-purple-900/40 rounded-lg text-xs text-white font-mono uppercase outline-none focus:border-purple-500">
-                                <input type="text" id="teste-key" placeholder="Device Key / Senha" class="w-full p-2.5 bg-[#0f0f0f] border border-purple-900/40 rounded-lg text-xs text-white font-mono outline-none focus:border-purple-500">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-2">
-                        <button onclick="finalizarCadastroGestor('sem_adulto')" class="p-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs uppercase transition">Sem Adulto 🍃</button>
-                        <button onclick="finalizarCadastroGestor('com_adulto')" class="p-3 bg-[#a855f7] hover:bg-purple-600 text-white font-bold rounded-lg text-xs uppercase transition shadow-lg">Com Adulto 🔥</button>
-                    </div>
-                </div>
-
-                <div id="step5" class="step-panel text-center py-4">
+                <div id="step4" class="step-panel text-center py-4">
                     <div id="teste-carregando" class="space-y-2">
-                        <p id="status-texto-fila" class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 ENVIANDO PARA O GESTORV3...</p>
-                        <p id="status-subtexto-fila" class="text-[10px] text-gray-500">Sincronizando seus dados e liberando as notificações por WhatsApp...</p>
-                        <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden mt-2">
-                            <div id="barra-progresso-teste" class="bg-[#a855f7] h-full w-2/4 transition-all duration-500"></div>
-                        </div>
+                        <p class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 GERANDO SEU ACESSO NA NETPLAY...</p>
+                        <p class="text-[10px] text-gray-500">Aguarde, validando número contra duplicidade e sincronizando painéis...</p>
                     </div>
                     
                     <div id="teste-resultado" class="hidden text-left space-y-3">
-                        <p id="teste-sucesso-titulo" class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider mb-2">🎉 TESTE CRIADO COM SUCESSO!</p>
+                        <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider mb-2">🎉 TESTE CRIADO COM SUCESSO!</p>
                         <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2">
                             <div><p class="text-[9px] text-gray-500 uppercase">URL / PORTAL / DNS</p><p id="t-res-dns" class="font-mono text-xs text-blue-400 select-all bg-gray-900 p-1.5 rounded mt-1">---</p></div>
                             <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
@@ -177,7 +138,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                                 <p id="t-res-venc" class="font-bold text-xs text-red-400">---</p>
                             </div>
                         </div>
-                        <p id="teste-sucesso-aviso" class="text-[9px] text-center text-gray-500 uppercase mt-2">📢 Os lembretes de expiração foram enviados para o seu WhatsApp!</p>
+                        <p class="text-[9px] text-center text-gray-500 uppercase mt-2">📢 Os lembretes de expiração foram enviados para o seu WhatsApp!</p>
                     </div>
                 </div>
 
@@ -211,7 +172,6 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
         let dispositivoSelecionado = '';
         let intervaloStatus = null;
         let instalador;
-        let dadosNetplayTemporarios = null;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -225,7 +185,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 const { outcome } = await instalador.userChoice;
                 if (outcome === 'accepted') document.getElementById('btn-instalar').classList.add('hidden');
             } else {
-                alert("Para criar o atalho:\n1. Clique nos 3 pontinhos do navegador\n2. Selecione 'Instalar Aplicativo'.");
+                alert("Para criar o atalho:\n1. Clique nos 3 pontinhos do navegador\n2. Selecione 'Instalar Aplicativo' ou 'Adicionar à tela inicial'.");
             }
         }
 
@@ -266,15 +226,6 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 }
             }
 
-            if (passo === 4) {
-                const blocoSmart = document.getElementById('campos-smart-tv-teste');
-                if (dispositivoSelecionado === 'smart_tv') {
-                    blocoSmart.classList.remove('hidden');
-                } else {
-                    blocoSmart.classList.add('hidden');
-                }
-            }
-
             document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
             document.getElementById(`step${passo}`).classList.add('active');
         }
@@ -284,161 +235,92 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
             document.getElementById(`step${passo}`).classList.add('active');
         }
 
-        function toggleBotaoTermos() {
+        function toggleBotoesTeste() {
             const aceito = document.getElementById('check-termos').checked;
-            const btn = document.getElementById('btn-aceitar-termos');
-            btn.disabled = !aceito;
-            if (aceito) {
-                btn.className = "w-full bg-[#a855f7] hover:bg-purple-600 text-white font-bold py-3 rounded-lg uppercase text-xs transition shadow-lg flex items-center justify-center gap-2";
-            } else {
-                btn.className = "w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed flex items-center justify-center gap-2";
-            }
-        }
-
-        // --- ACIONADO APÓS OS TERMOS: CRIA O LOGIN NA NETPLAY NOS BASTIDORES ---
-        async function preGerarAcessoNetplay() {
-            const btn = document.getElementById('btn-aceitar-termos');
-            const txtOriginal = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Processando Termos...</span>`;
-
-            try {
-                const response = await fetch('/api/pre-gerar-teste', { method: 'POST' });
-                const json = await response.json();
-
-                if (json.success && json.dados) {
-                    dadosNetplayTemporarios = json.dados;
-                    
-                    document.getElementById('teste-usuario-gerado').value = json.dados.username;
-                    document.getElementById('teste-senha-gerada').value = json.dados.password;
-
-                    // Avança para a captura dos dados pessoais do cliente
-                    irParaPasso(4);
-                } else {
-                    alert("Limite de testes atingido ou falha no servidor: " + (json.mensagem || "Netplay Offline"));
-                }
-            } catch (e) {
-                console.error(e);
-                alert("Erro de conexão com a central Imperium.");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = txtOriginal;
-            }
-        }
-
-        async function finalizarCadastroGestor(tipoAdulto) {
-            const nomeCliente = document.getElementById('teste-nome').value.trim();
-            const sobrenomeCliente = document.getElementById('teste-sobrenome').value.trim();
-            const dataNascimento = document.getElementById('teste-nascimento').value;
-            const codPais = document.getElementById('teste-codpais').value.trim() || "55";
-            const whatsapp = document.getElementById('teste-whatsapp').value.trim();
+            const bSem = document.getElementById('btn-gerar-sem');
+            const bCom = document.getElementById('btn-gerar-com');
             
-            const mac = document.getElementById('teste-mac').value.trim();
-            const key = document.getElementById('teste-key').value.trim();
+            bSem.disabled = !aceito;
+            bCom.disabled = !aceito;
+            
+            if (aceito) {
+                bSem.className = "p-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs uppercase transition";
+                bCom.className = "p-3 bg-[#a855f7] hover:bg-purple-600 text-white font-bold rounded-lg text-xs uppercase transition shadow-lg";
+            } else {
+                bSem.className = "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
+                bCom.className = "p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed";
+            }
+        }
 
-            if (!nomeCliente || !whatsapp || whatsapp.length < 10) {
-                return alert("Por favor, preencha o Nome e o WhatsApp com DDD corretamente!");
+        async function solicitarTesteNetplay(tipo) {
+            const nome = document.getElementById('teste-nome').value.trim();
+            const whatsapp = document.getElementById('teste-whatsapp').value.trim();
+            const aceito = document.getElementById('check-termos').checked;
+
+            if (!whatsapp || whatsapp.length < 10) {
+                return alert("Por favor, digite um número de WhatsApp válido com o DDD para controle do teste.");
             }
 
-            if (dispositivoSelecionado === 'smart_tv' && (!mac || !key)) {
-                return alert("Para Smart TVs, preencha o MAC Address e a Key para podermos injetar as listas!");
-            }
-
-            if (!dadosNetplayTemporarios) {
-                return alert("Credenciais não localizadas. Por favor, reinicie o teste.");
-            }
-
-            irParaPasso(5);
+            irParaPasso(4);
             document.getElementById('teste-carregando').style.display = 'block';
             document.getElementById('teste-resultado').style.display = 'none';
-            document.getElementById('barra-progresso-teste').style.width = "40%";
 
             try {
+                // ETAPA 1: Pré-geração em background das credenciais da Netplay
+                const preRes = await fetch('/api/pre-gerar-teste', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ whatsapp, tipoTeste: tipo })
+                });
+                const preJson = await preRes.json();
+
+                if (!preJson.success || !preJson.dados) {
+                    throw new Error(preJson.mensagem || "Falha ao pré-gerar dados na Netplay.");
+                }
+
+                // ETAPA 2: Acoplamento e envio final acoplado ao GestorV3
                 const response = await fetch('/api/teste-gratis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         whatsapp: whatsapp,
-                        tipoTeste: tipoAdulto,
-                        nomeCliente: nomeCliente,
-                        sobrenomeCliente: sobrenomeCliente,
-                        dataNascimento: dataNascimento,
-                        codPais: codPais,
+                        nomeCliente: nome || 'Cliente',
                         dispositivo: dispositivoSelecionado,
-                        mac: mac,
-                        key: key,
-                        username: dadosNetplayTemporarios.username,
-                        password: dadosNetplayTemporarios.password
+                        username: preJson.dados.username,
+                        password: preJson.dados.password
                     })
                 });
 
                 const json = await response.json();
+                document.getElementById('teste-carregando').style.display = 'none';
                 const divResult = document.getElementById('teste-resultado');
 
                 if (json.success) {
-                    document.getElementById('t-res-dns').innerText = dadosNetplayTemporarios.dns || "http://galaxy.blcplay.com";
-                    document.getElementById('t-res-user').innerText = dadosNetplayTemporarios.username;
-                    document.getElementById('t-res-pass').innerText = dadosNetplayTemporarios.password;
-                    document.getElementById('t-res-venc').innerText = dadosNetplayTemporarios.validade || "12 Horas";
-                    
-                    if (dispositivoSelecionado === 'smart_tv' && mac) {
-                        document.getElementById('barra-progresso-teste').style.width = "70%";
-                        document.getElementById('status-texto-fila').innerText = "⚙️ FILA: AGUARDANDO ROBÔ DO SERVIDOR...";
-                        document.getElementById('status-subtexto-fila').innerText = "Injetando a lista de canais no aplicativo da sua TV. Não feche a página.";
-                        monitorarFilaSmartTV(mac);
-                    } else {
-                        document.getElementById('teste-carregando').style.display = 'none';
-                        divResult.style.display = 'block';
-                    }
+                    document.getElementById('t-res-dns').innerText = preJson.dados.dns || "http://galaxy.blcplay.com";
+                    document.getElementById('t-res-user').innerText = preJson.dados.username;
+                    document.getElementById('t-res-pass').innerText = preJson.dados.password;
+                    document.getElementById('t-res-venc').innerText = preJson.dados.validade || "Válido por 12 Horas";
+                    divResult.style.display = 'block';
                 } else {
-                    document.getElementById('teste-carregando').style.display = 'none';
-                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ ERRO NO CADASTRO</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(4)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ NÃO FOI POSSÍVEL REGISTRAR</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                     divResult.style.display = 'block';
                 }
             } catch (e) {
                 document.getElementById('teste-carregando').style.display = 'none';
                 const divResult = document.getElementById('teste-resultado');
-                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA GERAL</p><p class="text-center text-[11px] text-gray-400 mt-2">Erro ao conectar com o servidor central.</p><button onclick="voltarParaPasso(4)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA NO FLUXO</p><p class="text-center text-[11px] text-gray-400 mt-2">${e.message || "Erro interno de comunicação."}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                 divResult.style.display = 'block';
             }
-        }
-
-        function monitorarFilaSmartTV(macAddress) {
-            if (intervaloStatus) clearInterval(intervaloStatus);
-            
-            intervaloStatus = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status?mac=${encodeURIComponent(macAddress)}`);
-                    const s = await res.json();
-                    
-                    if (s.status === "processando") {
-                        document.getElementById('barra-progresso-teste').style.width = "85%";
-                        document.getElementById('status-texto-fila').innerText = "⚙️ INJETANDO LISTAS NA SMART TV...";
-                        document.getElementById('status-subtexto-fila').innerText = s.mensagem.toUpperCase();
-                    } else if (s.status === "ok") {
-                        clearInterval(intervaloStatus);
-                        document.getElementById('teste-carregando').style.display = 'none';
-                        document.getElementById('teste-sucesso-titulo').innerText = "🎉 TV CONFIGURADA COM SUCESSO!";
-                        document.getElementById('teste-sucesso-aviso').innerText = "📢 O robô injetou as 5 listas diretamente no seu app e enviou os acessos no WhatsApp! Pode ligar a TV.";
-                        document.getElementById('teste-resultado').style.display = 'block';
-                    } else if (s.status === "erro") {
-                        clearInterval(intervaloStatus);
-                        document.getElementById('teste-carregando').style.display = 'none';
-                        const divResult = document.getElementById('teste-resultado');
-                        divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ ERRO NA TV</p><p class="text-center text-[11px] text-gray-400 mt-2">${s.mensagem || "Verifique se digitou o MAC e Device Key corretamente."}</p><button onclick="voltarParaPasso(4)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Corrigir Dados</button>`;
-                        divResult.style.display = 'block';
-                    }
-                } catch (err) {
-                    console.error("Erro na leitura da fila:", err);
-                }
-            }, 3000);
         }
 
         async function consultarAssinatura() {
             const inputVal = document.getElementById('id-consulta').value;
             const containerFatura = document.getElementById('container-fatura');
             let numeroLimpo = inputVal.replace(/\D/g, '');
-            if (numeroLimpo.length < 8) return alert("Por favor, digite seu WhatsApp com DDD.");
+            
+            if (numeroLimpo.length < 8) {
+                return alert("Por favor, digite seu WhatsApp com DDD.");
+            }
 
             const finalDoNumero = numeroLimpo.slice(-8);
             containerFatura.classList.add('hidden');
@@ -466,7 +348,9 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 } else {
                     alert(json.mensagem);
                 }
-            } catch (e) { alert("Erro ao conectar com o servidor."); }
+            } catch (e) { 
+                alert("Erro ao conectar com o servidor."); 
+            }
         }
 
         async function processar() {
@@ -492,7 +376,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
             } catch (e) { alert("Erro ao enviar dados."); }
         }
 
-        function iniciarMonitoramento(mac) {
+        function iM(mac) {
             if(intervaloStatus) clearInterval(intervaloStatus);
             document.getElementById('status-barra').style.width = "20%";
             intervaloStatus = setInterval(async () => {
@@ -500,6 +384,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     const res = await fetch(`/status?mac=${mac}`);
                     const s = await res.json();
                     document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
+                    
                     if (s.status === "ok") {
                         document.getElementById('status-barra').style.width = "100%";
                         clearInterval(intervaloStatus);
