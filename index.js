@@ -14,17 +14,16 @@ app.use(express.static('public'));
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
-const { gerarTesteGratis } = require('./src/bot/teste_gratis'); // Importando a nova lógica isolada
+const { gerarTesteGratis } = require('./src/bot/teste_gratis'); 
 
 let pedidos = [];
 let processandoAgora = false;
 
-// --- ROTA DO NOVO MÓDULO DE TESTE GRÁTIS (NETPLAY INTEGRADO) ---
+// --- ROTA DO MÓDULO DE TESTE GRÁTIS AUTÔNOMO (NETPLAY ORIGINAL) ---
 app.post('/api/teste-gratis', gerarTesteGratis);
 
 // --- ROTA DE CONSULTA PARA O PAINEL ---
 app.get('/api/cliente', async (req, res) => {
-    // O painel envia os últimos 8 dígitos via parâmetro 'id'
     const finalWhatsApp = req.query.id; 
     
     if (!finalWhatsApp) {
@@ -32,11 +31,9 @@ app.get('/api/cliente', async (req, res) => {
     }
 
     try {
-        // Agora a função consultarCliente usa Regex para achar o final do número
         const resultado = await consultarCliente(finalWhatsApp);
         
         if (resultado) {
-            // Envia os dados encontrados para o painel exibir
             res.json({ success: true, dados: resultado });
         } else {
             res.json({ success: false, mensagem: "Número não localizado no banco de dados." });
@@ -47,10 +44,66 @@ app.get('/api/cliente', async (req, res) => {
     }
 });
 
-// --- ROTA DO WEBHOOK (GESTORV3) ---
-app.post('/webhook', processarWebhook);
+// --- ROTA DO WEBHOOK ATUALIZADA (INTERCEPTA CADASTROS DO GESTORV3) ---
+app.post('/webhook', async (req, res) => {
+    console.log("📥 WEBHOOK RECEBIDO DO GESTORV3:", JSON.stringify(req.body, null, 2));
 
-// --- ROTAS DE AUTOMAÇÃO (PUPPETEER) ---
+    try {
+        // 1. Executa a gravação padrão no MongoDB que já funciona perfeitamente no seu webhook.js
+        // Criamos uma resposta simulada para passar para o módulo local
+        let statusEnviado = 200;
+        let conteudoEnviado = "";
+        const resSimulado = {
+            status: (codigo) => { statusEnviado = codigo; return { send: (txt) => { conteudoEnviado = txt; } }; },
+            send: (txt) => { conteudoEnviado = txt; }
+        };
+
+        await processarWebhook(req, resSimulado);
+
+        // 2. Captura os dados que o Gestorv3 mandou
+        const d = req.body;
+        
+        // Verifica se vieram dados de Smart TV preenchidos (MAC e KEY) vindos do formulário do Gestor
+        const mac = d.mac || d.mac_address;
+        const key = d.key || d.password_app || d.device_key || d.device_id;
+        const dispositivo = d.dispositivo || d.device || "";
+
+        const listaSmartTV = ['samsung', 'lg', 'roku', 'sansung', 'lgs']; // Incluindo variações de digitação
+        const eSmartTv = dispositivo && listaSmartTV.includes(dispositivo.toLowerCase());
+
+        // Se o cadastro veio com MAC/KEY preenchidos, joga o robô na fila na mesma hora!
+        if (mac && key) {
+            console.log(`📺 Capturado cadastro via Gestor para Smart TV (MAC: ${mac}). Adicionando na fila do engine...`);
+            
+            const novoPedido = {
+                id: Date.now().toString(),
+                mac: mac.trim(),
+                key: key.trim(),
+                device_id: key.trim(),
+                user: d.usuario || d.usuario_iptv || d.login || '',
+                pass: d.senha || d.senha_iptv || d.password || '',
+                tipo: "adicionar",
+                status: "pendente",
+                mensagem: "⏳ AGUARDANDO NA FILA...",
+                data: new Date(),
+                dnsList: listaDns
+            };
+
+            // Remove duplicados da fila para o mesmo MAC e adiciona o novo
+            pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
+            pedidos.push(novoPedido);
+        }
+
+        // Devolve o status correto para o servidor do Gestorv3 saber que recebemos
+        res.status(statusEnviado).send(conteudoEnviado || "OK");
+
+    } catch (err) {
+        console.error("❌ Erro ao interceptar Webhook para a fila do Puppeteer:", err.message);
+        res.status(500).send("Erro interno");
+    }
+});
+
+// --- ROTAS DE AUTOMAÇÃO MANUAL (FRONT-END) ---
 app.post('/ativar', (req, res) => {
     const { mac, key, usuario, senha, tipo } = req.body;
     const novoPedido = {
@@ -62,7 +115,7 @@ app.post('/ativar', (req, res) => {
         status: "pendente",
         mensagem: "⏳ AGUARDANDO NA FILA...",
         data: new Date(),
-        dnsList: listaDns // Injeta a lista de DNS automaticamente no pedido para o bot usar
+        dnsList: listaDns 
     };
     pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
     pedidos.push(novoPedido);
@@ -80,6 +133,7 @@ app.get('/status', (req, res) => {
     }
 });
 
+// --- MOTOR DE GERENCIAMENTO DA FILA DO PUPPETEER ---
 async function gerenciarFila() {
     if (processandoAgora || pedidos.length === 0) {
         setTimeout(gerenciarFila, 3000);
