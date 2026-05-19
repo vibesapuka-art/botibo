@@ -78,8 +78,10 @@
                 <div id="step2" class="step-panel space-y-3">
                     <p class="text-center text-xs text-gray-400 uppercase tracking-wider">Passo 2: Instale o Aplicativo</p>
                     <div id="app-recomendado" class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-sm">
-                        </div>
-                    <button onclick="irParaPasso(3)" class="w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg">Já instalei o Aplicativo! 👍</button>
+                    </div>
+                    <button id="btn-avancar-passo2" onclick="preGerarAcessoNetplay()" class="w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg flex items-center justify-center gap-2">
+                        <span>Já instalei o Aplicativo! 👍</span>
+                    </button>
                     <button onclick="voltarParaPasso(1)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
 
@@ -98,6 +100,17 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     </div>
 
                     <div class="space-y-2 pt-2 border-t border-gray-800">
+                        <div class="grid grid-cols-2 gap-2 bg-purple-950/20 p-2 rounded-lg border border-purple-900/30">
+                            <div>
+                                <label class="block text-[8px] text-purple-400 uppercase font-bold pl-1 mb-0.5">Seu Usuário Gerado</label>
+                                <input type="text" id="teste-usuario-gerado" disabled class="w-full p-2 bg-black/50 border border-purple-900/40 rounded-lg text-xs text-purple-300 font-mono text-center cursor-not-allowed">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] text-purple-400 uppercase font-bold pl-1 mb-0.5">Sua Senha Gerada</label>
+                                <input type="text" id="teste-senha-gerada" disabled class="w-full p-2 bg-black/50 border border-purple-900/40 rounded-lg text-xs text-purple-300 font-mono text-center cursor-not-allowed">
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-2">
                             <input type="text" id="teste-nome" placeholder="Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
                             <input type="text" id="teste-sobrenome" placeholder="Sobrenome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
@@ -128,18 +141,18 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 pt-1">
-                        <button id="btn-gerar-sem" disabled onclick="solicitarTesteNetplay('sem_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Sem Adulto 🍃</button>
-                        <button id="btn-gerar-com" disabled onclick="solicitarTesteNetplay('com_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Com Adulto 🔥</button>
+                        <button id="btn-gerar-sem" disabled onclick="finalizarCadastroGestor('sem_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Sem Adulto 🍃</button>
+                        <button id="btn-gerar-com" disabled onclick="finalizarCadastroGestor('com_adulto')" class="p-3 bg-gray-800 text-gray-500 font-bold rounded-lg text-xs uppercase cursor-not-allowed">Com Adulto 🔥</button>
                     </div>
                     <button onclick="voltarParaPasso(2)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
                 </div>
 
                 <div id="step4" class="step-panel text-center py-4">
                     <div id="teste-carregando" class="space-y-2">
-                        <p id="status-texto-fila" class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 GERANDO SEU ACESSO NA NETPLAY...</p>
-                        <p id="status-subtexto-fila" class="text-[10px] text-gray-500">Aguarde, enviando dados para a Central do Gestor...</p>
+                        <p id="status-texto-fila" class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 ENVIANDO PARA O GESTORV3...</p>
+                        <p id="status-subtexto-fila" class="text-[10px] text-gray-500">Sincronizando seus dados e ativando no WhatsApp...</p>
                         <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden mt-2">
-                            <div id="barra-progresso-teste" class="bg-[#a855f7] h-full w-1/4 transition-all duration-500"></div>
+                            <div id="barra-progresso-teste" class="bg-[#a855f7] h-full w-2/4 transition-all duration-500"></div>
                         </div>
                     </div>
                     
@@ -190,6 +203,9 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
         let dispositivoSelecionado = '';
         let intervaloStatus = null;
         let instalador;
+
+        // Armazenamento temporário das credenciais geradas na Netplay antes de salvar no Gestor
+        let dadosNetplayTemporarios = null;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -279,7 +295,41 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
             }
         }
 
-        async function solicitarTesteNetplay(tipo) {
+        // --- NOVA ETAPA: GERA O TESTE NA SEGUNDA TELA EM BACKGROUND ---
+        async function preGerarAcessoNetplay() {
+            const btn = document.getElementById('btn-avancar-passo2');
+            const txtOriginal = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Gerando seu teste...</span>`;
+
+            try {
+                // Solicita a criação prévia na rota dedicada do backend
+                const response = await fetch('/api/pre-gerar-teste', { method: 'POST' });
+                const json = await response.json();
+
+                if (json.success && json.dados) {
+                    dadosNetplayTemporarios = json.dados;
+                    
+                    // Alimenta os inputs travados do Passo 3
+                    document.getElementById('teste-usuario-gerado').value = json.dados.username;
+                    document.getElementById('teste-senha-gerada').value = json.dados.password;
+
+                    // Avança para o passo de preenchimento dos dados do cliente
+                    irParaPasso(3);
+                } else {
+                    alert("Não conseguimos iniciar o seu painel de testes: " + (json.mensagem || "Erro na Netplay"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Falha de comunicação ao gerar o teste.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = txtOriginal;
+            }
+        }
+
+        // --- ENVIAR INFORMAÇÕES PESSOAIS E REGISTRAR NO GESTOR ---
+        async function finalizarCadastroGestor(tipoAdulto) {
             const nomeCliente = document.getElementById('teste-nome').value.trim();
             const sobrenomeCliente = document.getElementById('teste-sobrenome').value.trim();
             const dataNascimento = document.getElementById('teste-nascimento').value;
@@ -295,15 +345,17 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
             }
 
             if (dispositivoSelecionado === 'smart_tv' && (!mac || !key)) {
-                return alert("Para Smart TVs, preencha o MAC Address e a Key para que o sistema configure sua TV de forma automática!");
+                return alert("Para Smart TVs, preencha o MAC Address e a Key para podermos ligar o robô!");
+            }
+
+            if (!dadosNetplayTemporarios) {
+                return alert("Erro crítico: As credenciais da Netplay não foram localizadas. Recarregue a página.");
             }
 
             irParaPasso(4);
             document.getElementById('teste-carregando').style.display = 'block';
             document.getElementById('teste-resultado').style.display = 'none';
-            document.getElementById('barra-progresso-teste').style.width = "30%";
-            document.getElementById('status-texto-fila').innerText = "📡 GERANDO SEU ACESSO NA NETPLAY...";
-            document.getElementById('status-subtexto-fila').innerText = "Aguarde, processando as credenciais...";
+            document.getElementById('barra-progresso-teste').style.width = "40%";
 
             try {
                 const response = await fetch('/api/teste-gratis', {
@@ -311,7 +363,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         whatsapp: whatsapp,
-                        tipoTeste: tipo,
+                        tipoTeste: tipoAdulto,
                         nomeCliente: nomeCliente,
                         sobrenomeCliente: sobrenomeCliente,
                         dataNascimento: dataNascimento,
@@ -319,7 +371,10 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                         dispositivo: dispositivoSelecionado,
                         mac: mac,
                         key: key,
-                        termoAceito: aceito
+                        termoAceito: aceito,
+                        // Enviamos as credenciais que já estavam na tela para salvar no GestorV3
+                        username: dadosNetplayTemporarios.username,
+                        password: dadosNetplayTemporarios.password
                     })
                 });
 
@@ -327,15 +382,15 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                 const divResult = document.getElementById('teste-resultado');
 
                 if (json.success) {
-                    document.getElementById('t-res-dns').innerText = json.dados.dns || "http://galaxy.blcplay.com";
-                    document.getElementById('t-res-user').innerText = json.dados.username;
-                    document.getElementById('t-res-pass').innerText = json.dados.password;
-                    document.getElementById('t-res-venc').innerText = json.dados.validade || "12 Horas";
+                    document.getElementById('t-res-dns').innerText = dadosNetplayTemporarios.dns || "http://galaxy.blcplay.com";
+                    document.getElementById('t-res-user').innerText = dadosNetplayTemporarios.username;
+                    document.getElementById('t-res-pass').innerText = dadosNetplayTemporarios.password;
+                    document.getElementById('t-res-venc').innerText = dadosNetplayTemporarios.validade || "12 Horas";
                     
                     if (dispositivoSelecionado === 'smart_tv' && mac) {
-                        document.getElementById('barra-progresso-teste').style.width = "60%";
-                        document.getElementById('status-texto-fila').innerText = "⚙️ AGUARDANDO NA FILA DO ROBÔ...";
-                        document.getElementById('status-subtexto-fila').innerText = "Preparando injeção de listas no aplicativo da sua TV. Não saia desta página.";
+                        document.getElementById('barra-progresso-teste').style.width = "70%";
+                        document.getElementById('status-texto-fila').innerText = "⚙️ FILA: AGUARDANDO ROBÔ DO SERVIDOR...";
+                        document.getElementById('status-subtexto-fila').innerText = "Injetando a lista de canais no aplicativo da sua TV. Não feche a página.";
                         monitorarFilaSmartTV(mac);
                     } else {
                         document.getElementById('teste-carregando').style.display = 'none';
@@ -343,13 +398,13 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     }
                 } else {
                     document.getElementById('teste-carregando').style.display = 'none';
-                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ NÃO FOI POSSÍVEL GERAR</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                    divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-500 uppercase">⚠️ ERRO NO CADASTRO</p><p class="text-center text-[11px] text-gray-400 mt-2">${json.mensagem}</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                     divResult.style.display = 'block';
                 }
             } catch (e) {
                 document.getElementById('teste-carregando').style.display = 'none';
                 const divResult = document.getElementById('teste-resultado');
-                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA NA CONEXÃO</p><p class="text-center text-[11px] text-gray-400 mt-2">O servidor não respondeu. Tente novamente mais tarde.</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
+                divResult.innerHTML = `<p class="text-center text-xs font-bold text-red-600 uppercase">❌ FALHA GERAL</p><p class="text-center text-[11px] text-gray-400 mt-2">Erro ao conectar com o servidor central.</p><button onclick="voltarParaPasso(3)" class="w-full bg-gray-700 text-white font-bold py-2 rounded-lg text-xs uppercase mt-4">Tentar Novamente</button>`;
                 divResult.style.display = 'block';
             }
         }
@@ -363,7 +418,7 @@ Informamos que os aplicativos IB PLAYER PRO e NETPLAY são ferramentas pagas par
                     const s = await res.json();
                     
                     if (s.status === "processando") {
-                        document.getElementById('barra-progresso-teste').style.width = "75%";
+                        document.getElementById('barra-progresso-teste').style.width = "85%";
                         document.getElementById('status-texto-fila').innerText = "⚙️ INJETANDO LISTAS NA SMART TV...";
                         document.getElementById('status-subtexto-fila').innerText = s.mensagem.toUpperCase();
                     } else if (s.status === "ok") {
