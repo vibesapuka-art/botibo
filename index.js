@@ -1,12 +1,11 @@
 const express = require('express');
 const cors = require('cors'); 
 const app = express();
-const axios = require('axios'); // Responsável por enviar os dados da Netplay + Cliente para o GestorV3
+const axios = require('axios');
 
 // IMPORTAÇÃO DA LISTA DE DNS (Garanta que o arquivo existe em src/config/dns.js)
 const listaDns = require('./src/config/dns.js');
 
-// Liberação de segurança para o site ler os dados do servidor
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
@@ -20,88 +19,89 @@ const { gerarTesteGratis } = require('./src/bot/teste_gratis');
 let pedidos = [];
 let processandoAgora = false;
 
-// --- ROTA DE TESTE GRÁTIS: GERA NA NETPLAY -> CADASTRA NO GESTOR -> ATIVA SMART TV ---
-app.post('/api/teste-gratis', async (req, res, next) => {
-    // Interceptamos a resposta JSON para capturar o exato momento que a Netplay gera o teste
-    const jsonOriginal = res.json;
+// --- ROTA NOVA: APENAS PRÉ-GERA O USER/PASS NA NETPLAY (ACIONADO NO PASSO 2) ---
+app.post('/api/pre-gerar-teste', async (req, res, next) => {
+    console.log("🎲 [Netplay] Pré-gerando credenciais em background...");
     
-    res.json = async function (dados) {
-        // Se o teste foi gerado com total sucesso na Netplay
-        if (dados && dados.success && dados.dados) {
-            try {
-                // 1. Pegamos os dados pessoais enviados pelo formulário do seu site
-                const { 
-                    nomeCliente, 
-                    sobrenomeCliente, 
-                    dataNascimento, 
-                    codPais, 
-                    whatsapp, 
-                    dispositivo, 
-                    mac, 
-                    key 
-                } = req.body;
+    // Forçamos um corpo temporário para o módulo gerarTesteGratis rodar sem dar erro de falta de dados
+    req.body.whatsapp = "00000000000"; 
+    req.body.tipoTeste = "com_adulto";
 
-                // 2. Pegamos o Usuário e Senha oficiais criados pela Netplay
-                const userNetplay = dados.dados.username;
-                const passNetplay = dados.dados.password;
-
-                console.log(`✨ Netplay gerou credenciais com sucesso! User: ${userNetplay} | Pass: ${passNetplay}`);
-                console.log(`🚀 Enviando dados de ${nomeCliente} para cadastro reverso no GestorV3...`);
-
-                // 3. Cadastra o cliente no GestorV3 passando os dados dele + Usuário e Senha que a Netplay gerou!
-                try {
-                    await axios.post('https://gestorv3.pro/imperiumtv/central/registrar/', {
-                        nome: nomeCliente || "",
-                        sobrenome: sobrenomeCliente || "",
-                        username: userNetplay, // Usa o usuário que veio da Netplay
-                        password: passNetplay, // Usa a senha que veio da Netplay
-                        data_nascimento: dataNascimento || "",
-                        cod_pais: codPais || "55",
-                        whatsapp: whatsapp.replace(/\D/g, ''),
-                        dispositivo: dispositivo || "celular",
-                        mac: mac ? mac.trim() : "",
-                        key: key ? key.trim() : ""
-                    }, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-                        },
-                        timeout: 15000 // Aguarda o Gestor processar e salvar
-                    });
-                    console.log(`💾 Cliente registrado com sucesso no GestorV3 e mensagem disparada.`);
-                } catch (errGestor) {
-                    console.error("⚠️ Falha ao registrar no GestorV3, mas prosseguindo com o fluxo:", errGestor.message);
-                }
-
-                // 4. REGRA DAS SMART TVS: Se o cliente escolheu Samsung, LG ou Roku, adiciona na fila do robô
-                const listaSmartTV = ['samsung', 'lg', 'roku', 'sansung', 'lgs'];
-                if (dispositivo && listaSmartTV.includes(dispositivo.toLowerCase()) && mac && key) {
-                    console.log(`📺 Smart TV detectada. Injetando dados da Netplay na fila do engine.js...`);
-                    
-                    pedidos.push({
-                        id: Date.now().toString(),
-                        status: "aguardando",
-                        tipo: "adicionar",
-                        mac: mac.trim(),
-                        key: key.trim(),
-                        device_id: key.trim(),
-                        user: userNetplay, // Passa o login da Netplay pro robô
-                        pass: passNetplay, // Passa a senha da Netplay pro robô
-                        mensagem: "⏱️ NA FILA DE ESPERA..."
-                    });
-                }
-
-            } catch (error) {
-                console.error("❌ Erro interno no pós-processamento do teste grátis:", error.message);
-            }
-        }
-        
-        // Devolve o JSON original para o navegador do cliente atualizar a tela do site
-        return jsonOriginal.call(this, dados);
-    };
-
-    // Deixa rodar o seu script original de geração da Netplay
     return gerarTesteGratis(req, res, next);
+});
+
+// --- ROTA DE CONCLUSÃO: PEGA OS DADOS DA TELA E INJETA NO GESTORV3 E NO ROBÔ TV ---
+app.post('/api/teste-gratis', async (req, res) => {
+    const { 
+        whatsapp, 
+        nomeCliente, 
+        sobrenomeCliente, 
+        dataNascimento, 
+        codPais, 
+        dispositivo, 
+        mac, 
+        key,
+        username, // Recebe o usuário gerado e travado na tela
+        password  // Recebe a senha gerada e travada na tela
+    } = req.body;
+
+    if (!whatsapp) {
+        return res.json({ success: false, mensagem: "O WhatsApp é obrigatório!" });
+    }
+
+    try {
+        console.log(`🚀 [Cadastro Gestor] Vinculando ${nomeCliente} ao login Netplay: ${username}`);
+
+        // Envia o formulário completo e amarrado com o Login/Senha pré-gerados para o GestorV3
+        try {
+            await axios.post('https://gestorv3.pro/imperiumtv/central/registrar/', {
+                nome: nomeCliente || "",
+                sobrenome: sobrenomeCliente || "",
+                username: username, 
+                password: password, 
+                data_nascimento: dataNascimento || "",
+                cod_pais: codPais || "55",
+                whatsapp: whatsapp.replace(/\D/g, ''),
+                dispositivo: dispositivo || "celular",
+                mac: mac ? mac.trim() : "",
+                key: key ? key.trim() : ""
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                },
+                timeout: 15000
+            });
+            console.log(`💾 Registrado com sucesso no GestorV3!`);
+        } catch (errGestor) {
+            console.error("⚠️ GestorV3 retornou erro no salvamento, ignorando para não travar o cliente:", errGestor.message);
+        }
+
+        // SE FOR SMART TV (SAMSUNG / LG / RUKU): Coloca imediatamente no motor do Puppeteer
+        const listaSmartTV = ['samsung', 'lg', 'roku', 'sansung', 'lgs'];
+        if (dispositivo && listaSmartTV.includes(dispositivo.toLowerCase()) && mac && key) {
+            console.log(`📺 Smart TV detectada. Adicionando ${mac} na fila do robô.`);
+            
+            pedidos.push({
+                id: Date.now().toString(),
+                status: "aguardando",
+                tipo: "adicionar",
+                mac: mac.trim(),
+                key: key.trim(),
+                device_id: key.trim(),
+                user: username,
+                pass: password,
+                mensagem: "⏱️ AGUARDANDO ROBÔ..."
+            });
+        }
+
+        // Retorna positivo para o site finalizar de carregar a tela
+        return res.json({ success: true });
+
+    } catch (error) {
+        console.error("❌ Erro ao finalizar teste completo:", error.message);
+        res.status(500).json({ success: false, mensagem: "Erro interno no servidor." });
+    }
 });
 
 // --- ROTA DE CONSULTA DO PAINEL ---
@@ -118,18 +118,17 @@ app.get('/api/cliente', async (req, res) => {
     }
 });
 
-// --- ROTA DO WEBHOOK (Usado de forma passiva nas vendas normais do Gestor) ---
+// --- ROTA DO WEBHOOK RECEPTOR ---
 app.post('/webhook', async (req, res) => {
-    console.log("📥 WEBHOOK RECEBIDO DO GESTORV3:", JSON.stringify(req.body, null, 2));
     try {
         await processarWebhook(req, res);
     } catch (err) {
-        console.error("❌ Erro no processamento do webhook receptor:", err.message);
+        console.error("❌ Erro no webhook receptor:", err.message);
         if (!res.headersSent) res.status(500).send("Erro interno");
     }
 });
 
-// --- ROTAS DE STATUS E ATIVAÇÃO MANUAL ---
+// --- ROTAS MANUAIS DE ATIVAÇÃO E STATUS ---
 app.post('/ativar', (req, res) => {
     const { mac, key, usuario, senha, tipo } = req.body;
     const novoPedido = {
@@ -159,7 +158,7 @@ app.get('/status', (req, res) => {
     }
 });
 
-// --- MOTOR DE GERENCIAMENTO DA FILA DO PUPPETEER ---
+// --- ENGINE DA FILA DO PUPPETEER ---
 async function gerenciarFila() {
     if (processandoAgora || pedidos.length === 0) {
         setTimeout(gerenciarFila, 3000);
