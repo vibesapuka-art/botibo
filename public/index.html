@@ -182,7 +182,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
         function irParaPasso(passo, info = '') {
             if(info) dispositivoSelecionado = info;
-            console.log(`[FRONT] Indo para o Passo: ${passo} | Dispositivo: ${dispositivoSelecionado}`);
+            console.log(`[FRONT] Passo: ${passo} | Dispositivo: ${dispositivoSelecionado}`);
             
             if(passo === 2) {
                 const appBox = document.getElementById('app-recomendado');
@@ -205,18 +205,13 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             btn.className = aceito ? "w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg transition" : "w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed transition";
         }
 
-        // ENVIANDO DADOS COM LOGS BRUTOS
         async function gerarAcessoNetplay(tipo) {
             const nome = document.getElementById('teste-nome').value.trim();
             const whatsapp = document.getElementById('teste-whatsapp').value.trim();
 
-            console.log("[FRONT LOG] Clicou no botão de Geração de Teste");
-            console.log(`[FRONT LOG] Nome digitado: "${nome}"`);
-            console.log(`[FRONT LOG] WhatsApp digitado: "${whatsapp}"`);
-            console.log(`[FRONT LOG] Tipo do teste: "${tipo}"`);
+            console.log(`[FRONT] Nome: "${nome}" | WhatsApp: "${whatsapp}" | Tipo: "${tipo}"`);
 
             if (!nome || !whatsapp || whatsapp.length < 10) {
-                console.error("[FRONT LOG] Validação falhou: Nome ou WhatsApp em branco/incompleto");
                 return alert("Por favor, preencha o Nome e o WhatsApp com DDD corretamente.");
             }
 
@@ -225,7 +220,6 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             document.getElementById('teste-resultado').style.display = 'none';
 
             const payload = { whatsapp: whatsapp, nomeCliente: nome, tipoTeste: tipo };
-            console.log("[FRONT LOG] Enviando requisição POST para /api/teste-gratis com o payload:", payload);
 
             try {
                 const response = await fetch('/api/teste-gratis', {
@@ -234,9 +228,8 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                     body: JSON.stringify(payload)
                 });
 
-                console.log(`[FRONT LOG] Status HTTP recebido do Servidor: ${response.status}`);
                 const json = await response.json();
-                console.log("[FRONT LOG] Resposta JSON decodificada do Servidor:", json);
+                console.log("[FRONT] Resposta do Servidor:", json);
 
                 if (json.success) {
                     dadosLocaisAcesso = {
@@ -260,13 +253,12 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
                     irParaPasso(5);
                 } else {
-                    console.warn(`[FRONT LOG] Backend retornou erro de negócio: ${json.mensagem}`);
                     alert(json.mensagem || "Erro na criação do acesso.");
                     irParaPasso(4);
                 }
             } catch (e) { 
-                console.error("[FRONT LOG] Erro fatal de rede/conexão na chamada fetch:", e);
-                alert("Erro catastrófico de comunicação com o servidor. Veja o console (F12)."); 
+                console.error("[FRONT] Erro na chamada fetch:", e);
+                alert("Erro de comunicação com o servidor."); 
                 irParaPasso(4);
             }
         }
