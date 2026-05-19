@@ -3,14 +3,12 @@ const cors = require('cors');
 const app = express();
 const axios = require('axios');
 
-// IMPORTAÇÃO DA LISTA DE DNS
 const listaDns = require('./src/config/dns.js');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Importações dos motores de automação e módulos locais
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
@@ -19,17 +17,16 @@ const { gerarTesteGratis } = require('./src/bot/teste_gratis');
 let pedidos = [];
 let processandoAgora = false;
 
-// --- ROTA DE PRÉ-GERAÇÃO: RESPONSÁVEL POR BUSCAR O LOGIN VAZIO NA NETPLAY ---
+// ROTA DE PRÉ-GERAÇÃO: BUSCA O LOGIN VAZIO NA NETPLAY
 app.post('/api/pre-gerar-teste', async (req, res, next) => {
     console.log("🎲 [Netplay] Pré-gerando credenciais na rota isolada pós-termos...");
-    // Mockamos dados mínimos necessários exigidos pelo módulo interno original para não quebrar a chamada
-    req.body.whatsapp = "00000000000"; 
-    req.body.tipoTeste = "com_adulto";
+    req.body.whatsapp = req.body.whatsapp ? req.body.whatsapp.replace(/\D/g, '') : "00000000000"; 
+    req.body.tipoTeste = req.body.tipoTeste || "com_adulto";
 
     return gerarTesteGratis(req, res, next);
 });
 
-// --- ROTA DEFINITIVA: SALVA OS DADOS DO CLIENTE AMARRADOS COM O LOGIN JÁ GERADO ---
+// ROTA DEFINITIVA: SALVA OS DADOS DO CLIENTE VINCULANDO COM O LOGIN RETORNADO
 app.post('/api/teste-gratis', async (req, res) => {
     const { 
         whatsapp, 
@@ -47,15 +44,17 @@ app.post('/api/teste-gratis', async (req, res) => {
     if (!whatsapp) {
         return res.json({ success: false, mensagem: "O WhatsApp é obrigatório!" });
     }
+    if (!username || !password) {
+        return res.json({ success: false, mensagem: "As credenciais pré-geradas não foram repassadas corretamente!" });
+    }
 
     try {
         console.log(`🚀 [GestorV3] Sincronizando dados de ${nomeCliente} para o acesso ${username}`);
 
-        // Encaminha as informações e amarra o usuário fixo direto no GestorV3
         try {
             await axios.post('https://gestorv3.pro/imperiumtv/central/registrar/', {
-                nome: nomeCliente || "",
-                sobrenome: sobrenomeCliente || "",
+                nome: nomeCliente || "Cliente",
+                sobrenome: sobrenomeCliente || "Imperium",
                 username: username, 
                 password: password, 
                 data_nascimento: dataNascimento || "",
@@ -73,10 +72,9 @@ app.post('/api/teste-gratis', async (req, res) => {
             });
             console.log(`💾 Cliente devidamente fixado no painel do Gestor!`);
         } catch (errGestor) {
-            console.error("⚠️ Alerta: GestorV3 respondeu instável, prosseguindo com a fila da TV:", errGestor.message);
+            console.error("⚠️ Alerta: GestorV3 respondeu instável, prosseguindo com fluxo:", errGestor.message);
         }
 
-        // Se for uma Smart TV, adiciona imediatamente na fila do Puppeteer (engine.js)
         const listaSmartTV = ['smart_tv', 'samsung', 'lg', 'roku', 'sansung', 'lgs'];
         if (dispositivo && listaSmartTV.includes(dispositivo.toLowerCase()) && mac && key) {
             console.log(`📺 Smart TV na fila: Jogando ${mac} para o injetor Puppeteer.`);
@@ -94,15 +92,14 @@ app.post('/api/teste-gratis', async (req, res) => {
             });
         }
 
-        return res.json({ success: true });
+        return res.json({ success: true, mensagem: "Cadastro vinculado com sucesso!" });
 
     } catch (error) {
         console.error("❌ Falha crítica no cadastro final:", error.message);
-        res.status(500).json({ success: false, message: "Erro no servidor principal." });
+        res.status(500).json({ success: false, message: "Erro no servidor principal durante a amarração." });
     }
 });
 
-// --- DEMAIS ROTAS DA APLICAÇÃO PRESERVADAS ---
 app.get('/api/cliente', async (req, res) => {
     const finalWhatsApp = req.query.id; 
     if (!finalWhatsApp) return res.json({ success: false, mensagem: "ID não fornecido." });
