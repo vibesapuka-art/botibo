@@ -1,0 +1,157 @@
+<div id="tutorial-smart-tv" class="space-y-4">
+    
+    <div id="sub-step-1" class="space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">📺 PASSO 1: Instale o IB Player Pro</p>
+        <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2 text-xs text-gray-300">
+            <p>1️⃣ Vá até a loja de aplicativos da sua Smart TV.</p>
+            <p>2️⃣ Procure por <span class="text-purple-400 font-bold">IB Player Pro</span> (ou IBO Player) e faça a instalação.</p>
+            <p>3️⃣ Abra o aplicativo e localize as informações na tela inicial.</p>
+        </div>
+        <button onclick="proximaEtapaTv(2)" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg uppercase text-xs transition shadow-lg">
+            Pronto, já instalei! Avançar ➡
+        </button>
+    </div>
+
+    <div id="sub-step-2" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">🔐 PASSO 2: Validar seu Acesso</p>
+        <div class="space-y-2">
+            <input type="text" id="smart-nome" placeholder="Seu Nome" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+            <input type="text" id="smart-whatsapp" placeholder="WhatsApp com DDD (Ex: 44999999999)" class="w-full p-2.5 bg-[#0f0f0f] border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-[#a855f7]">
+        </div>
+        <button onclick="gerarDadosIniciaisNetplay()" class="w-full bg-[#a855f7] hover:bg-purple-600 text-white font-bold py-3 rounded-lg uppercase text-xs transition shadow-lg">
+            ⚡ Gerar Teste Grátis
+        </button>
+        <button onclick="proximaEtapaTv(1)" class="w-full text-gray-500 text-center text-xs uppercase py-1">⬅ Voltar</button>
+    </div>
+
+    <div id="sub-step-3" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">🔌 PASSO 3: Sincronizar com a sua TV</p>
+        <div class="bg-[#0f0f0f] p-3 rounded-lg border border-gray-800 text-[11px] text-gray-400">
+            ✅ Seu teste foi criado! Agora, digite o <b>MAC Address</b> e a <b>Device Key</b> que estão aparecendo na tela da sua TV para o robô fazer o envio automático.
+        </div>
+
+        <div class="space-y-2 pt-1">
+            <input type="text" id="smart-mac" placeholder="MAC ADDRESS (Ex: AA:BB:CC:11:22:33)" class="w-full p-2.5 bg-[#0f0f0f] border border-purple-900 rounded-lg text-xs text-white uppercase font-mono outline-none focus:border-[#a855f7]">
+            <input type="text" id="smart-key" placeholder="DEVICE KEY / PASSWORD" class="w-full p-2.5 bg-[#0f0f0f] border border-purple-900 rounded-lg text-xs text-white font-mono outline-none focus:border-[#a855f7]">
+            
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase font-bold pl-1">Usuário Gerado</label>
+                    <input type="text" id="smart-user" readonly class="w-full p-2 bg-[#141414] border border-gray-800 rounded text-xs text-purple-400 font-mono outline-none cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase font-bold pl-1">Senha Gerada</label>
+                    <input type="text" id="smart-pass" readonly class="w-full p-2 bg-[#141414] border border-gray-800 rounded text-xs text-purple-400 font-mono outline-none cursor-not-allowed">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="dispararEngineIbo()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg uppercase text-xs transition shadow-lg">
+            🚀 Enviar Lista para a TV
+        </button>
+    </div>
+
+    <div id="sub-step-4" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">📡 STATUS DO ENVIO</p>
+        <div id="status-envio-smart" class="text-center py-6 bg-[#0f0f0f] border border-gray-800 rounded-lg space-y-3">
+            <p class="text-xs text-[#a855f7] font-bold uppercase tracking-widest animate-pulse">📡 Seu robô está injetando a lista...</p>
+            <p class="text-[10px] text-gray-500 uppercase">Aguarde cerca de 20 segundos enquanto finalizamos.</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Navegação interna das telas do tutorial
+    function proximaEtapaTv(passo) {
+        document.querySelectorAll('#tutorial-smart-tv [id^="sub-step-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`sub-step-${passo}`).classList.remove('hidden');
+    }
+
+    // 1. CHAMA A SUA API DE TESTE GRÁTIS DO PAINEL DA NETPLAY E TRAZ OS DADOS PRONTOS
+    async function gerarDadosIniciaisNetplay() {
+        const nome = document.getElementById('smart-nome').value.trim();
+        const whatsapp = document.getElementById('smart-whatsapp').value.trim();
+
+        if (!whatsapp || whatsapp.length < 10) {
+            return alert("Por favor, insira um número de WhatsApp com DDD válido.");
+        }
+
+        try {
+            // Executa a sua chamada existente para gerar o teste grátis
+            const response = await fetch('/api/teste-gratis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    whatsapp, 
+                    nomeCliente: nome || 'Cliente',
+                    tipoTeste: 'com_adulto', // Ajuste conforme preferir fixar ou puxar de um seletor
+                    dispositivo: dispositivoSelecionado 
+                })
+            });
+
+            const json = await response.json();
+
+            if (json.success && json.dados) {
+                // SUCESSO: Injeta o Usuário e a Senha que vieram da Netplay direto nos inputs visuais da aba playlist!
+                document.getElementById('smart-user').value = json.dados.username;
+                document.getElementById('smart-pass').value = json.dados.password;
+
+                // Avança para o Passo 3 onde o cliente insere o MAC/KEY
+                proximaEtapaTv(3);
+            } else {
+                alert(json.mensagem || "Erro ao gerar teste grátis.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Erro de comunicação com o servidor.");
+        }
+    }
+
+    // 2. DISPARA O PROCESSO DO SEU ENGINE.JS USANDO OS DADOS COMPLETOS DA TELA
+    async function dispararEngineIbo() {
+        const mac = document.getElementById('smart-mac').value.trim();
+        const key = document.getElementById('smart-key').value.trim();
+        const user = document.getElementById('smart-user').value;
+        const pass = document.getElementById('smart-pass').value;
+
+        if (!mac || !key) {
+            return alert("O preenchimento do MAC e da KEY da TV é obrigatório!");
+        }
+
+        // Vai para a tela de processamento em tempo real
+        proximaEtapaTv(4);
+
+        try {
+            // Envia para o seu Webhook ou endpoint de fila do index.js para acionar o engine
+            const response = await fetch('/api/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    // Estrutura idêntica à que o seu gestor manda para popular o pedido
+                    event: "pedido.adicionar",
+                    mac: mac,
+                    key: key,
+                    device_id: key,
+                    user: user,
+                    pass: pass
+                })
+            });
+
+            const json = await response.json();
+
+            if (json.success) {
+                document.getElementById('status-envio-smart').innerHTML = `
+                    <p class="text-center text-xs font-bold text-[#22c55e] uppercase">🎉 PROCESSO ENVIADO COM SUCESSO!</p>
+                    <p class="text-[11px] text-gray-300 px-3">O robô foi iniciado em segundo plano na fila do painel e as listas estão sendo injetadas na sua TV. Já pode abrir o app!</p>
+                `;
+            } else {
+                alert(json.mensagem || "Erro ao enfileirar automação.");
+                proximaEtapaTv(3);
+            }
+        } catch (e) {
+            alert("Erro ao conectar com o motor de listas.");
+            proximaEtapaTv(3);
+        }
+    }
+</script>
