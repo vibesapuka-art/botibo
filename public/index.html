@@ -145,7 +145,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                     <div id="teste-resultado" class="hidden text-left space-y-3">
                         <p class="text-center text-xs font-bold text-[#22c55e] uppercase tracking-wider">🎉 PROTOCOLO FINALIZADO!</p>
                         <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 text-center text-xs text-gray-300">
-                            Acesso configurado. Caso use Smart TV, as listas foram enviadas ao dispositivo. Já pode abrir o app e assistir!
+                            Acesso configurado com sucesso!
                         </div>
                     </div>
                 </div>
@@ -182,7 +182,8 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
         function irParaPasso(passo, info = '') {
             if(info) dispositivoSelecionado = info;
-
+            console.log(`[FRONT] Indo para o Passo: ${passo} | Dispositivo: ${dispositivoSelecionado}`);
+            
             if(passo === 2) {
                 const appBox = document.getElementById('app-recomendado');
                 appBox.innerHTML = `<p class="font-bold text-[#a855f7] mb-1">Recomendado: NETPLAY / IBO PLAYER</p>`;
@@ -204,12 +205,18 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             btn.className = aceito ? "w-full bg-[#a855f7] text-white font-bold py-3 rounded-lg uppercase text-xs shadow-lg transition" : "w-full bg-gray-800 text-gray-500 font-bold py-3 rounded-lg uppercase text-xs cursor-not-allowed transition";
         }
 
-        // ENVIANDO NOME E WHATSAPP DIRETO PARA A SUA API EXECUTAR NO PAINEL MASTER
+        // ENVIANDO DADOS COM LOGS BRUTOS
         async function gerarAcessoNetplay(tipo) {
             const nome = document.getElementById('teste-nome').value.trim();
             const whatsapp = document.getElementById('teste-whatsapp').value.trim();
 
+            console.log("[FRONT LOG] Clicou no botão de Geração de Teste");
+            console.log(`[FRONT LOG] Nome digitado: "${nome}"`);
+            console.log(`[FRONT LOG] WhatsApp digitado: "${whatsapp}"`);
+            console.log(`[FRONT LOG] Tipo do teste: "${tipo}"`);
+
             if (!nome || !whatsapp || whatsapp.length < 10) {
+                console.error("[FRONT LOG] Validação falhou: Nome ou WhatsApp em branco/incompleto");
                 return alert("Por favor, preencha o Nome e o WhatsApp com DDD corretamente.");
             }
 
@@ -217,19 +224,19 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             document.getElementById('teste-carregando').style.display = 'block';
             document.getElementById('teste-resultado').style.display = 'none';
 
+            const payload = { whatsapp: whatsapp, nomeCliente: nome, tipoTeste: tipo };
+            console.log("[FRONT LOG] Enviando requisição POST para /api/teste-gratis com o payload:", payload);
+
             try {
-                // Aqui faz o POST enviando os parâmetros coletados limpos
                 const response = await fetch('/api/teste-gratis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        whatsapp: whatsapp,
-                        nomeCliente: nome,
-                        tipoTeste: tipo 
-                    })
+                    body: JSON.stringify(payload)
                 });
 
+                console.log(`[FRONT LOG] Status HTTP recebido do Servidor: ${response.status}`);
                 const json = await response.json();
+                console.log("[FRONT LOG] Resposta JSON decodificada do Servidor:", json);
 
                 if (json.success) {
                     dadosLocaisAcesso = {
@@ -253,16 +260,17 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
                     irParaPasso(5);
                 } else {
+                    console.warn(`[FRONT LOG] Backend retornou erro de negócio: ${json.mensagem}`);
                     alert(json.mensagem || "Erro na criação do acesso.");
                     irParaPasso(4);
                 }
             } catch (e) { 
-                alert("Erro de comunicação com o servidor."); 
+                console.error("[FRONT LOG] Erro fatal de rede/conexão na chamada fetch:", e);
+                alert("Erro catastrófico de comunicação com o servidor. Veja o console (F12)."); 
                 irParaPasso(4);
             }
         }
 
-        // FINALIZAÇÃO SEM INTERMEDIÁRIOS
         async function finalizarFluxo() {
             if (dispositivoSelecionado !== 'smart_tv') {
                 irParaPasso(6);
@@ -274,13 +282,10 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             const mac = document.getElementById('teste-mac').value.trim();
             const key = document.getElementById('teste-key').value.trim();
 
-            if (!mac || !key) {
-                return alert("O MAC e a Key são obrigatórios para parear sua TV.");
-            }
+            if (!mac || !key) return alert("O MAC e a Key são obrigatórios.");
 
             irParaPasso(6);
             document.getElementById('teste-carregando').style.display = 'block';
-            document.getElementById('teste-resultado').style.display = 'none';
 
             try {
                 await fetch('/ativar', {
@@ -294,7 +299,6 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
                         tipo: 'teste_gratis'
                     })
                 });
-
                 document.getElementById('teste-carregando').style.display = 'none';
                 document.getElementById('teste-resultado').style.display = 'block';
             } catch (e) {
@@ -303,8 +307,8 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             }
         }
 
-        async function consultarAssinatura() { /* ... */ }
-        async function processar() { /* ... */ }
+        async function consultarAssinatura() {}
+        async function processar() {}
 
         setModo('teste_gratis');
     </script>
