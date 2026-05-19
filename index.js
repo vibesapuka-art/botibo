@@ -2,17 +2,25 @@ const express = require('express');
 const cors = require('cors'); 
 const app = express();
 
+// IMPORTAÇÃO DA LISTA DE DNS (Garanta que o arquivo existe em src/config/dns.js)
+const listaDns = require('./src/config/dns.js');
+
 // Liberação de segurança para o site ler os dados do servidor
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Importações dos motores de automação e módulos locais
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
+const { gerarTesteGratis } = require('./src/bot/teste_gratis'); // Importando a nova lógica isolada
 
 let pedidos = [];
 let processandoAgora = false;
+
+// --- ROTA DO NOVO MÓDULO DE TESTE GRÁTIS (NETPLAY INTEGRADO) ---
+app.post('/api/teste-gratis', gerarTesteGratis);
 
 // --- ROTA DE CONSULTA PARA O PAINEL ---
 app.get('/api/cliente', async (req, res) => {
@@ -53,7 +61,8 @@ app.post('/ativar', (req, res) => {
         tipo: tipo,
         status: "pendente",
         mensagem: "⏳ AGUARDANDO NA FILA...",
-        data: new Date()
+        data: new Date(),
+        dnsList: listaDns // Injeta a lista de DNS automaticamente no pedido para o bot usar
     };
     pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
     pedidos.push(novoPedido);
@@ -109,4 +118,7 @@ async function gerenciarFila() {
 gerenciarFila();
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor Imperium TV Ativo na porta ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor Imperium TV Ativo na porta ${PORT}`);
+    console.log(`📡 ${listaDns.length} DNS carregados para o motor de ativação.`);
+});
