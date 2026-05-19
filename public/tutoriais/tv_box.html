@@ -1,0 +1,74 @@
+<div id="tutorial-tvbox" class="space-y-4">
+    
+    <div id="sub-step-1" class="space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">🛠️ PASSO 1: Preparando o Downloader</p>
+        <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2.5 text-xs text-gray-300">
+            <p>1️⃣ Na tela inicial da sua TV, vá até a <span class="text-white font-bold">Google Play Store</span> (Loja de aplicativos).</p>
+            <p>2️⃣ Na lupa de pesquisa, digite <span class="text-yellow-500 font-mono font-bold">"Downloader"</span>.</p>
+            <p>3️⃣ Clique em <span class="text-[#22c55e] font-bold">Instalar</span> no aplicativo laranja chamado <span class="text-white font-bold">Downloader by AFTVnews</span>.</p>
+            <p>4️⃣ Ao abrir o app pela primeira vez, clique em <span class="text-blue-400 font-bold">"Allow" (Permitir)</span> para liberar a memória.</p>
+        </div>
+        <button onclick="proximoSubPasso(2)" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-lg uppercase text-xs">Avançar para o Download ➡️</button>
+    </div>
+
+    <div id="sub-step-2" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">📥 PASSO 2: Baixando o App</p>
+        <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3 text-xs text-gray-300">
+            <p>Escolha **uma** das 3 formas abaixo para digitar dentro do app Downloader:</p>
+            
+            <div class="bg-gray-950 p-2.5 rounded border border-gray-800 space-y-1">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Opção 1 (Por Código):</p>
+                <p>Digite apenas: <span class="text-white font-mono font-bold bg-gray-900 px-1.5 py-0.5 rounded text-sm select-all">8454237</span> e clique em <span class="font-bold text-orange-500">Go</span>.</p>
+            </div>
+
+            <div class="bg-gray-950 p-2.5 rounded border border-gray-800 space-y-1">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Opção 2 (Link Curto):</p>
+                <p class="font-mono text-blue-400 select-all">http://aftv.news/8454237</p>
+            </div>
+
+            <div class="bg-gray-950 p-2.5 rounded border border-gray-800 space-y-1">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Opção 3 (Navegador):</p>
+                <p class="font-mono text-blue-400 select-all">https://dl.explouddev.com/netplay</p>
+            </div>
+
+            <p class="pt-1 text-center text-amber-400 font-bold animate-pulse">⏳ O download começará automaticamente. Assim que terminar, clique em "Install" (Instalar).</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <button onclick="proximoSubPasso(1)" class="w-full bg-gray-800 text-gray-400 font-bold py-2.5 rounded-lg uppercase text-xs">⬅️ Voltar</button>
+            <button onclick="proximoSubPasso(3)" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2.5 rounded-lg uppercase text-xs">Ir para o Teste ➡️</button>
+        </div>
+    </div>
+
+    <div id="sub-step-3" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">🔐 PASSO 3: Gerando seu Login</p>
+        
+        <div id="container-formulario-injetado" class="space-y-3"></div>
+        
+        <button onclick="proximoSubPasso(2)" class="w-full text-gray-500 font-bold py-1 text-center text-xs uppercase">⬅️ Voltar</button>
+    </div>
+
+    <div id="sub-step-4" class="hidden space-y-3">
+        <p class="text-center text-xs text-purple-400 font-bold uppercase tracking-wider">📺 PASSO 4: Sincronização e Acesso</p>
+        
+        <div id="container-credenciais-injetado"></div>
+
+        <div class="bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-2.5 text-xs text-gray-300">
+            <p>1️⃣ Abra o aplicativo <span class="text-orange-500 font-bold">NETPLAY 🟠</span> que você acabou de instalar na TV.</p>
+            <p>2️⃣ Na tela inicial, insira o seu <span class="text-[#a855f7] font-bold">USUÁRIO</span> e a sua <span class="text-[#a855f7] font-bold">SENHA</span> gerados acima.</p>
+            <p>3️⃣ Após preencher os dados, clique no botão <span class="text-blue-400 font-bold">"Adicionar Lista"</span>.</p>
+            <p>4️⃣ <span class="text-amber-400 font-bold">Aguarde alguns instantes:</span> O aplicativo irá carregar as informações e os canais.</p>
+            <p>5️⃣ Assim que a barra finalizar, clique no botão <span class="text-[#22c55e] font-bold">"Continuar"</span>.</p>
+        </div>
+        <p class="text-[9px] text-center text-gray-500 uppercase">🚀 Configuração concluída! Agora é só aproveitar todo o conteúdo na sua TV.</p>
+    </div>
+
+</div>
+
+<script>
+    // Gerenciador de navegação interna do tutorial
+    function proximoSubPasso(subPasso) {
+        document.querySelectorAll('[id^="sub-step-fx-"]').forEach(el => el.classList.add('hidden')); // Proteção de escopo
+        document.querySelectorAll('#tutorial-tvbox [id^="sub-step-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`sub-step-${subPasso}`).classList.remove('hidden');
+    }
+</script>
