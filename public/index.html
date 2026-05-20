@@ -234,3 +234,60 @@ Podemos prosseguir com seu teste grátis e configure as suas 5 listas? 👍
                         blocoSmart.classList.add('hidden');
                         btnFinal.innerText = "🚀 Finalizar Cadastro";
                     }
+
+                    // Move direto para o passo visual de sucesso sem abrir abas adicionais
+                    irParaPasso(5);
+
+                } else {
+                    alert(json.mensagem || "VOCÊ JÁ REALIZOU O TESTE!");
+                    irParaPasso(4);
+                }
+            } catch (e) { 
+                alert("Erro de comunicação com o servidor."); 
+                irParaPasso(4);
+            }
+        }
+
+        async function finalizarFluxo() {
+            if (dispositivoSelecionado !== 'smart_tv') {
+                irParaPasso(6);
+                document.getElementById('teste-carregando').style.display = 'none';
+                document.getElementById('teste-resultado').style.display = 'block';
+                return;
+            }
+
+            const mac = document.getElementById('teste-mac').value.trim();
+            const key = document.getElementById('teste-key').value.trim();
+
+            if (!mac || !key) return alert("O MAC e a Key são obrigatórios.");
+
+            irParaPasso(6);
+            document.getElementById('teste-carregando').style.display = 'block';
+
+            try {
+                await fetch('/ativar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mac: mac,
+                        key: key,
+                        usuario: document.getElementById('display-usuario').value,
+                        senha: document.getElementById('display-senha').value,
+                        tipo: 'teste_gratis'
+                    })
+                });
+                document.getElementById('teste-carregando').style.display = 'none';
+                document.getElementById('teste-resultado').style.display = 'block';
+            } catch (e) {
+                alert("Erro ao sincronizar listas na TV.");
+                irParaPasso(5);
+            }
+        }
+
+        async function consultarAssinatura() {}
+        async function processar() {}
+
+        setModo('teste_gratis');
+    </script>
+</body>
+</html>
