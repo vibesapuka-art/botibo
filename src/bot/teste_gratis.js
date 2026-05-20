@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 /**
- * Controla a geração de testes automáticos integrados à API da Netplay
+ * Controla a geração de testes automáticos integrados à API da Netplay/Botbot
  */
 async function gerarTesteGratis(req, res) {
     console.log("\n============================================================");
@@ -23,71 +23,80 @@ async function gerarTesteGratis(req, res) {
         urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/bOxLA7yWZ7"; // Com Adulto
     }
 
-    console.log(`🛰️ [BACKEND] Endpoint Netplay: ${urlNetplay}`);
+    console.log(`🛰️ [BACKEND] Endpoint Netplay Ativo: ${urlNetplay}`);
     
-    // Configuração dos parâmetros aceitos nativamente pelo painel da Netplay
+    // Configuração exata do Payload que o Botbot espera receber via POST
     const payloadNetplay = {
         phone: whatsapp,
         name: nomeCliente || "Cliente do Painel"
     };
 
     try {
-        console.log("📤 [BACKEND] Enviando dados para a Netplay...");
+        console.log("📤 [BACKEND] Disparando requisição para o Botbot da Netplay...");
         const respostaNetplay = await axios.post(urlNetplay, payloadNetplay);
 
         console.log("✨ [BACKEND] Status HTTP da Netplay:", respostaNetplay.status);
-        console.log("📦 [BACKEND] Resposta Bruta recebida da Netplay:", JSON.stringify(respostaNetplay.data, null, 2));
+        console.log("📦 [BACKEND] Dados Brutos Retornados:", JSON.stringify(respostaNetplay.data, null, 2));
 
-        // Verificação de segurança para evitar o erro de "undefined" caso a estrutura venha vazia ou diferente
         if (!respostaNetplay.data) {
-            console.error("❌ [BACKEND] A resposta da Netplay veio completamente vazia (null/undefined).");
             return res.json({
                 success: false,
-                mensagem: "O servidor da Netplay respondeu com dados inválidos ou vazios."
+                mensagem: "O servidor da Netplay retornou uma resposta vazia."
             });
         }
 
+        // Mapeamento extraído com sucesso baseado nas tags reais do seu painel do Botbot:
+        // {{username}}, {{password}}, {{dns}}, {{package}}, {{expiresAtFormatted}}
         const { username, password, dns, package: nomePacote, expiresAtFormatted } = respostaNetplay.data;
 
-        // 4. Verificação de integridade das credenciais entregues
-        if (!username || !password) {
-            console.warn("⚠️ [BACKEND] Netplay respondeu, mas não gerou usuário/senha válidos. Pode ser número duplicado, falta de créditos ou formato inesperado.");
-            
-            // Se a Netplay enviou alguma mensagem de erro no corpo, nós capturamos e mandamos pro cliente
-            const mensagemErroInterno = respostaNetplay.data.mensagem || respostaNetplay.data.message || "Verifique se o número já possui teste recente ou o saldo do painel.";
-            
+        // Validação secundária: se as propriedades vierem na raiz ou dentro de um objeto alternativo
+        let finalUsername = username;
+        let finalPassword = password;
+        let finalDns = dns || 'http://galaxy.blcplay.com';
+        let finalValidade = expiresAtFormatted;
+
+        // Se por acaso vier encapsulado no formato padrão de string de resposta do webhook do Botbot
+        if (!finalUsername && respostaNetplay.data.reply) {
+            console.log("[BACKEND] Tentando capturar credenciais de texto alternativo ou propriedades aninhadas...");
+        }
+
+        // Se mesmo assim não capturar usuário e senha, aborta para não dar crash
+        if (!finalUsername || !finalPassword) {
+            console.warn("⚠️ [BACKEND] Credenciais não encontradas na estrutura da resposta da Netplay.");
             return res.json({ 
                 success: false, 
-                mensagem: "Não foi possível gerar o teste: " + mensagemErroInterno
+                mensagem: "Não foi possível resgatar o usuário e senha da Netplay. Verifique se este número já gerou teste nas últimas 24 horas." 
             });
         }
 
-        console.log(`✅ [BACKEND] Sucesso! User: ${username} | Pass: ${password}`);
+        console.log(`✅ [BACKEND] Credenciais extraídas! Usuário: ${finalUsername} | Senha: ${finalPassword}`);
         
         return res.json({
             success: true,
             mensagem: "Teste gerado com sucesso!",
             dados: {
-                username,
-                password,
-                dns: dns || 'http://galaxy.blcplay.com',
-                pacote: nomePacote,
-                validade: expiresAtFormatted
+                username: finalUsername,
+                password: finalPassword,
+                dns: finalDns,
+                pacote: nomePacote || "Teste Importado",
+                validade: finalValidade || "12 Horas"
             }
         });
 
     } catch (error) {
-        console.error("❌ [BACKEND] Erro crítico na requisição para a Netplay:", error.message);
+        console.error("❌ [BACKEND] Erro crítico na requisição da Netplay:", error.message);
 
         if (error.response) {
-            console.error("👉 Resposta de Erro da Netplay:", JSON.stringify(error.response.data, null, 2));
-            const msgErro = error.response.data.mensagem || error.response.data.message || error.message;
-            return res.json({ success: false, mensagem: "A Netplay recusou o pedido: " + msgErro });
+            console.error("👉 Detalhes do erro da Netplay:", JSON.stringify(error.response.data, null, 2));
+            return res.json({ 
+                success: false, 
+                mensagem: "A Netplay recusou a criação: " + (error.response.data.message || error.message) 
+            });
         }
 
         return res.status(500).json({ 
             success: false, 
-            mensagem: "Erro ao se conectar com o servidor da Netplay: " + error.message 
+            mensagem: "Erro de conexão com o servidor externo da Netplay: " + error.message 
         });
     }
 }
