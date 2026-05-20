@@ -1,32 +1,34 @@
 const axios = require('axios');
+// IMPORTAÇÃO AJUSTADA: Volta duas pastas ou aponta direto para src/services dependendo de onde o teste_gratis está.
+// Se o seu teste_gratis.js estiver em src/controllers, o caminho correto é '../services/whatsapp_service'
+const { enviarMensagemTexto } = require('../services/whatsapp_service'); 
 
 /**
- * Controla a geração de testes automáticos via painel vinculando ao qpainel da Netplay
+ * Controla a geração de testes automáticos conectando à Netplay e 
+ * acionando a transação própria de WhatsApp de forma segura.
  */
 async function gerarTesteGratis(req, res) {
-    // Tratamento preventivo do número para garantir que tenha apenas dígitos e o DDI 55
     let whatsappLimpo = req.body.whatsapp ? req.body.whatsapp.replace(/\D/g, '') : "";
     if (whatsappLimpo && !whatsappLimpo.startsWith('55') && whatsappLimpo.length <= 11) {
         whatsappLimpo = '55' + whatsappLimpo;
     }
 
-    const { tipoTeste, nomeCliente, termoAceito } = req.body;
+    const { tipoTeste, nomeCliente } = req.body;
 
-    // 1. Validação de segurança básica
     if (!whatsappLimpo) {
         return res.json({ success: false, mensagem: "O número de WhatsApp é obrigatório para evitar papa-testes." });
     }
 
-    // 2. Define os endpoints do Botbot da Netplay (Com ou Sem Adulto)
+    // Gerenciador de rotas da Netplay (Com / Sem Adulto)
     let urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/we6Wn50DK8"; // Sem Adulto
     if (tipoTeste === 'com_adulto' || tipoTeste === 'com_adulto🔥') {
         urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/bOxLA7yWZ7"; // Com Adulto
     }
 
     try {
-        console.log(`📡 [Teste Grátis] Solicitando na Netplay para: ${whatsappLimpo} | Tipo: ${tipoTeste}`);
+        console.log(`📡 [Teste Grátis] Solicitando credenciais na Netplay para: ${whatsappLimpo}`);
 
-        // 3. Dispara os dados simulando o payload nativo que o BotBot espera para registrar o contato
+        // Requisição para gerar o teste no painel master
         const respostaNetplay = await axios.post(urlNetplay, {
             appName: "com.whatsapp",
             messageDateTime: Math.floor(Date.now() / 1000),
@@ -44,53 +46,44 @@ async function gerarTesteGratis(req, res) {
             timeout: 15000
         });
 
-        // Captura e normalização dos dados retornados
         const dadosNetplay = respostaNetplay.data || {};
         const username = dadosNetplay.username || (dadosNetplay.dados && dadosNetplay.dados.username);
         const password = dadosNetplay.password || (dadosNetplay.dados && dadosNetplay.dados.password);
-        const dns = dadosNetplay.dns || (dadosNetplay.dados && dadosNetplay.dados.dns) || 'http://galaxy.blcplay.com';
-        const nomePacote = dadosNetplay.package || dadosNetplay.pacote || "Teste Grátis";
-        const expiresAtFormatted = dadosNetplay.expiresAtFormatted || dadosNetplay.validade || "12 Horas";
+        const dns = dadosNetplay.dns || 'http://galaxy.blcplay.com';
 
-        // 4. Se a Netplay recusar (número duplicado ou limite estourado)
+        // Validação anti-fraude: se não vier credenciais, barramos na hora
         if (!username || !password) {
-            console.log(`⚠️ [Teste Grátis] Netplay barrou a geração para: ${whatsappLimpo} (Provável Duplicado)`);
-            return res.json({ 
-                success: false, 
-                mensagem: "VOCÊ JÁ REALIZOU O TESTE!" 
-            });
+            console.log(`⚠️ [Teste Grátis] Netplay bloqueou geração para: ${whatsappLimpo} (Provável Duplicado)`);
+            return res.json({ success: false, mensagem: "VOCÊ JÁ REALIZOU O TESTE!" });
         }
 
-        // 5. Devolve as credenciais com sucesso para o front-end montar o tutorial do cliente
-        console.log(`✅ [Teste Grátis] Sucesso para ${whatsappLimpo}! Usuário gerado: ${username}`);
+        const prazoExpiracao = dadosNetplay.expiresAtFormatted || dadosNetplay.validade || "6 Horas";
+        const agora = new Date();
+        const dataCriacao = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // TEXTO PADRÃO BLINDADO QUE ENTRARÁ DIRETO NO WHATSAPP DO CLIENTE
+        const mensagemWhats = `*TESTE GERADO COM SUCESSO!*\n\n` +
+                              `👤 *Usuário:* ${username}\n` +
+                              `🔑 *Senha:* ${password}\n` +
+                              `📅 *Data da Criação:* ${dataCriacao}\n` +
+                              `⏳ *Expiração:* ${prazoExpiracao}\n\n` +
+                              `🌐 *DNS/URL:* ${dns}`;
+
+        // Executa a transação de disparo em segundo plano usando seu novo serviço independente
+        enviarMensagemTexto(whatsappLimpo, mensagemWhats);
+
         return res.json({
             success: true,
-            mensagem: "Teste gerado e vinculado com sucesso!",
-            dados: {
-                username,
-                password,
-                dns,
-                pacote: nomePacote,
-                validade: expiresAtFormatted
-            }
+            mensagem: "TESTE GERADO COM SUCESSO VOCE RECEBERA SEU USUARIO E SENHA NO WHATSAAP EM BREVE!",
+            dados: { username, password, dns, validade: prazoExpiracao }
         });
 
     } catch (error) {
-        console.error("❌ Erro ao processar teste_gratis:", error.message);
-        
-        // Se a API deles responder com erro de status (ex: 400 ou 409), geralmente significa que o número já existe
+        console.error("❌ Erro ao processar fluxo teste_gratis:", error.message);
         if (error.response) {
-            console.log(`⚠️ [Teste Grátis] Netplay retornou erro de requisição. Retornando aviso de duplicado.`);
-            return res.json({ 
-                success: false, 
-                mensagem: "VOCÊ JÁ REALIZOU O TESTE!" 
-            });
+            return res.json({ success: false, mensagem: "VOCÊ JÁ REALIZOU O TESTE!" });
         }
-
-        return res.json({ 
-            success: false, 
-            mensagem: "Erro ao se conectar com o servidor da Netplay: " + error.message 
-        });
+        return res.json({ success: false, message: "Erro de comunicação com o servidor central." });
     }
 }
 
