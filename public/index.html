@@ -221,28 +221,9 @@ Podemos prosseguir com seu teste grátis e configure as suas 5 listas? 👍
                 const json = await response.json();
 
                 if (json.success) {
-                    // Armazena ocultamente os dados coletados para as rotas da TV se necessário
                     document.getElementById('display-usuario').value = json.dados.username;
                     document.getElementById('display-senha').value = json.dados.password;
                     
-                    // Pega o número limpo do destinatário
-                    let numDestinatario = whatsapp.replace(/\D/g, '');
-                    if (!numDestinatario.startsWith('55')) numDestinatario = '55' + numDestinatario;
-
-                    // Cria as datas de exibição da mensagem do WhatsApp
-                    const agora = new Date();
-                    const dataCriacao = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                    const prazoExpiracao = json.dados.validade || "6 Horas";
-
-                    // GERAÇÃO AUTOMÁTICA DA STRING EXATA EXIGIDA NO WHATSAPP
-                    const textoWhatsString = encodeURIComponent(
-                        `*TESTE GERADO COM SUCESSO!*\n\n` +
-                        `👤 Usuário: ${json.dados.username}\n` +
-                        `🔑 Senha: ${json.dados.password}\n` +
-                        `📅 Criação: ${dataCriacao}\n` +
-                        `⏳ Expiração: ${prazoExpiracao}`
-                    );
-
                     const blocoSmart = document.getElementById('bloco-smart-tv');
                     const btnFinal = document.getElementById('btn-final-fluxo');
                     
@@ -253,63 +234,3 @@ Podemos prosseguir com seu teste grátis e configure as suas 5 listas? 👍
                         blocoSmart.classList.add('hidden');
                         btnFinal.innerText = "🚀 Finalizar Cadastro";
                     }
-
-                    // Move para o passo visual de sucesso
-                    irParaPasso(5);
-
-                    // EXECUÇÃO IMEDIATA E SILENCIOSA: Abre o link montado disparando a mensagem diretamente
-                    window.open(`https://api.whatsapp.com/send?phone=${numDestinatario}&text=${textoWhatsString}`, '_blank');
-
-                } else {
-                    alert(json.mensagem || "VOCÊ JÁ REALIZOU O TESTE!");
-                    irParaPasso(4);
-                }
-            } catch (e) { 
-                alert("Erro de comunicação com o servidor."); 
-                irParaPasso(4);
-            }
-        }
-
-        async function finalizarFluxo() {
-            if (dispositivoSelecionado !== 'smart_tv') {
-                irParaPasso(6);
-                document.getElementById('teste-carregando').style.display = 'none';
-                document.getElementById('teste-resultado').style.display = 'block';
-                return;
-            }
-
-            const mac = document.getElementById('teste-mac').value.trim();
-            const key = document.getElementById('teste-key').value.trim();
-
-            if (!mac || !key) return alert("O MAC e a Key são obrigatórios.");
-
-            irParaPasso(6);
-            document.getElementById('teste-carregando').style.display = 'block';
-
-            try {
-                await fetch('/ativar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        mac: mac,
-                        key: key,
-                        usuario: document.getElementById('display-usuario').value,
-                        senha: document.getElementById('display-senha').value,
-                        tipo: 'teste_gratis'
-                    })
-                });
-                document.getElementById('teste-carregando').style.display = 'none';
-                document.getElementById('teste-resultado').style.display = 'block';
-            } catch (e) {
-                alert("Erro ao sincronizar listas na TV.");
-                irParaPasso(5);
-            }
-        }
-
-        async function consultarAssinatura() {}
-        async function processar() {}
-
-        setModo('teste_gratis');
-    </script>
-</body>
-</html>
