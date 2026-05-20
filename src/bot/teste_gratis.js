@@ -1,11 +1,10 @@
 const axios = require('axios');
-// IMPORTAÇÃO AJUSTADA: Volta duas pastas ou aponta direto para src/services dependendo de onde o teste_gratis está.
-// Se o seu teste_gratis.js estiver em src/controllers, o caminho correto é '../services/whatsapp_service'
+// Importação alinhada com a estrutura: recua uma pasta e entra em services
 const { enviarMensagemTexto } = require('../services/whatsapp_service'); 
 
 /**
  * Controla a geração de testes automáticos conectando à Netplay e 
- * acionando a transação própria de WhatsApp de forma segura.
+ * acionando a transação própria de WhatsApp através da ponte no Streamlit.
  */
 async function gerarTesteGratis(req, res) {
     let whatsappLimpo = req.body.whatsapp ? req.body.whatsapp.replace(/\D/g, '') : "";
@@ -51,7 +50,7 @@ async function gerarTesteGratis(req, res) {
         const password = dadosNetplay.password || (dadosNetplay.dados && dadosNetplay.dados.password);
         const dns = dadosNetplay.dns || 'http://galaxy.blcplay.com';
 
-        // Validação anti-fraude: se não vier credenciais, barramos na hora
+        // Validação anti-fraude: se não vierem credenciais, barramos na hora
         if (!username || !password) {
             console.log(`⚠️ [Teste Grátis] Netplay bloqueou geração para: ${whatsappLimpo} (Provável Duplicado)`);
             return res.json({ success: false, mensagem: "VOCÊ JÁ REALIZOU O TESTE!" });
@@ -61,7 +60,7 @@ async function gerarTesteGratis(req, res) {
         const agora = new Date();
         const dataCriacao = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-        // TEXTO PADRÃO BLINDADO QUE ENTRARÁ DIRETO NO WHATSAPP DO CLIENTE
+        // TEXTO PADRÃO FORMATADO QUE ENTRARÁ DIRETO NO WHATSAPP DO CLIENTE
         const mensagemWhats = `*TESTE GERADO COM SUCESSO!*\n\n` +
                               `👤 *Usuário:* ${username}\n` +
                               `🔑 *Senha:* ${password}\n` +
@@ -69,9 +68,10 @@ async function gerarTesteGratis(req, res) {
                               `⏳ *Expiração:* ${prazoExpiracao}\n\n` +
                               `🌐 *DNS/URL:* ${dns}`;
 
-        // Executa a transação de disparo em segundo plano usando seu novo serviço independente
+        // Executa o disparo para o microserviço Python no Streamlit em segundo plano
         enviarMensagemTexto(whatsappLimpo, mensagemWhats);
 
+        // Retorna a resposta imediata para a tela do site do cliente
         return res.json({
             success: true,
             mensagem: "TESTE GERADO COM SUCESSO VOCE RECEBERA SEU USUARIO E SENHA NO WHATSAAP EM BREVE!",
