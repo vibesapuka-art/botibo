@@ -219,7 +219,13 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
             document.getElementById('teste-carregando').style.display = 'block';
             document.getElementById('teste-resultado').style.display = 'none';
 
-            const payload = { whatsapp: whatsapp, nomeCliente: nome, tipoTeste: tipo };
+            // ATUALIZADO: Incluindo o 'termoAceito: true' exigido pelo backend protetor
+            const payload = { 
+                whatsapp: whatsapp, 
+                nomeCliente: nome, 
+                tipoTeste: tipo,
+                termoAceito: true 
+            };
 
             try {
                 const response = await fetch('/api/teste-gratis', {
@@ -253,6 +259,7 @@ Podemos prosseguir com seu teste grátis e configurar suas 5 listas? 👍
 
                     irParaPasso(5);
                 } else {
+                    // ATUALIZADO: Exibe exatamente o motivo retornado pelo servidor
                     alert(json.mensagem || "Erro na criação do acesso.");
                     irParaPasso(4);
                 }
