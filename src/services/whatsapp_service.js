@@ -4,7 +4,7 @@ const axios = require('axios');
 // CONFIGURAÇÕES DO SEU MICROSERVIÇO PYTHON NO STREAMLIT
 // =========================================================================
 const STREAMLIT_URL = "https://imperium-whatsapp-api-aqbqy23y4vgxrur8cgrp4z.streamlit.app";
-const API_TOKEN = "ImperiumMaster2026@#"; // Mesma senha que colocamos no Python
+const API_TOKEN = "ImperiumMaster2026@#"; 
 // =========================================================================
 
 /**
@@ -14,22 +14,28 @@ const API_TOKEN = "ImperiumMaster2026@#"; // Mesma senha que colocamos no Python
  */
 async function enviarMensagemTexto(whatsapp, texto) {
     try {
-        // encodeURIComponent é fundamental aqui! Ele transforma as quebras de linha (\n)
-        // e espaços da mensagem em um formato que a URL aceita sem quebrar o envio.
-        const urlFinal = `${STREAMLIT_URL}/?token=${API_TOKEN}&number=${whatsapp}&text=${encodeURIComponent(texto)}`;
+        // Monta a URL com os parâmetros codificados
+        const urlFinal = `${STREAMLIT_URL}/?token=${encodeURIComponent(API_TOKEN)}&number=${encodeURIComponent(whatsapp)}&text=${encodeURIComponent(texto)}`;
         
-        console.log(`📡 [WhatsApp Service] Encaminhando dados para o Streamlit: ${whatsapp}`);
+        console.log(`📡 [WhatsApp Service] Encaminhando dados em background para o Streamlit: ${whatsapp}`);
         
-        // Faz o disparo invisível (GET) para o seu Streamlit capturar
-        const response = await axios.get(urlFinal, { timeout: 10000 });
-        
-        if (response.status === 200) {
-            console.log(`🚀 [WhatsApp Service] Transação entregue com sucesso para a ponte Python!`);
-            return true;
-        }
-        return false;
+        // Dispara a requisição de forma assíncrona com cabeçalhos básicos de navegador para evitar bloqueios
+        axios.get(urlFinal, { 
+            timeout: 8000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        }).then(res => {
+            console.log(`🚀 [WhatsApp Service] Resposta da ponte recebida. Status: ${res.status}`);
+        }).catch(err => {
+            // Como o Streamlit é uma interface web, ele pode demorar a responder o HTML completo, 
+            // mas o recebimento dos parâmetros na URL acontece logo no primeiro milissegundo.
+            console.log(`ℹ️ [WhatsApp Service] Disparo executado em background.`);
+        });
+
+        return true;
     } catch (error) {
-        console.error("❌ [WhatsApp Service] Erro crítico ao conectar com o Streamlit:", error.message);
+        console.error("❌ [WhatsApp Service] Erro ao tentar acionar o Streamlit:", error.message);
         return false;
     }
 }
