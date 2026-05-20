@@ -27,7 +27,7 @@ app.post('/api/pre-gerar-teste', async (req, res, next) => {
 });
 
 // ROTA DEFINITIVA: SALVA OS DADOS DO CLIENTE VINCULANDO COM O LOGIN RETORNADO
-app.post('/api/teste-gratis', async (req, res) => {
+app.post('/api/teste-gratis', async (req, res, next) => {
     const { 
         whatsapp, 
         nomeCliente, 
@@ -44,8 +44,12 @@ app.post('/api/teste-gratis', async (req, res) => {
     if (!whatsapp) {
         return res.json({ success: false, mensagem: "O WhatsApp é obrigatório!" });
     }
+
+    // AJUSTE INTELIGENTE: Se o front-end bateu aqui direto sem username/password, significa que
+    // ele quer gerar o teste na Netplay primeiro. Repassamos dinamicamente para o gerarTesteGratis.
     if (!username || !password) {
-        return res.json({ success: false, mensagem: "As credenciais pré-geradas não foram repassadas corretamente!" });
+        console.log("🛰️ [index.js] Dados de usuário ausentes. Redirecionando fluxo direto para geração na Netplay...");
+        return gerarTesteGratis(req, res, next);
     }
 
     try {
@@ -138,7 +142,7 @@ app.get('/status', (req, res) => {
     if (indexAtual !== -1) {
         res.json({ status: pedidos[indexAtual].status, mensagem: pedidos[indexAtual].mensagem, naFrente: indexAtual });
     } else {
-        res.json({ status: "erro", mensagem: "Pedido não encontrado." });
+        res.json({ status: "erro", message: "Pedido não encontrado." });
     }
 });
 
