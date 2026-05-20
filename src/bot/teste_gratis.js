@@ -30,11 +30,11 @@ async function gerarTesteGratis(req, res) {
         const respostaNetplay = await axios.post(urlNetplay, {
             appName: "com.whatsapp",
             messageDateTime: Math.floor(Date.now() / 1000),
-            devicePhone: "554598224789", // Mantém a consistência com o número do seu bot se necessário
+            devicePhone: "554598224789", 
             deviceName: "Painel Imperium",
             senderName: nomeCliente || "Cliente Web",
             senderMessage: tipoTeste === 'com_adulto' ? "Teste com adulto" : "Teste sem adulto",
-            senderPhone: whatsappLimpo, // WhatsApp do cliente com 55 na frente
+            senderPhone: whatsappLimpo, 
             userAgent: "BotBot"
         }, {
             headers: {
@@ -54,10 +54,10 @@ async function gerarTesteGratis(req, res) {
 
         // 4. Se a Netplay recusar (número duplicado ou limite estourado)
         if (!username || !password) {
-            console.log(`⚠️ [Teste Grátis] Netplay não retornou credenciais válidas para: ${whatsappLimpo}`);
+            console.log(`⚠️ [Teste Grátis] Netplay barrou a geração para: ${whatsappLimpo} (Provável Duplicado)`);
             return res.json({ 
                 success: false, 
-                mensagem: "Não foi possível gerar as credenciais. Este número pode já ter consumido um teste recente ou o painel atingiu o limite." 
+                mensagem: "VOCÊ JÁ REALIZOU O TESTE!" 
             });
         }
 
@@ -77,6 +77,16 @@ async function gerarTesteGratis(req, res) {
 
     } catch (error) {
         console.error("❌ Erro ao processar teste_gratis:", error.message);
+        
+        // Se a API deles responder com erro de status (ex: 400 ou 409), geralmente significa que o número já existe
+        if (error.response) {
+            console.log(`⚠️ [Teste Grátis] Netplay retornou erro de requisição. Retornando aviso de duplicado.`);
+            return res.json({ 
+                success: false, 
+                mensagem: "VOCÊ JÁ REALIZOU O TESTE!" 
+            });
+        }
+
         return res.json({ 
             success: false, 
             mensagem: "Erro ao se conectar com o servidor da Netplay: " + error.message 
