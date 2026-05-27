@@ -19,9 +19,9 @@ async function gerarTesteGratis(req, res) {
     }
 
     // Gerenciador de rotas da Netplay (Com / Sem Adulto)
-    let urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/we6Wn50DK8"; // Sem Adulto
+    let urlNetplay = process.env.NETPLAY_SEM_ADULTO;
     if (tipoTeste === 'com_adulto' || tipoTeste === 'com_adulto🔥') {
-        urlNetplay = "https://netplay.mplll.com/api/chatbot/ANKWPy01PR/bOxLA7yWZ7"; // Com Adulto
+        urlNetplay = process.env.NETPLAY_COM_ADULTO;
     }
 
     try {
@@ -31,7 +31,7 @@ async function gerarTesteGratis(req, res) {
         const respostaNetplay = await axios.post(urlNetplay, {
             appName: "com.whatsapp",
             messageDateTime: Math.floor(Date.now() / 1000),
-            devicePhone: "554598224789", 
+            devicePhone: process.env.DEVICE_PHONE, 
             deviceName: "Painel Imperium",
             senderName: nomeCliente || "Cliente Web",
             senderMessage: tipoTeste === 'com_adulto' ? "Teste com adulto" : "Teste sem adulto",
