@@ -3,8 +3,8 @@ const axios = require('axios');
 // =========================================================================
 // LINK DA SUA PONTE NO STREAMLIT
 // =========================================================================
-const STREAMLIT_URL = "https://imperium-whatsapp-api-aqbqy23y4vgxrur8cgrp4z.streamlit.app";
-const API_TOKEN = "ImperiumMaster2026@#"; 
+const STREAMLIT_URL = process.env.STREAMLIT_URL;
+const API_TOKEN = process.env.API_TOKEN; 
 // =========================================================================
 
 /**
