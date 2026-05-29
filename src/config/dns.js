@@ -8,7 +8,6 @@ module.exports = [
     "http://spd.blc-atena.com",
     "http://solar.playblc.work",
     "http://yd.blc-atena.com",
-    "http://atbx.blc-atena.com",
     "http://od.blc-atena.com",
     "http://cd.atp1.top",
     "http://ecps.blc-atena.com",
