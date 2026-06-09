@@ -3,6 +3,11 @@ const chromium = require("@sparticuz/chromium");
 
 const { buscarDnsValidadasParaIb } = require("../services/dns_service");
 
+function atualizarPedido(pedido, dados = {}) {
+    Object.assign(pedido, dados);
+    pedido.atualizadoEm = new Date();
+}
+
 module.exports = async (pedidos, config = {}) => {
     if (!pedidos || !Array.isArray(pedidos)) return null;
 
@@ -12,7 +17,15 @@ module.exports = async (pedidos, config = {}) => {
     let browser;
 
     try {
-        pedido.mensagem = "🔎 BUSCANDO DNS ATIVAS NO MONGODB...";
+        atualizarPedido(pedido, {
+            titulo: "Buscando DNS ativas",
+            mensagem: "Buscando DNS ativas no MongoDB e revalidando antes de enviar ao IB...",
+            progresso: Math.max(pedido.progresso || 0, 45),
+            checklist: {
+                ...(pedido.checklist || {}),
+                dns: false
+            }
+        });
 
         const dnsSorteados = await buscarDnsValidadasParaIb(
             pedido.user,
@@ -25,6 +38,17 @@ module.exports = async (pedidos, config = {}) => {
         }
 
         console.log("✅ DNS aprovadas para IB:", dnsSorteados);
+
+        atualizarPedido(pedido, {
+            titulo: "DNS aprovadas",
+            mensagem: `${dnsSorteados.length} DNS aprovadas. Acessando painel para adicionar playlists...`,
+            progresso: 50,
+            totalPlaylists: dnsSorteados.length,
+            checklist: {
+                ...(pedido.checklist || {}),
+                dns: true
+            }
+        });
 
         browser = await puppeteer.launch({
             args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
@@ -43,7 +67,15 @@ module.exports = async (pedidos, config = {}) => {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         );
 
-        pedido.mensagem = "📡 ACESSANDO PAINEL... DESLIGUE A TV E AGUARDE!";
+        atualizarPedido(pedido, {
+            titulo: "Acessando IB Player",
+            mensagem: "Entrando no painel para adicionar as novas playlists...",
+            progresso: 55,
+            checklist: {
+                ...(pedido.checklist || {}),
+                acessoAdicionar: false
+            }
+        });
 
         await page.goto("https://iboproapp.com/manage-playlists/login/", {
             waitUntil: "domcontentloaded",
@@ -68,8 +100,32 @@ module.exports = async (pedidos, config = {}) => {
             timeout: 45000
         });
 
+        atualizarPedido(pedido, {
+            titulo: "Adicionando playlists",
+            mensagem: "Painel acessado. Iniciando gravação das novas playlists...",
+            progresso: 60,
+            checklist: {
+                ...(pedido.checklist || {}),
+                acessoAdicionar: true
+            }
+        });
+
         for (let i = 0; i < dnsSorteados.length; i++) {
             const nomeLista = `IMPTV${i + 1}`;
+            const numeroPlaylist = i + 1;
+
+            const checklistAtual = {
+                ...(pedido.checklist || {})
+            };
+
+            atualizarPedido(pedido, {
+                titulo: `Gravando playlist ${numeroPlaylist}`,
+                mensagem: `Gravando ${nomeLista}. Mantenha a TV desligada.`,
+                progresso: Math.min(95, 60 + (numeroPlaylist - 1) * 7),
+                playlistAtual: numeroPlaylist,
+                totalPlaylists: dnsSorteados.length,
+                checklist: checklistAtual
+            });
 
             const jaExiste = await page.evaluate((nome) => {
                 const celulas = Array.from(document.querySelectorAll("td"));
@@ -78,14 +134,18 @@ module.exports = async (pedidos, config = {}) => {
 
             if (jaExiste) {
                 console.log(`⚠️ ${nomeLista} já existe. Pulando...`);
+                checklistAtual[`playlist${numeroPlaylist}`] = true;
+                atualizarPedido(pedido, {
+                    mensagem: `${nomeLista} já existia. Pulando para próxima...`,
+                    progresso: Math.min(95, 60 + numeroPlaylist * 7),
+                    checklist: checklistAtual
+                });
                 continue;
             }
 
             const baseDns = dnsSorteados[i];
 
             const urlFinal = `${baseDns}/get.php?username=${pedido.user}&password=${pedido.pass}&type=m3u_plus&output=mpegts`;
-
-            pedido.mensagem = `📝 GRAVANDO ${nomeLista}... MANTENHA A TV DESLIGADA!`;
 
             await page.evaluate(() => {
                 const btnAdd = Array.from(document.querySelectorAll("button"))
@@ -122,6 +182,15 @@ module.exports = async (pedidos, config = {}) => {
 
             await new Promise(r => setTimeout(r, 7000));
 
+            checklistAtual[`playlist${numeroPlaylist}`] = true;
+
+            atualizarPedido(pedido, {
+                titulo: `Playlist ${numeroPlaylist} adicionada`,
+                mensagem: `${nomeLista} adicionada com sucesso.`,
+                progresso: Math.min(95, 60 + numeroPlaylist * 7),
+                checklist: checklistAtual
+            });
+
             await page.reload({
                 waitUntil: "domcontentloaded"
             });
@@ -131,8 +200,16 @@ module.exports = async (pedidos, config = {}) => {
             });
         }
 
-        pedido.mensagem = "✅ PROCESSO FINALIZADO! PODE LIGAR A TV.";
-        pedido.status = "ok";
+        atualizarPedido(pedido, {
+            titulo: "Tudo pronto!",
+            mensagem: "✅ Playlists atualizadas com sucesso. Pode ligar a TV.",
+            progresso: 100,
+            status: "ok",
+            checklist: {
+                ...(pedido.checklist || {}),
+                finalizado: true
+            }
+        });
 
         if (config.manterAberto) {
             return {
@@ -162,6 +239,13 @@ module.exports = async (pedidos, config = {}) => {
                 console.error("Erro ao fechar browser:", closeError.message);
             }
         }
+
+        atualizarPedido(pedido, {
+            titulo: "Erro na atualização",
+            mensagem: "❌ Erro ao adicionar playlists: " + err.message,
+            progresso: 100,
+            status: "erro"
+        });
 
         throw err;
     }
