@@ -2,10 +2,15 @@ const express = require('express');
 
 const router = express.Router();
 
+console.log('========================');
+console.log('PAINEL TESTE INICIANDO');
+console.log('========================');
+
 const testeRoute = require('./routes/teste');
-const tutorialRoute = require('./routes/tutorial');
+
+console.log('testeRoute:', typeof testeRoute);
+console.log('testeRoute keys:', Object.keys(testeRoute));
 
 router.use('/teste', testeRoute);
-router.use('/tutorial', tutorialRoute);
 
 module.exports = router;
