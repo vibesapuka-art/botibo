@@ -14,12 +14,10 @@ const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
 const { gerarTesteGratis } = require('./src/bot/teste_gratis');
 
 // MÓDULO DO PAINEL TESTE
-const painelTeste = require('./src/painelTeste');
+const painelTeste = require('./src/painelTeste/index.js');
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
-
+console.log('painelTeste:', typeof painelTeste);
+console.log('painelTeste keys:', Object.keys(painelTeste));
 // ROTAS DO PAINEL TESTE
 // Mantém funcionando:
 // /api/teste
