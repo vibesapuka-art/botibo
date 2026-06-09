@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imperium TV - Painel do Cliente</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <link class="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f0f0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,6 +16,7 @@
         .tab-active-green { background-color: #22c55e; color: black; }
         .tab-active-blue { background-color: #3b82f6; color: white; }
         .tab-active-red { background-color: #dc2626; color: white; }
+        .tab-active-gold { background-color: #ca8a04; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
         input { transition: all 0.3s; }
     </style>
@@ -23,35 +24,34 @@
 
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
-        
+
         <div class="flex justify-center mb-6">
             <img src="logo.png" alt="Imperium TV" class="w-64 h-auto object-contain">
         </div>
 
-        <div class="bg-gradient-to-r from-green-600 to-green-500 p-4 rounded-xl mb-4 text-center shadow-lg">
-            <p class="text-xs uppercase font-bold tracking-wider text-black">
-                Ainda não é nosso cliente?
-            </p>
-
-            <button
-                onclick="window.location.href='/painelTeste/index.html'"
-                class="mt-3 w-full bg-white text-black font-extrabold py-3 rounded-lg uppercase shadow-lg hover:scale-105 transition-all"
-            >
-                🎁 Faça seu Teste Grátis Agora
+        <div class="grid grid-cols-4 gap-2 mb-6">
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Cliente
             </button>
-        </div>
-        
-        <div class="grid grid-cols-3 gap-2 mb-6">
-            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Área do Cliente</button>
-            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Playlists</button>
-            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">Limpar</button>
+
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Playlists
+            </button>
+
+            <button onclick="abrirTesteGratis()" id="tab-teste" class="p-2 rounded-lg tab-active-gold font-bold text-[10px] uppercase shadow-inner">
+                Teste
+            </button>
+
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Limpar
+            </button>
         </div>
 
         <div class="space-y-4">
             <div id="area-cliente-content" class="hidden space-y-4">
                 <input type="text" id="id-consulta" placeholder="WhatsApp (ex: 44 99999-9999)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
                 <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">Verificar Status</button>
-                
+
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
                     <div><p class="text-[10px] text-gray-500 uppercase">Cliente</p><p id="res-nome" class="font-bold uppercase text-sm">---</p></div>
 
@@ -87,7 +87,7 @@
             </div>
 
             <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Sincronizar</button>
-            
+
             <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
         </div>
 
@@ -123,7 +123,7 @@
         }
 
         function abrirTesteGratis() {
-            window.location.href = '/painelTeste/index.html';
+            window.open('/painelTeste/index.html', '_self');
         }
 
         function setModo(m) {
@@ -141,6 +141,8 @@
             document.getElementById('tab-assinante').className = m === 'assinante'
                 ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner'
                 : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            document.getElementById('tab-teste').className = 'p-2 rounded-lg tab-active-gold font-bold text-[10px] uppercase shadow-inner';
 
             document.getElementById('tab-limpar').className = m === 'limpar'
                 ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner'
