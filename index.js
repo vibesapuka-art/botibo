@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 
 const app = express();
 
@@ -16,25 +17,22 @@ const { gerarTesteGratis } = require('./src/bot/teste_gratis');
 // MÓDULO DO PAINEL TESTE
 const painelTeste = require('./src/painelTeste/index.js');
 
-console.log('painelTeste:', typeof painelTeste);
-console.log('painelTeste keys:', Object.keys(painelTeste));
-
-// MIDDLEWARES PRINCIPAIS
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// SERVE A TELA DO PAINEL TESTE
+app.use(
+    '/painelTeste',
+    express.static(path.join(__dirname, 'src/painelTeste/public'))
+);
+
 // ROTAS DO PAINEL TESTE
-// Mantém funcionando:
-// /api/teste
-// /api/teste/status/:jobId
-// /api/tutorial
 app.use('/api', painelTeste);
 
 let pedidos = [];
 let processandoAgora = false;
 
-// ROTA DE PRÉ-GERAÇÃO: BUSCA O LOGIN VAZIO NA NETPLAY
 app.post('/api/pre-gerar-teste', async (req, res, next) => {
     console.log("🎲 [Netplay] Pré-gerando credenciais na rota isolada pós-termos...");
 
@@ -47,7 +45,6 @@ app.post('/api/pre-gerar-teste', async (req, res, next) => {
     return gerarTesteGratis(req, res, next);
 });
 
-// ROTA DEFINITIVA: SALVA OS DADOS DO CLIENTE VINCULANDO COM O LOGIN RETORNADO
 app.post('/api/teste-gratis', async (req, res, next) => {
     const {
         whatsapp,
