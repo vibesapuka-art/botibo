@@ -11,7 +11,13 @@ const listaDns = require('./src/config/dns.js');
 
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
-const { processarWebhook, consultarCliente } = require('./src/bot/webhook');
+
+const {
+    processarWebhook,
+    consultarCliente,
+    salvarDispositivoCliente
+} = require('./src/bot/webhook');
+
 const { gerarTesteGratis } = require('./src/bot/teste_gratis');
 
 // MÓDULO DO PAINEL TESTE
@@ -100,6 +106,15 @@ app.post('/api/teste-gratis', async (req, res, next) => {
             console.error("⚠️ Alerta: GestorV3 respondeu instável, prosseguindo com fluxo:", errGestor.message);
         }
 
+        if (mac && key) {
+            await salvarDispositivoCliente({
+                whatsapp,
+                mac,
+                key,
+                tipo: dispositivo || "teste_gratis"
+            });
+        }
+
         const listaSmartTV = ['smart_tv', 'samsung', 'lg', 'roku', 'sansung', 'lgs'];
 
         if (
@@ -119,6 +134,7 @@ app.post('/api/teste-gratis', async (req, res, next) => {
                 device_id: key.trim(),
                 user: username,
                 pass: password,
+                whatsapp: whatsapp.replace(/\D/g, ''),
                 mensagem: "⏱️ AGUARDANDO ROBÔ..."
             });
         }
@@ -186,8 +202,35 @@ app.post('/webhook', async (req, res) => {
     }
 });
 
-app.post('/ativar', (req, res) => {
-    const { mac, key, usuario, senha, tipo } = req.body;
+app.post('/ativar', async (req, res) => {
+    const {
+        mac,
+        key,
+        usuario,
+        senha,
+        tipo,
+        whatsapp
+    } = req.body;
+
+    if (!mac || !key) {
+        return res.json({
+            success: false,
+            mensagem: "MAC e KEY são obrigatórios."
+        });
+    }
+
+    if (whatsapp) {
+        try {
+            await salvarDispositivoCliente({
+                whatsapp,
+                mac,
+                key,
+                tipo: tipo || "assinante"
+            });
+        } catch (err) {
+            console.error("⚠️ Não foi possível salvar dispositivo:", err.message);
+        }
+    }
 
     const novoPedido = {
         mac: mac ? mac.trim() : "",
