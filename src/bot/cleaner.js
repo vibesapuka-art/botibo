@@ -6,8 +6,25 @@ function atualizarPedido(pedido, dados = {}) {
     pedido.atualizadoEm = new Date();
 }
 
+async function esperar(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Cleaner inteligente:
+ * - tenta apagar playlists com PIN 123321;
+ * - se uma playlist não apagar, marca como ignorada;
+ * - segue para as próximas;
+ * - quando não conseguir apagar mais nenhuma, para a limpeza;
+ * - NÃO trava em loop;
+ * - permite o engine adicionar as playlists novas normalmente.
+ */
 module.exports = async (pedido) => {
     let browser;
+
+    const playlistsIgnoradas = new Set();
+    let tentativasSemSucesso = 0;
+    const LIMITE_TENTATIVAS_SEM_SUCESSO = 3;
 
     try {
         atualizarPedido(pedido, {
@@ -28,12 +45,16 @@ module.exports = async (pedido) => {
         });
 
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 });
+
+        await page.setViewport({
+            width: 1280,
+            height: 800
+        });
+
         await page.setUserAgent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         );
 
-        // 1. LOGIN
         atualizarPedido(pedido, {
             titulo: "Acessando IB Player",
             mensagem: "Entrando no painel do IB Player...",
@@ -49,13 +70,24 @@ module.exports = async (pedido) => {
             timeout: 60000
         });
 
-        await page.waitForSelector('#mac_address', { timeout: 30000 });
-        await page.type('#mac_address', pedido.mac, { delay: 50 });
-        await page.type('#password', pedido.key || pedido.device_id, { delay: 50 });
+        await page.waitForSelector("#mac_address", {
+            timeout: 30000
+        });
+
+        await page.type("#mac_address", pedido.mac, {
+            delay: 50
+        });
+
+        await page.type("#password", pedido.key || pedido.device_id, {
+            delay: 50
+        });
 
         await Promise.all([
             page.click('button[type="submit"]'),
-            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 60000 })
+            page.waitForNavigation({
+                waitUntil: "networkidle2",
+                timeout: 60000
+            })
         ]);
 
         atualizarPedido(pedido, {
@@ -69,83 +101,198 @@ module.exports = async (pedido) => {
             }
         });
 
-        // 2. LOOP DE LIMPEZA
-        let contadorLimpeza = 0;
+        let removidas = 0;
 
         while (true) {
-            await page.reload({ waitUntil: "networkidle2", timeout: 60000 });
+            await page.reload({
+                waitUntil: "networkidle2",
+                timeout: 60000
+            });
 
-            const totalListas = await page.$$eval('button.btn-warning', btns => btns.length);
+            await esperar(1500);
 
-            if (totalListas === 0) {
+            const playlists = await page.evaluate(() => {
+                const linhas = Array.from(document.querySelectorAll("tr"));
+
+                return linhas.map((tr, index) => {
+                    const texto = tr.innerText || "";
+                    const temDelete = !!tr.querySelector("button.btn-warning");
+
+                    let nome = "";
+
+                    const celulas = Array.from(tr.querySelectorAll("td"));
+                    if (celulas.length) {
+                        nome = celulas.map(td => td.innerText.trim()).filter(Boolean)[0] || "";
+                    }
+
+                    return {
+                        index,
+                        nome: nome || texto.trim().slice(0, 80),
+                        texto: texto.trim(),
+                        temDelete
+                    };
+                }).filter(item => item.temDelete);
+            });
+
+            const playlistsDisponiveis = playlists.filter(item => {
+                const chave = `${item.index}_${item.nome}`;
+                return !playlistsIgnoradas.has(chave);
+            });
+
+            if (playlistsDisponiveis.length === 0) {
+                const sobraram = playlists.length;
+
                 atualizarPedido(pedido, {
-                    titulo: "Playlists antigas removidas",
-                    mensagem: "Tudo limpo. Agora vamos adicionar as novas playlists.",
+                    titulo: "Limpeza concluída",
+                    mensagem: sobraram > 0
+                        ? `Algumas playlists não puderam ser apagadas por PIN diferente. Vamos continuar adicionando as novas.`
+                        : "Tudo limpo. Agora vamos adicionar as novas playlists.",
                     progresso: Math.max(pedido.progresso || 0, 40),
+                    playlistsIgnoradas: Array.from(playlistsIgnoradas),
                     checklist: {
                         ...(pedido.checklist || {}),
                         limpeza: true
                     }
                 });
+
+                console.log(`✅ Limpeza encerrada. Removidas: ${removidas}. Ignoradas: ${playlistsIgnoradas.size}. Sobraram: ${sobraram}.`);
                 break;
             }
 
-            contadorLimpeza++;
+            if (tentativasSemSucesso >= LIMITE_TENTATIVAS_SEM_SUCESSO) {
+                atualizarPedido(pedido, {
+                    titulo: "Limpeza parcial concluída",
+                    mensagem: "Não foi possível apagar algumas playlists. Vamos continuar adicionando as novas.",
+                    progresso: Math.max(pedido.progresso || 0, 40),
+                    playlistsIgnoradas: Array.from(playlistsIgnoradas),
+                    checklist: {
+                        ...(pedido.checklist || {}),
+                        limpeza: true
+                    }
+                });
+
+                console.log("⚠️ Limite de tentativas sem sucesso atingido. Continuando fluxo.");
+                break;
+            }
+
+            const alvo = playlistsDisponiveis[0];
+            const chaveAlvo = `${alvo.index}_${alvo.nome}`;
 
             atualizarPedido(pedido, {
                 titulo: "Limpando playlists antigas",
-                mensagem: `Encontradas ${totalListas} playlists antigas. Excluindo...`,
-                progresso: Math.min(40, 28 + contadorLimpeza * 3),
+                mensagem: `Tentando excluir: ${alvo.nome || "playlist antiga"}...`,
+                progresso: Math.min(40, 28 + removidas * 3),
                 checklist: {
                     ...(pedido.checklist || {}),
                     limpeza: false
                 }
             });
 
-            await page.evaluate(() => {
-                const btn = document.querySelector('button.btn-warning');
-                if (btn) btn.click();
-            });
+            const totalAntes = playlists.length;
+
+            const clicou = await page.evaluate((indexAlvo) => {
+                const linhas = Array.from(document.querySelectorAll("tr"));
+                const linha = linhas[indexAlvo];
+
+                if (!linha) return false;
+
+                const btn = linha.querySelector("button.btn-warning");
+                if (!btn) return false;
+
+                btn.click();
+                return true;
+            }, alvo.index);
+
+            if (!clicou) {
+                playlistsIgnoradas.add(chaveAlvo);
+                tentativasSemSucesso++;
+                console.log(`⚠️ Não consegui clicar no delete de: ${alvo.nome}`);
+                continue;
+            }
+
+            let modalApareceu = false;
 
             try {
                 await page.waitForSelector('input[name="pin"]', {
                     visible: true,
-                    timeout: 10000
+                    timeout: 7000
                 });
+
+                modalApareceu = true;
 
                 const inputPin = await page.$('input[name="pin"]');
                 await inputPin.click({ clickCount: 3 });
-                await page.keyboard.press('Backspace');
-                await page.keyboard.type("123321", { delay: 120 });
+                await page.keyboard.press("Backspace");
+                await page.keyboard.type("123321", {
+                    delay: 120
+                });
 
-                await page.keyboard.press('Enter');
+                await page.keyboard.press("Enter");
 
                 await page.evaluate(() => {
-                    const okBtn = document.querySelector('button.btn-success');
+                    const okBtn = document.querySelector("button.btn-success");
                     if (okBtn) okBtn.click();
                 });
 
-                await new Promise(r => setTimeout(r, 6000));
+                await esperar(5000);
 
             } catch (pinErr) {
-                console.log("Erro ao preencher PIN ou modal não apareceu:", pinErr.message);
+                console.log(`⚠️ PIN/modal falhou para ${alvo.nome}: ${pinErr.message}`);
+            }
+
+            await page.reload({
+                waitUntil: "networkidle2",
+                timeout: 60000
+            });
+
+            await esperar(1500);
+
+            const totalDepois = await page.$$eval("button.btn-warning", btns => btns.length);
+
+            if (totalDepois < totalAntes) {
+                removidas++;
+                tentativasSemSucesso = 0;
+
                 atualizarPedido(pedido, {
-                    titulo: "Falha na limpeza",
-                    mensagem: "Não foi possível confirmar a exclusão de uma playlist.",
-                    progresso: 100
+                    titulo: "Playlist removida",
+                    mensagem: `Playlist removida com sucesso. Removidas: ${removidas}.`,
+                    progresso: Math.min(40, 30 + removidas * 3)
                 });
-                throw pinErr;
+
+                console.log(`✅ Playlist removida: ${alvo.nome}`);
+
+            } else {
+                playlistsIgnoradas.add(chaveAlvo);
+                tentativasSemSucesso++;
+
+                atualizarPedido(pedido, {
+                    titulo: "Playlist ignorada",
+                    mensagem: `Não foi possível apagar uma playlist. Provável PIN diferente. Continuando...`,
+                    progresso: Math.min(40, 30 + removidas * 3)
+                });
+
+                console.log(`⚠️ Playlist ignorada por não apagar: ${alvo.nome}. Modal apareceu: ${modalApareceu}`);
             }
         }
 
     } catch (err) {
         console.error("Erro no Cleaner:", err.message);
+
         atualizarPedido(pedido, {
-            titulo: "Erro ao limpar playlists",
-            mensagem: "❌ Erro ao limpar playlists: " + err.message,
-            progresso: 100
+            titulo: "Limpeza parcial",
+            mensagem: "⚠️ Não foi possível concluir toda a limpeza, mas vamos continuar adicionando as novas playlists.",
+            progresso: Math.max(pedido.progresso || 0, 40),
+            erroCleaner: err.message,
+            checklist: {
+                ...(pedido.checklist || {}),
+                limpeza: true
+            }
         });
-        throw err;
+
+        // Importante:
+        // Não joga erro para fora.
+        // Assim o index.js continua e chama o engine para adicionar as novas playlists.
+        return;
 
     } finally {
         if (browser) {
