@@ -1,0 +1,436 @@
+body{
+  margin:0;
+  background:#111827;
+  color:white;
+  font-family:Arial, Helvetica, sans-serif;
+  padding-bottom:80px;
+}
+
+.container{
+  max-width:950px;
+  margin:30px auto;
+  padding:30px;
+  background:#1f2937;
+  border-radius:16px;
+}
+
+h1,h2{
+  text-align:center;
+}
+
+p{
+  line-height:1.5;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  margin-top:12px;
+  border:none;
+  border-radius:10px;
+  font-weight:bold;
+  cursor:pointer;
+  font-size:15px;
+}
+
+.hidden{
+  display:none !important;
+}
+
+.logo-principal{
+  display:block;
+  margin:0 auto 20px auto;
+  max-width:260px;
+  width:100%;
+  height:auto;
+}
+
+.logo-topo{
+  display:block;
+  margin:15px auto 20px auto;
+  max-width:180px;
+  width:100%;
+  height:auto;
+}
+
+.botao-suporte-fixo{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:9999;
+  background:#22c55e;
+  color:white;
+  text-decoration:none;
+  padding:14px 18px;
+  border-radius:999px;
+  font-weight:bold;
+  box-shadow:0 8px 20px rgba(0,0,0,0.35);
+}
+
+.alerta-box,
+.termos-box{
+  background:#111827;
+  border:2px solid #f59e0b;
+  border-radius:14px;
+  padding:22px;
+  margin-top:20px;
+}
+
+.termos-box{
+  border-color:#22c55e;
+}
+
+.check-termos{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:20px;
+  font-weight:bold;
+}
+
+.check-termos input{
+  width:auto;
+  margin:0;
+}
+
+#btnAceitarTermos:disabled{
+  opacity:0.45;
+  cursor:not-allowed;
+}
+
+.grid-dispositivos{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+  gap:15px;
+}
+
+.card-dispositivo{
+  background:#111827;
+  color:white;
+  border:1px solid #374151;
+  padding:20px;
+  min-height:190px;
+}
+
+.card-dispositivo:hover{
+  border-color:#22c55e;
+  transform:scale(1.03);
+}
+
+.logo-dispositivo{
+  width:80px;
+  height:80px;
+  object-fit:contain;
+  margin-bottom:10px;
+}
+
+.icone-fallback{
+  font-size:40px;
+  margin-bottom:10px;
+}
+
+.card-dispositivo strong{
+  display:block;
+  margin:10px 0;
+}
+
+.card-dispositivo span{
+  display:block;
+  font-size:13px;
+  color:#d1d5db;
+}
+
+.card-dispositivo small{
+  display:inline-block;
+  background:#22c55e;
+  padding:6px 10px;
+  border-radius:20px;
+  margin-top:10px;
+  color:white;
+}
+
+.app-info{
+  text-align:center;
+  color:#22c55e;
+  font-weight:bold;
+}
+
+.passo-box{
+  background:#111827;
+  padding:25px;
+  border-radius:14px;
+  border:1px solid #374151;
+  margin-top:20px;
+  text-align:center;
+}
+
+.passo-box h3{
+  color:#22c55e;
+}
+
+.imagem-tutorial{
+  width:100%;
+  max-width:850px;
+  border-radius:14px;
+  margin-top:20px;
+  border:1px solid #374151;
+}
+
+.progresso{
+  width:100%;
+  height:12px;
+  background:#374151;
+  border-radius:20px;
+  overflow:hidden;
+  margin:20px 0;
+}
+
+#barraProgresso,
+#barraRegiao,
+#barraFormulario{
+  height:100%;
+  width:0%;
+  background:#22c55e;
+  transition:0.3s;
+}
+
+#barraProcesso{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg, #22c55e, #86efac, #22c55e);
+  background-size:200% 100%;
+  animation: barraMovendo 1.2s linear infinite;
+  transition:0.4s;
+}
+
+@keyframes barraMovendo{
+  0%{
+    background-position:0% 50%;
+  }
+  100%{
+    background-position:200% 50%;
+  }
+}
+
+.botoes{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.btn-principal,
+form button{
+  background:#22c55e;
+  color:white;
+}
+
+.btn-secundario{
+  background:#374151;
+  color:white;
+}
+
+.btn-alerta{
+  background:#f59e0b;
+  color:#111827;
+}
+
+.btn-voltar{
+  background:#374151;
+  color:white;
+  width:auto;
+  padding:10px 15px;
+}
+
+input,
+select{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+  box-sizing:border-box;
+}
+
+.botoes-tipo-teste{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:15px;
+}
+
+.btn-tipo{
+  background:#374151;
+  color:white;
+  border:2px solid transparent;
+}
+
+.btn-tipo.ativo{
+  background:#22c55e;
+  border-color:#86efac;
+  color:white;
+}
+
+.resumo-box{
+  background:#1f2937;
+  border:1px solid #374151;
+  border-radius:12px;
+  padding:15px;
+  text-align:left;
+}
+
+.resumo-box p{
+  margin:8px 0;
+}
+
+.processando-box{
+  position:relative;
+}
+
+.loader{
+  width:55px;
+  height:55px;
+  border:5px solid #374151;
+  border-top:5px solid #22c55e;
+  border-radius:50%;
+  animation:girar 1s linear infinite;
+  margin:0 auto 20px auto;
+}
+
+@keyframes girar{
+  from{
+    transform:rotate(0deg);
+  }
+  to{
+    transform:rotate(360deg);
+  }
+}
+
+#percentualProcesso{
+  font-size:24px;
+  color:#22c55e;
+  font-weight:bold;
+  margin-top:15px;
+}
+
+.checklist-processo{
+  background:#111827;
+  border:1px solid #374151;
+  border-radius:14px;
+  padding:20px;
+  margin-top:20px;
+}
+
+.checklist-processo p{
+  margin:10px 0;
+  font-weight:bold;
+}
+
+.aviso-pagamento{
+  background:#3b2503;
+  border:2px solid #f59e0b;
+  color:#fff7ed;
+  border-radius:14px;
+  padding:18px;
+  text-align:center;
+  font-weight:bold;
+  margin:20px 0;
+}
+
+.btn-suporte-mini{
+  display:inline-block;
+  margin-top:12px;
+  background:#22c55e;
+  color:white;
+  text-decoration:none;
+  padding:12px 18px;
+  border-radius:10px;
+  font-weight:bold;
+}
+
+.suporte-box{
+  margin-top:25px;
+  background:#111827;
+  border:2px solid #22c55e;
+  border-radius:14px;
+  padding:25px;
+  text-align:center;
+}
+
+.numero-suporte{
+  font-size:22px;
+  font-weight:bold;
+  color:#22c55e;
+  margin:20px 0;
+}
+
+.btn-suporte{
+  display:inline-block;
+  text-decoration:none;
+  background:#22c55e;
+  color:white;
+  padding:15px 25px;
+  border-radius:10px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.btn-suporte:hover,
+.btn-suporte-mini:hover,
+.botao-suporte-fixo:hover{
+  opacity:0.9;
+}
+
+#resultado{
+  margin-top:20px;
+  text-align:center;
+  font-weight:bold;
+}
+
+.botao-loja-tutorial{
+  margin-top:15px;
+  text-align:center;
+}
+
+.btn-link-loja{
+  display:inline-block;
+  background:#22c55e;
+  color:white;
+  text-decoration:none;
+  padding:14px 22px;
+  border-radius:10px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.btn-link-loja:hover{
+  opacity:0.9;
+}
+
+@media(max-width:600px){
+  .container{
+    margin:0;
+    border-radius:0;
+    min-height:100vh;
+    padding:20px;
+  }
+
+  .botoes,
+  .botoes-tipo-teste{
+    grid-template-columns:1fr;
+  }
+
+  .botao-suporte-fixo{
+    left:15px;
+    right:15px;
+    bottom:15px;
+    text-align:center;
+  }
+
+  .logo-principal{
+    max-width:180px;
+  }
+
+  .logo-topo{
+    max-width:140px;
+  }
+}
