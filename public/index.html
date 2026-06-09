@@ -20,11 +20,25 @@
         input { transition: all 0.3s; }
     </style>
 </head>
+
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
         
         <div class="flex justify-center mb-6">
             <img src="logo.png" alt="Imperium TV" class="w-64 h-auto object-contain">
+        </div>
+
+        <div class="bg-gradient-to-r from-green-600 to-green-500 p-4 rounded-xl mb-4 text-center shadow-lg">
+            <p class="text-xs uppercase font-bold tracking-wider text-black">
+                Ainda não é nosso cliente?
+            </p>
+
+            <button
+                onclick="window.location.href='/painelTeste/index.html'"
+                class="mt-3 w-full bg-white text-black font-extrabold py-3 rounded-lg uppercase shadow-lg hover:scale-105 transition-all"
+            >
+                🎁 Faça seu Teste Grátis Agora
+            </button>
         </div>
         
         <div class="grid grid-cols-3 gap-2 mb-6">
@@ -40,14 +54,17 @@
                 
                 <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
                     <div><p class="text-[10px] text-gray-500 uppercase">Cliente</p><p id="res-nome" class="font-bold uppercase text-sm">---</p></div>
+
                     <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
                         <div><p class="text-[10px] text-gray-500 uppercase">Usuário</p><p id="res-user" class="text-[#22c55e] font-bold text-xs">---</p></div>
                         <div><p class="text-[10px] text-gray-500 uppercase">Senha</p><p id="res-pass" class="text-[#22c55e] font-bold text-xs">---</p></div>
                     </div>
+
                     <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
                         <div><p class="text-[10px] text-gray-500 uppercase">Servidor</p><p id="res-servidor" class="text-blue-400 font-bold text-[10px]">---</p></div>
                         <div><p class="text-[10px] text-gray-500 uppercase">Valor</p><p id="res-valor" class="font-bold text-[10px]">---</p></div>
                     </div>
+
                     <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2 items-center">
                         <div><p class="text-[10px] text-gray-500 uppercase">Vencimento</p><p id="res-venc" class="text-red-500 font-bold text-[10px]">---</p></div>
                         <div id="container-fatura" class="hidden">
@@ -61,7 +78,7 @@
 
             <div id="campos-identificacao" class="space-y-2">
                 <input type="text" id="mac" placeholder="Endereço Mac (MAC Address)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
-                <input type="text" id="key" placeholder="Chave do dipositivo (Device Key)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
+                <input type="text" id="key" placeholder="Chave do dispositivo (Device Key)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
             </div>
 
             <div id="campos-iptv" class="hidden space-y-2">
@@ -83,7 +100,7 @@
     </div>
 
     <script>
-        let modoAtual = 'assinante';
+        let modoAtual = 'ativar';
         let intervaloStatus = null;
         let instalador;
 
@@ -97,27 +114,40 @@
             if (instalador) {
                 instalador.prompt();
                 const { outcome } = await instalador.userChoice;
-                if (outcome === 'accepted') document.getElementById('btn-instalar').classList.add('hidden');
+                if (outcome === 'accepted') {
+                    document.getElementById('btn-instalar').classList.add('hidden');
+                }
             } else {
                 alert("Para criar o atalho:\n1. Clique nos 3 pontinhos do navegador\n2. Selecione 'Instalar Aplicativo' ou 'Adicionar à tela inicial'.");
             }
         }
 
+        function abrirTesteGratis() {
+            window.location.href = '/painelTeste/index.html';
+        }
+
         function setModo(m) {
             modoAtual = m;
-            
-            // Controle rígido de visibilidade para evitar sobreposição
+
             document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
             document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
             document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
             document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
-            
-            // Alteração visual das abas com as cores originais
-            document.getElementById('tab-ativar').className = m === 'ativar' ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-assinante').className = m === 'assinante' ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            document.getElementById('tab-limpar').className = m === 'limpar' ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner' : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
-            
+
+            document.getElementById('tab-ativar').className = m === 'ativar'
+                ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            document.getElementById('tab-assinante').className = m === 'assinante'
+                ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            document.getElementById('tab-limpar').className = m === 'limpar'
+                ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
             const btn = document.getElementById('btn-acao');
+
             if (m === 'limpar') {
                 btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
                 btn.innerText = "Limpar Playlists";
@@ -130,9 +160,9 @@
         async function consultarAssinatura() {
             const inputVal = document.getElementById('id-consulta').value;
             const containerFatura = document.getElementById('container-fatura');
-            
+
             let numeroLimpo = inputVal.replace(/\D/g, '');
-            
+
             if (numeroLimpo.length < 8) {
                 return alert("Por favor, digite seu WhatsApp com DDD.");
             }
@@ -143,7 +173,7 @@
             try {
                 const res = await fetch(`/api/cliente?id=${finalDoNumero}`);
                 const json = await res.json();
-                
+
                 if (json.success) {
                     document.getElementById('res-nome').innerText = json.dados.nome || '---';
                     document.getElementById('res-user').innerText = json.dados.usuario_iptv || '---';
@@ -151,55 +181,64 @@
                     document.getElementById('res-servidor').innerText = json.dados.servidor || '---';
                     document.getElementById('res-valor').innerText = json.dados.valor || '---';
                     document.getElementById('res-venc').innerText = json.dados.vencimento || '---';
-                    
+
                     if (json.dados.link_fatura && json.dados.link_fatura.length > 10) {
                         document.getElementById('btn-fatura').href = json.dados.link_fatura;
                         containerFatura.classList.remove('hidden');
                     }
-                    
+
                     document.getElementById('usuario').value = json.dados.usuario_iptv || '';
                     document.getElementById('senha').value = json.dados.senha_iptv || '';
                     document.getElementById('resultado-consulta').classList.remove('hidden');
                 } else {
                     alert(json.mensagem);
                 }
-            } catch (e) { 
-                alert("Erro ao conectar com o servidor."); 
+            } catch (e) {
+                alert("Erro ao conectar com o servidor.");
             }
         }
 
         async function processar() {
-            const data = { 
-                mac: document.getElementById('mac').value, 
-                key: document.getElementById('key').value, 
-                usuario: document.getElementById('usuario').value, 
-                senha: document.getElementById('senha').value, 
-                tipo: modoAtual 
+            const data = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                usuario: document.getElementById('usuario').value,
+                senha: document.getElementById('senha').value,
+                tipo: modoAtual
             };
-            if(!data.mac || !data.key) return alert("MAC e Key são obrigatórios!");
+
+            if (!data.mac || !data.key) {
+                return alert("MAC e Key são obrigatórios!");
+            }
 
             document.getElementById('status-container').classList.remove('hidden');
             document.getElementById('status-mensagem').innerText = "ENVIANDO SOLICITAÇÃO...";
 
             try {
-                await fetch('/ativar', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify(data) 
+                await fetch('/ativar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
+
                 iniciarMonitoramento(data.mac);
-            } catch (e) { alert("Erro ao enviar dados."); }
+            } catch (e) {
+                alert("Erro ao enviar dados.");
+            }
         }
 
         function iniciarMonitoramento(mac) {
-            if(intervaloStatus) clearInterval(intervaloStatus);
+            if (intervaloStatus) clearInterval(intervaloStatus);
+
             document.getElementById('status-barra').style.width = "20%";
+
             intervaloStatus = setInterval(async () => {
                 try {
                     const res = await fetch(`/status?mac=${mac}`);
                     const s = await res.json();
+
                     document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
-                    
+
                     if (s.status === "ok") {
                         document.getElementById('status-barra').style.width = "100%";
                         clearInterval(intervaloStatus);
@@ -210,12 +249,13 @@
                     } else {
                         document.getElementById('status-barra').style.width = "60%";
                     }
-                } catch (e) { console.error("Erro status"); }
+                } catch (e) {
+                    console.error("Erro status");
+                }
             }, 3000);
         }
 
-        // Correção aqui: Inicializa na aba 'assinante' para os campos estarem prontos com o botão azul "Sincronizar"
-        setModo('assinante');
+        setModo('ativar');
     </script>
 </body>
 </html>
