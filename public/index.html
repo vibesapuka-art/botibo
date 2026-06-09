@@ -19,6 +19,46 @@
         .tab-active-gold { background-color: #ca8a04; color: white; }
         .tab-inactive { background-color: #262626; color: #9ca3af; }
         input { transition: all 0.3s; }
+
+        .modal-status {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-status.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 430px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65);
+        }
+
+        .spinner-atualizacao {
+            width: 52px;
+            height: 52px;
+            border: 5px solid #333;
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            animation: girar 0.85s linear infinite;
+            margin: 0 auto 14px auto;
+        }
+
+        @keyframes girar {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -35,7 +75,7 @@
             </button>
 
             <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
-                atualizarPlaylists
+                Playlists
             </button>
 
             <button onclick="abrirTesteGratis()" id="tab-teste" class="p-2 rounded-lg tab-active-gold font-bold text-[10px] uppercase shadow-inner">
@@ -91,27 +131,43 @@
             <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
         </div>
 
-        <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-4 text-center">
-            <h3 id="status-titulo" class="text-white font-extrabold text-sm uppercase mb-2">Iniciando...</h3>
+        <div id="status-container" class="modal-status hidden">
+            <div class="modal-card text-center">
+                <div id="spinner-status" class="spinner-atualizacao"></div>
 
-            <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2">
-                <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
-            </div>
+                <h3 id="status-titulo" class="text-white font-extrabold text-sm uppercase mb-2">Iniciando...</h3>
 
-            <p id="status-percentual" class="text-[#22c55e] text-xs font-extrabold mb-2">5%</p>
-            <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
+                <div class="w-full bg-gray-900 h-3 rounded-full overflow-hidden mb-2">
+                    <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
+                </div>
 
-            <div id="checklist-atualizacao" class="mt-4 text-left bg-[#0f0f0f] border border-gray-800 rounded-lg p-3 space-y-1">
-                <p id="checkAtualizacaoAcesso" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Acessando IB Player</p>
-                <p id="checkAtualizacaoValidacao" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Validando MAC e KEY</p>
-                <p id="checkAtualizacaoLimpeza" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Limpando playlists antigas</p>
-                <p id="checkAtualizacaoDns" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Buscando DNS ativas</p>
-                <p id="checkAtualizacaoPlaylist1" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 1 adicionada</p>
-                <p id="checkAtualizacaoPlaylist2" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 2 adicionada</p>
-                <p id="checkAtualizacaoPlaylist3" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 3 adicionada</p>
-                <p id="checkAtualizacaoPlaylist4" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 4 adicionada</p>
-                <p id="checkAtualizacaoPlaylist5" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 5 adicionada</p>
-                <p id="checkAtualizacaoFinalizado" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Finalizando atualização</p>
+                <p id="status-percentual" class="text-[#22c55e] text-xs font-extrabold mb-2">5%</p>
+                <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
+
+                <p class="text-[10px] text-yellow-400 font-bold uppercase mt-3">
+                    Mantenha a TV desligada e não feche esta tela.
+                </p>
+
+                <div id="checklist-atualizacao" class="mt-4 text-left bg-[#0f0f0f] border border-gray-800 rounded-lg p-3 space-y-1">
+                    <p id="checkAtualizacaoAcesso" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Acessando IB Player</p>
+                    <p id="checkAtualizacaoValidacao" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Validando MAC e KEY</p>
+                    <p id="checkAtualizacaoLimpeza" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Limpando playlists antigas</p>
+                    <p id="checkAtualizacaoDns" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Buscando DNS ativas</p>
+                    <p id="checkAtualizacaoPlaylist1" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 1 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist2" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 2 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist3" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 3 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist4" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 4 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist5" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 5 adicionada</p>
+                    <p id="checkAtualizacaoFinalizado" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Finalizando atualização</p>
+                </div>
+
+                <button
+                    id="btn-fechar-modal-status"
+                    onclick="fecharModalStatus()"
+                    class="hidden mt-4 w-full bg-[#262626] hover:bg-[#333] text-white font-bold py-3 rounded-lg uppercase text-[10px]"
+                >
+                    Fechar
+                </button>
             </div>
         </div>
     </div>
@@ -252,6 +308,10 @@
             }
         }
 
+        function fecharModalStatus() {
+            document.getElementById('status-container').classList.add('hidden');
+        }
+
         function atualizarChecklistAtualizacao(checklist) {
             checklist = checklist || {};
 
@@ -289,6 +349,10 @@
         function iniciarMonitoramento(mac) {
             if (intervaloStatus) clearInterval(intervaloStatus);
 
+            document.getElementById('status-container').classList.remove('hidden');
+            document.getElementById('btn-fechar-modal-status').classList.add('hidden');
+            document.getElementById('spinner-status').classList.remove('hidden');
+
             document.getElementById('status-barra').classList.remove('bg-red-600');
             document.getElementById('status-barra').classList.add('bg-[#22c55e]');
 
@@ -323,12 +387,16 @@
                     if (s.status === "ok") {
                         document.getElementById('status-barra').style.width = "100%";
                         document.getElementById('status-percentual').innerText = "100%";
+                        document.getElementById('spinner-status').classList.add('hidden');
+                        document.getElementById('btn-fechar-modal-status').classList.remove('hidden');
                         clearInterval(intervaloStatus);
                     } else if (s.status === "erro") {
                         document.getElementById('status-barra').style.width = "100%";
                         document.getElementById('status-percentual').innerText = "100%";
                         document.getElementById('status-barra').classList.remove('bg-[#22c55e]');
                         document.getElementById('status-barra').classList.add('bg-red-600');
+                        document.getElementById('spinner-status').classList.add('hidden');
+                        document.getElementById('btn-fechar-modal-status').classList.remove('hidden');
                         clearInterval(intervaloStatus);
                     }
                 } catch (e) {
