@@ -73,10 +73,6 @@
                             </a>
                         </div>
                     </div>
-
-                    <div id="aviso-dispositivo" class="hidden border-t border-gray-800 pt-2">
-                        <p id="texto-dispositivo" class="text-[10px] text-yellow-400 font-bold uppercase"></p>
-                    </div>
                 </div>
             </div>
 
@@ -90,7 +86,7 @@
                 <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
             </div>
 
-            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Sincronizar</button>
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Atualizar Playlists</button>
 
             <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
         </div>
@@ -160,15 +156,13 @@
                 btn.innerText = "Limpar Playlists";
             } else if (m === 'assinante') {
                 btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
-                btn.innerText = "Sincronizar";
+                btn.innerText = "Atualizar Playlists";
             }
         }
 
         async function consultarAssinatura() {
             const inputVal = document.getElementById('id-consulta').value;
             const containerFatura = document.getElementById('container-fatura');
-            const avisoDispositivo = document.getElementById('aviso-dispositivo');
-            const textoDispositivo = document.getElementById('texto-dispositivo');
 
             let numeroLimpo = inputVal.replace(/\D/g, '');
 
@@ -180,8 +174,6 @@
 
             const finalDoNumero = numeroLimpo.slice(-8);
             containerFatura.classList.add('hidden');
-            avisoDispositivo.classList.add('hidden');
-            textoDispositivo.innerText = '';
 
             try {
                 const res = await fetch(`/api/cliente?id=${finalDoNumero}`);
@@ -202,22 +194,8 @@
 
                     document.getElementById('usuario').value = json.dados.usuario_iptv || '';
                     document.getElementById('senha').value = json.dados.senha_iptv || '';
-
                     document.getElementById('mac').value = json.dados.mac || '';
                     document.getElementById('key').value = json.dados.key || '';
-
-                    if (json.dados.mac && json.dados.key) {
-                        avisoDispositivo.classList.remove('hidden');
-
-                        if (json.dados.origem_dispositivo === 'testes_ib') {
-                            textoDispositivo.innerText = 'MAC e KEY carregados do teste grátis. Ao sincronizar, eles serão salvos como dispositivo oficial.';
-                        } else if (json.dados.origem_dispositivo === 'dispositivos_clientes') {
-                            textoDispositivo.innerText = 'MAC e KEY carregados do dispositivo salvo.';
-                        } else {
-                            textoDispositivo.innerText = 'MAC e KEY carregados automaticamente.';
-                        }
-                    }
-
                     document.getElementById('resultado-consulta').classList.remove('hidden');
                 } else {
                     alert(json.mensagem);
@@ -233,7 +211,7 @@
                 key: document.getElementById('key').value,
                 usuario: document.getElementById('usuario').value,
                 senha: document.getElementById('senha').value,
-                tipo: modoAtual,
+                tipo: modoAtual === 'assinante' ? 'atualizar' : modoAtual,
                 whatsapp: whatsappConsultado || document.getElementById('id-consulta').value
             };
 
@@ -264,10 +242,10 @@
 
             intervaloStatus = setInterval(async () => {
                 try {
-                    const res = await fetch(`/status?mac=${encodeURIComponent(mac)}`);
+                    const res = await fetch(`/status?mac=${mac}`);
                     const s = await res.json();
 
-                    document.getElementById('status-mensagem').innerText = String(s.mensagem || s.message || '').toUpperCase();
+                    document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
 
                     if (s.status === "ok") {
                         document.getElementById('status-barra').style.width = "100%";
