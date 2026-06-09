@@ -7,8 +7,6 @@ const path = require('path');
 
 const app = express();
 
-const listaDns = require('./src/config/dns.js');
-
 const engine = require('./src/bot/engine');
 const cleaner = require('./src/bot/cleaner');
 
@@ -123,12 +121,12 @@ app.post('/api/teste-gratis', async (req, res, next) => {
             mac &&
             key
         ) {
-            console.log(`📺 Smart TV na fila: Jogando ${mac} para o injetor Puppeteer.`);
+            console.log(`📺 Smart TV na fila: Jogando ${mac} para atualizar playlists.`);
 
             pedidos.push({
                 id: Date.now().toString(),
                 status: "aguardando",
-                tipo: "adicionar",
+                tipo: "atualizar",
                 mac: mac.trim(),
                 key: key.trim(),
                 device_id: key.trim(),
@@ -219,36 +217,50 @@ app.post('/ativar', async (req, res) => {
         });
     }
 
+    if (!usuario || !senha) {
+        return res.json({
+            success: false,
+            mensagem: "Usuário IPTV e senha são obrigatórios."
+        });
+    }
+
     if (whatsapp) {
         try {
             await salvarDispositivoCliente({
                 whatsapp,
                 mac,
                 key,
-                tipo: tipo || "assinante"
+                tipo: tipo || "atualizar"
             });
         } catch (err) {
             console.error("⚠️ Não foi possível salvar dispositivo:", err.message);
         }
     }
 
+    const tipoFinal = tipo || "atualizar";
+
     const novoPedido = {
+        id: Date.now().toString(),
         mac: mac ? mac.trim() : "",
         key: key ? key.trim() : "",
+        device_id: key ? key.trim() : "",
         user: usuario,
         pass: senha,
-        tipo: tipo,
+        tipo: tipoFinal,
         status: "pendente",
         mensagem: "⏳ AGUARDANDO NA FILA...",
         data: new Date(),
-        dnsList: listaDns
+        whatsapp: whatsapp ? whatsapp.replace(/\D/g, '') : ""
     };
 
     pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
     pedidos.push(novoPedido);
 
     return res.json({
-        success: true
+        success: true,
+        mensagem: tipoFinal === "atualizar"
+            ? "Atualização de playlists enviada para a fila."
+            : "Solicitação enviada para a fila."
     });
 });
 
@@ -286,23 +298,39 @@ async function gerenciarFila() {
 
     processandoAgora = true;
     pedido.status = "processando";
-    pedido.mensagem = "⚙️ PROCESSANDO NO SERVIDOR...";
 
     try {
         if (pedido.tipo === 'limpar') {
+            pedido.mensagem = "🧹 LIMPANDO PLAYLISTS ANTIGAS...";
             await cleaner(pedido);
-        } else {
-            await engine([pedido]);
-        }
 
-        pedido.status = "ok";
-        pedido.mensagem = "✅ PROCESSADO COM SUCESSO.";
+            pedido.status = "ok";
+            pedido.mensagem = "✅ PLAYLISTS LIMPAS COM SUCESSO.";
+
+        } else if (pedido.tipo === 'atualizar') {
+            pedido.mensagem = "🧹 LIMPANDO PLAYLISTS ANTIGAS...";
+            await cleaner(pedido);
+
+            pedido.mensagem = "📡 ADICIONANDO NOVAS PLAYLISTS...";
+            await engine([pedido]);
+
+            pedido.status = "ok";
+            pedido.mensagem = "✅ PLAYLISTS ATUALIZADAS COM SUCESSO. PODE LIGAR A TV.";
+
+        } else {
+            pedido.mensagem = "📡 ADICIONANDO PLAYLISTS...";
+            await engine([pedido]);
+
+            pedido.status = "ok";
+            pedido.mensagem = "✅ PROCESSADO COM SUCESSO.";
+        }
 
     } catch (err) {
         console.error(err.message);
 
         pedido.status = "erro";
-        pedido.mensagem = "❌ ERRO AO PROCESSAR.";
+        pedido.mensagem = "❌ ERRO AO PROCESSAR: " + err.message;
+
     } finally {
         processandoAgora = false;
         gerenciarFila();
