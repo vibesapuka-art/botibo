@@ -18,6 +18,12 @@ const painelTeste = require('./src/painelTeste/index.js');
 
 console.log('painelTeste:', typeof painelTeste);
 console.log('painelTeste keys:', Object.keys(painelTeste));
+
+// MIDDLEWARES PRINCIPAIS
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
 // ROTAS DO PAINEL TESTE
 // Mantém funcionando:
 // /api/teste
