@@ -92,10 +92,27 @@
         </div>
 
         <div id="status-container" class="mt-8 hidden border-t border-gray-800 pt-4 text-center">
+            <h3 id="status-titulo" class="text-white font-extrabold text-sm uppercase mb-2">Iniciando...</h3>
+
             <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden mb-2">
                 <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
             </div>
+
+            <p id="status-percentual" class="text-[#22c55e] text-xs font-extrabold mb-2">5%</p>
             <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
+
+            <div id="checklist-atualizacao" class="mt-4 text-left bg-[#0f0f0f] border border-gray-800 rounded-lg p-3 space-y-1">
+                <p id="checkAtualizacaoAcesso" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Acessando IB Player</p>
+                <p id="checkAtualizacaoValidacao" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Validando MAC e KEY</p>
+                <p id="checkAtualizacaoLimpeza" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Limpando playlists antigas</p>
+                <p id="checkAtualizacaoDns" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Buscando DNS ativas</p>
+                <p id="checkAtualizacaoPlaylist1" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 1 adicionada</p>
+                <p id="checkAtualizacaoPlaylist2" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 2 adicionada</p>
+                <p id="checkAtualizacaoPlaylist3" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 3 adicionada</p>
+                <p id="checkAtualizacaoPlaylist4" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 4 adicionada</p>
+                <p id="checkAtualizacaoPlaylist5" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 5 adicionada</p>
+                <p id="checkAtualizacaoFinalizado" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Finalizando atualização</p>
+            </div>
         </div>
     </div>
 
@@ -235,32 +252,89 @@
             }
         }
 
+        function atualizarChecklistAtualizacao(checklist) {
+            checklist = checklist || {};
+
+            document.getElementById('checkAtualizacaoAcesso').innerText =
+                checklist.acesso || checklist.acessoAdicionar ? '✅ Acessando IB Player' : '⬜ Acessando IB Player';
+
+            document.getElementById('checkAtualizacaoValidacao').innerText =
+                checklist.validacao ? '✅ Validando MAC e KEY' : '⬜ Validando MAC e KEY';
+
+            document.getElementById('checkAtualizacaoLimpeza').innerText =
+                checklist.limpeza ? '✅ Limpando playlists antigas' : '⬜ Limpando playlists antigas';
+
+            document.getElementById('checkAtualizacaoDns').innerText =
+                checklist.dns ? '✅ Buscando DNS ativas' : '⬜ Buscando DNS ativas';
+
+            document.getElementById('checkAtualizacaoPlaylist1').innerText =
+                checklist.playlist1 ? '✅ Playlist 1 adicionada' : '⬜ Playlist 1 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist2').innerText =
+                checklist.playlist2 ? '✅ Playlist 2 adicionada' : '⬜ Playlist 2 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist3').innerText =
+                checklist.playlist3 ? '✅ Playlist 3 adicionada' : '⬜ Playlist 3 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist4').innerText =
+                checklist.playlist4 ? '✅ Playlist 4 adicionada' : '⬜ Playlist 4 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist5').innerText =
+                checklist.playlist5 ? '✅ Playlist 5 adicionada' : '⬜ Playlist 5 adicionada';
+
+            document.getElementById('checkAtualizacaoFinalizado').innerText =
+                checklist.finalizado ? '✅ Finalizando atualização' : '⬜ Finalizando atualização';
+        }
+
         function iniciarMonitoramento(mac) {
             if (intervaloStatus) clearInterval(intervaloStatus);
 
-            document.getElementById('status-barra').style.width = "20%";
+            document.getElementById('status-barra').classList.remove('bg-red-600');
+            document.getElementById('status-barra').classList.add('bg-[#22c55e]');
+
+            document.getElementById('status-barra').style.width = "5%";
+            document.getElementById('status-percentual').innerText = "5%";
+            document.getElementById('status-titulo').innerText = "Aguardando robô...";
+            document.getElementById('status-mensagem').innerText = "AGUARDANDO NA FILA...";
+
+            atualizarChecklistAtualizacao({});
 
             intervaloStatus = setInterval(async () => {
                 try {
-                    const res = await fetch(`/status?mac=${mac}`);
+                    const res = await fetch(`/status?mac=${encodeURIComponent(mac)}`);
                     const s = await res.json();
 
-                    document.getElementById('status-mensagem').innerText = s.mensagem.toUpperCase();
+                    const progresso = s.progresso || 0;
+
+                    document.getElementById('status-titulo').innerText =
+                        s.titulo || 'Atualizando playlists...';
+
+                    document.getElementById('status-mensagem').innerText =
+                        String(s.mensagem || s.message || '').toUpperCase();
+
+                    document.getElementById('status-barra').style.width =
+                        `${progresso}%`;
+
+                    document.getElementById('status-percentual').innerText =
+                        `${progresso}%`;
+
+                    atualizarChecklistAtualizacao(s.checklist || {});
 
                     if (s.status === "ok") {
                         document.getElementById('status-barra').style.width = "100%";
+                        document.getElementById('status-percentual').innerText = "100%";
                         clearInterval(intervaloStatus);
                     } else if (s.status === "erro") {
                         document.getElementById('status-barra').style.width = "100%";
-                        document.getElementById('status-barra').classList.replace('bg-[#22c55e]', 'bg-red-600');
+                        document.getElementById('status-percentual').innerText = "100%";
+                        document.getElementById('status-barra').classList.remove('bg-[#22c55e]');
+                        document.getElementById('status-barra').classList.add('bg-red-600');
                         clearInterval(intervaloStatus);
-                    } else {
-                        document.getElementById('status-barra').style.width = "60%";
                     }
                 } catch (e) {
                     console.error("Erro status");
                 }
-            }, 3000);
+            }, 2000);
         }
 
         setModo('ativar');
