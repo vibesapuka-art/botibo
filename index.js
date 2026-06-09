@@ -37,6 +37,22 @@ app.use('/api', painelTeste);
 let pedidos = [];
 let processandoAgora = false;
 
+function criarChecklistAtualizacao() {
+    return {
+        acesso: false,
+        validacao: false,
+        limpeza: false,
+        dns: false,
+        acessoAdicionar: false,
+        playlist1: false,
+        playlist2: false,
+        playlist3: false,
+        playlist4: false,
+        playlist5: false,
+        finalizado: false
+    };
+}
+
 app.post('/api/pre-gerar-teste', async (req, res, next) => {
     console.log("🎲 [Netplay] Pré-gerando credenciais na rota isolada pós-termos...");
 
@@ -133,7 +149,10 @@ app.post('/api/teste-gratis', async (req, res, next) => {
                 user: username,
                 pass: password,
                 whatsapp: whatsapp.replace(/\D/g, ''),
-                mensagem: "⏱️ AGUARDANDO ROBÔ..."
+                titulo: "Aguardando robô",
+                mensagem: "⏱️ Aguardando início da atualização...",
+                progresso: 5,
+                checklist: criarChecklistAtualizacao()
             });
         }
 
@@ -248,9 +267,14 @@ app.post('/ativar', async (req, res) => {
         pass: senha,
         tipo: tipoFinal,
         status: "pendente",
-        mensagem: "⏳ AGUARDANDO NA FILA...",
+        titulo: "Aguardando robô",
+        mensagem: "⏳ Aguardando na fila...",
+        progresso: 5,
+        etapaAtual: 1,
+        totalEtapas: 10,
         data: new Date(),
-        whatsapp: whatsapp ? whatsapp.replace(/\D/g, '') : ""
+        whatsapp: whatsapp ? whatsapp.replace(/\D/g, '') : "",
+        checklist: criarChecklistAtualizacao()
     };
 
     pedidos = pedidos.filter(p => p.mac !== novoPedido.mac);
@@ -270,13 +294,23 @@ app.get('/status', (req, res) => {
 
     if (indexAtual !== -1) {
         return res.json({
+            success: true,
+            id: pedidos[indexAtual].id,
             status: pedidos[indexAtual].status,
-            mensagem: pedidos[indexAtual].mensagem,
+            titulo: pedidos[indexAtual].titulo || "",
+            mensagem: pedidos[indexAtual].mensagem || "",
+            progresso: pedidos[indexAtual].progresso || 0,
+            etapaAtual: pedidos[indexAtual].etapaAtual || null,
+            totalEtapas: pedidos[indexAtual].totalEtapas || null,
+            playlistAtual: pedidos[indexAtual].playlistAtual || null,
+            totalPlaylists: pedidos[indexAtual].totalPlaylists || null,
+            checklist: pedidos[indexAtual].checklist || {},
             naFrente: indexAtual
         });
     }
 
     return res.json({
+        success: false,
         status: "erro",
         message: "Pedido não encontrado."
     });
@@ -298,38 +332,73 @@ async function gerenciarFila() {
 
     processandoAgora = true;
     pedido.status = "processando";
+    pedido.progresso = Math.max(pedido.progresso || 0, 10);
+    pedido.titulo = "Iniciando atualização";
+    pedido.mensagem = "Preparando processo. Mantenha a TV desligada.";
 
     try {
         if (pedido.tipo === 'limpar') {
-            pedido.mensagem = "🧹 LIMPANDO PLAYLISTS ANTIGAS...";
+            pedido.titulo = "Limpando playlists";
+            pedido.mensagem = "🧹 Limpando playlists antigas...";
+            pedido.progresso = 15;
+
             await cleaner(pedido);
 
             pedido.status = "ok";
-            pedido.mensagem = "✅ PLAYLISTS LIMPAS COM SUCESSO.";
+            pedido.titulo = "Tudo limpo";
+            pedido.mensagem = "✅ Playlists limpas com sucesso.";
+            pedido.progresso = 100;
+            pedido.checklist = {
+                ...(pedido.checklist || {}),
+                finalizado: true
+            };
 
         } else if (pedido.tipo === 'atualizar') {
-            pedido.mensagem = "🧹 LIMPANDO PLAYLISTS ANTIGAS...";
+            pedido.titulo = "Atualizando playlists";
+            pedido.mensagem = "🧹 Primeiro vamos limpar as playlists antigas.";
+            pedido.progresso = 12;
+
             await cleaner(pedido);
 
-            pedido.mensagem = "📡 ADICIONANDO NOVAS PLAYLISTS...";
+            pedido.titulo = "Adicionando novas playlists";
+            pedido.mensagem = "📡 Agora vamos adicionar as novas playlists.";
+            pedido.progresso = Math.max(pedido.progresso || 0, 42);
+
             await engine([pedido]);
 
             pedido.status = "ok";
-            pedido.mensagem = "✅ PLAYLISTS ATUALIZADAS COM SUCESSO. PODE LIGAR A TV.";
+            pedido.titulo = "Tudo pronto!";
+            pedido.mensagem = "✅ Playlists atualizadas com sucesso. Pode ligar a TV.";
+            pedido.progresso = 100;
+            pedido.checklist = {
+                ...(pedido.checklist || {}),
+                finalizado: true
+            };
 
         } else {
-            pedido.mensagem = "📡 ADICIONANDO PLAYLISTS...";
+            pedido.titulo = "Adicionando playlists";
+            pedido.mensagem = "📡 Adicionando playlists...";
+            pedido.progresso = 40;
+
             await engine([pedido]);
 
             pedido.status = "ok";
-            pedido.mensagem = "✅ PROCESSADO COM SUCESSO.";
+            pedido.titulo = "Tudo pronto!";
+            pedido.mensagem = "✅ Processado com sucesso.";
+            pedido.progresso = 100;
+            pedido.checklist = {
+                ...(pedido.checklist || {}),
+                finalizado: true
+            };
         }
 
     } catch (err) {
         console.error(err.message);
 
         pedido.status = "erro";
-        pedido.mensagem = "❌ ERRO AO PROCESSAR: " + err.message;
+        pedido.titulo = "Erro ao processar";
+        pedido.mensagem = "❌ Erro ao processar: " + err.message;
+        pedido.progresso = 100;
 
     } finally {
         processandoAgora = false;
