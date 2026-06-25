@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imperium TV - Teste Grátis</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a href="https://wa.me/5544988214771" target="_blank" class="botao-suporte-fixo">
+  💬 Suporte Oficial
+</a>
+
+<div class="container">
+
+  <section id="telaAntigolpe">
+    <img src="imagens/icones/logoprincipal.png" class="logo-principal" alt="Imperium TV">
+
+    <h1>🛡️ Aviso de Segurança</h1>
+
+    <div class="alerta-box">
+      <p>
+        Antes de continuar, confirme se este link foi enviado pelo suporte oficial da
+        <strong>Imperium TV</strong> ou por alguém de confiança.
+      </p>
+
+      <p>
+        Em caso de dúvida, fale diretamente com nosso WhatsApp oficial:
+      </p>
+
+      <p class="numero-suporte">
+        WhatsApp Oficial Imperium TV
+      </p>
+
+      <a href="https://wa.me/5544988214771" target="_blank" class="btn-suporte">
+        💬 Confirmar com suporte oficial
+      </a>
+    </div>
+
+    <button class="btn-principal" onclick="mostrarTermos()">CONTINUAR</button>
+  </section>
+
+  <section id="telaTermos" class="hidden">
+    <img src="imagens/icones/logoprincipal.png" class="logo-principal" alt="Imperium TV">
+
+    <h1>📄 Termos de Uso do Teste</h1>
+
+    <div class="termos-box">
+      <p>
+        Nosso sistema trabalha no modelo <strong>pré-pago</strong>, sem compromisso mensal obrigatório.
+        Você paga somente quando quiser utilizar o serviço.
+      </p>
+
+      <p>
+        O valor do plano mensal é de <strong>R$ 19,90</strong>.
+      </p>
+
+      <p>
+        O aplicativo <strong>IB Player Pro</strong> possui uma ativação anual no valor de
+        <strong>R$ 10,00</strong>. Esse valor é cobrado uma vez ao ano e não faz parte da fatura mensal do plano.
+      </p>
+
+      <p>
+        A ativação anual do IB Player Pro é paga junto com a primeira fatura do cliente.
+      </p>
+
+      <p>
+        Após a contratação, não realizamos devolução de valores, pois o teste gratuito é disponibilizado antes
+        justamente para o cliente verificar se deseja contratar o serviço.
+      </p>
+
+      <p>
+        Qualquer pagamento deve ser confirmado e realizado somente com o suporte oficial da Imperium TV.
+      </p>
+
+      <label class="check-termos">
+        <input type="checkbox" id="aceiteTermos" onchange="toggleBotaoTermos()">
+        Li e aceito os termos acima.
+      </label>
+    </div>
+
+    <button id="btnAceitarTermos" class="btn-principal" onclick="aceitarTermos()" disabled>
+      ACEITAR E COMEÇAR
+    </button>
+  </section>
+
+  <section id="telaBoasVindas" class="hidden">
+    <img src="imagens/icones/logoprincipal.png" class="logo-principal" alt="Imperium TV">
+
+    <h1>🎉 Bem-vindo à Imperium TV</h1>
+    <p>Antes de ativar seu teste grátis, vamos instalar o aplicativo correto.</p>
+    <p>⏱️ Leva menos de 2 minutos.</p>
+    <button class="btn-principal" onclick="mostrarDispositivos()">COMEÇAR</button>
+  </section>
+
+  <section id="telaDispositivos" class="hidden">
+    <img src="imagens/icones/logoprincipal.png" class="logo-principal" alt="Imperium TV">
+
+    <h2>📺 Qual aparelho você vai utilizar?</h2>
+    <div class="grid-dispositivos" id="listaDispositivos"></div>
+  </section>
+
+  <section id="telaTutorial" class="hidden">
+    <button class="btn-voltar" onclick="voltarDispositivos()">← Voltar</button>
+
+    <img src="imagens/icones/logoprincipal.png" class="logo-topo" alt="Imperium TV">
+
+    <h2 id="tituloTutorial"></h2>
+    <p class="app-info" id="appTutorial"></p>
+
+    <div class="progresso">
+      <div id="barraProgresso"></div>
+    </div>
+
+    <div class="passo-box">
+      <h3 id="tituloPasso"></h3>
+      <p id="textoPasso"></p>
+      <img id="imagemPasso" class="imagem-tutorial hidden" alt="Imagem do tutorial">
+    </div>
+
+    <div class="botoes">
+      <button class="btn-secundario" onclick="passoAnterior()">← Voltar</button>
+      <button class="btn-principal" onclick="proximoPasso()" id="btnProximo">Próximo →</button>
+    </div>
+
+    <button id="btnNaoEncontrei" class="btn-alerta hidden" onclick="abrirRegiao()">
+      ❌ Não encontrei o aplicativo
+    </button>
+  </section>
+
+  <section id="telaRegiao" class="hidden">
+    <button class="btn-voltar" onclick="voltarTutorial()">← Voltar ao tutorial</button>
+
+    <img src="imagens/icones/logoprincipal.png" class="logo-topo" alt="Imperium TV">
+
+    <h2>🌎 Ajuda para encontrar o aplicativo</h2>
+
+    <div class="progresso">
+      <div id="barraRegiao"></div>
+    </div>
+
+    <div class="passo-box">
+      <h3 id="tituloRegiao"></h3>
+      <p id="textoRegiao"></p>
+      <img id="imagemRegiao" class="imagem-tutorial hidden" alt="Imagem de região">
+    </div>
+
+    <div class="botoes">
+      <button class="btn-secundario" onclick="regiaoAnterior()">← Voltar</button>
+      <button class="btn-principal" onclick="proximaRegiao()">Próximo →</button>
+    </div>
+  </section>
+
+  <section id="telaFormulario" class="hidden">
+    <button class="btn-voltar" onclick="voltarTutorial()">← Voltar</button>
+
+    <img src="imagens/icones/logoprincipal.png" class="logo-topo" alt="Imperium TV">
+
+    <h2>✅ Agora vamos ativar seu teste</h2>
+    <p id="textoEtapaFormulario">Informe o endereço do dispositivo.</p>
+
+    <div class="progresso">
+      <div id="barraFormulario"></div>
+    </div>
+
+    <div class="passo-box">
+
+      <div id="etapaMac" class="etapa-form">
+        <h3>Passo 1 de 6</h3>
+        <p>Digite o endereço do dispositivo que aparece no IB Player.</p>
+        <input type="text" id="mac" placeholder="Ex: 00:1A:79:AB:CD:EF">
+      </div>
+
+      <div id="etapaKey" class="etapa-form hidden">
+        <h3>Passo 2 de 6</h3>
+        <p>Digite a chave do dispositivo que aparece no IB Player.</p>
+        <input type="text" id="key" placeholder="KEY do dispositivo">
+      </div>
+
+      <div id="etapaNome" class="etapa-form hidden">
+        <h3>Passo 3 de 6</h3>
+        <p>Digite seu nome.</p>
+        <input type="text" id="nomeCliente" placeholder="Seu nome">
+      </div>
+
+      <div id="etapaWhatsapp" class="etapa-form hidden">
+        <h3>Passo 4 de 6</h3>
+        <p>Digite seu WhatsApp.</p>
+        <input type="text" id="whatsapp" placeholder="WhatsApp">
+      </div>
+
+      <div id="etapaTipoTeste" class="etapa-form hidden">
+        <h3>Passo 5 de 6</h3>
+        <p>Escolha o tipo de teste que deseja ativar.</p>
+
+        <div class="botoes-tipo-teste">
+          <button type="button" id="btnSemAdulto" class="btn-tipo ativo" onclick="selecionarTipoTeste('sem_adulto')">
+            ✅ Sem Adulto
+          </button>
+
+          <button type="button" id="btnComAdulto" class="btn-tipo" onclick="selecionarTipoTeste('com_adulto')">
+            🔞 Com Adulto
+          </button>
+        </div>
+
+        <input type="hidden" id="tipoTeste" value="sem_adulto">
+      </div>
+
+      <div id="etapaConfirmacao" class="etapa-form hidden">
+        <h3>Passo 6 de 6</h3>
+        <p>Confira se os dados estão corretos:</p>
+
+        <div class="resumo-box">
+          <p><strong>MAC:</strong> <span id="resumoMac"></span></p>
+          <p><strong>KEY:</strong> <span id="resumoKey"></span></p>
+          <p><strong>Nome:</strong> <span id="resumoNome"></span></p>
+          <p><strong>WhatsApp:</strong> <span id="resumoWhatsapp"></span></p>
+          <p><strong>Tipo de teste:</strong> <span id="resumoTipoTeste"></span></p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="botoes">
+      <button class="btn-secundario" onclick="voltarEtapaFormulario()">← Voltar</button>
+      <button class="btn-principal" onclick="avancarEtapaFormulario()" id="btnAvancarFormulario">Próximo →</button>
+    </div>
+
+    <div id="resultado"></div>
+  </section>
+
+  <section id="telaProcessando" class="hidden">
+    <img src="imagens/icones/logoprincipal.png" class="logo-principal" alt="Imperium TV">
+
+    <h2>⏳ Configurando seu dispositivo</h2>
+    <p>Não feche esta página. Esse processo pode levar de 30 a 90 segundos.</p>
+
+    <div class="aviso-pagamento">
+      ⚠️ Qualquer pagamento após o teste deve ser confirmado e realizado somente pelo suporte oficial.
+      <br>
+      <strong>WhatsApp Oficial Imperium TV</strong>
+      <a href="https://wa.me/5544988214771" target="_blank" class="btn-suporte-mini">
+        💬 Falar com suporte
+      </a>
+    </div>
+
+    <div class="progresso">
+      <div id="barraProcesso"></div>
+    </div>
+
+    <div class="passo-box processando-box">
+      <div class="loader"></div>
+
+      <h3 id="tituloProcesso">Iniciando...</h3>
+      <p id="mensagemProcesso">Aguarde alguns instantes.</p>
+
+      <p id="percentualProcesso">0%</p>
+    </div>
+
+    <div class="checklist-processo">
+      <p id="checkTeste">⬜ Teste criado</p>
+      <p id="checkAcesso">⬜ Acessando IB Player</p>
+      <p id="checkValidacao">⬜ Validando MAC e KEY</p>
+      <p id="checkPlaylist1">⬜ Playlist 1 adicionada</p>
+      <p id="checkPlaylist2">⬜ Playlist 2 adicionada</p>
+      <p id="checkPlaylist3">⬜ Playlist 3 adicionada</p>
+      <p id="checkPlaylist4">⬜ Playlist 4 adicionada</p>
+      <p id="checkPlaylist5">⬜ Playlist 5 adicionada</p>
+      <p id="checkFinalizado">⬜ Finalizando configuração</p>
+    </div>
+
+    <div id="blocoSuporte" class="hidden">
+      <div class="suporte-box">
+        <h3>🛡️ Aviso Antigolpe</h3>
+
+        <p>Este teste pertence à <strong>Imperium TV</strong>.</p>
+
+        <p>
+          Antes de efetuar qualquer pagamento ou contratação,
+          confirme diretamente conosco pelo WhatsApp oficial.
+        </p>
+
+        <p class="numero-suporte">
+          WhatsApp Oficial Imperium TV
+        </p>
+
+        <a href="https://wa.me/5544988214771" target="_blank" class="btn-suporte">
+          💬 FALAR COM SUPORTE OFICIAL
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

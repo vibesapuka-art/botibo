@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imperium TV - Painel do Cliente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link class="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <style>
+        body { background-color: #0f0f0f; color: white; font-family: sans-serif; }
+        .tab-active-green { background-color: #22c55e; color: black; }
+        .tab-active-blue { background-color: #3b82f6; color: white; }
+        .tab-active-red { background-color: #dc2626; color: white; }
+        .tab-active-gold { background-color: #ca8a04; color: white; }
+        .tab-inactive { background-color: #262626; color: #9ca3af; }
+        input { transition: all 0.3s; }
+
+        .modal-status {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-status.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 430px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.65);
+        }
+
+        .spinner-atualizacao {
+            width: 52px;
+            height: 52px;
+            border: 5px solid #333;
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            animation: girar 0.85s linear infinite;
+            margin: 0 auto 14px auto;
+        }
+
+        @keyframes girar {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
+
+        <div class="flex justify-center mb-6">
+            <img src="logo.png" alt="Imperium TV" class="w-64 h-auto object-contain">
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 mb-6">
+            <button onclick="setModo('ativar')" id="tab-ativar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Cliente
+            </button>
+
+            <button onclick="setModo('assinante')" id="tab-assinante" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Playlists
+            </button>
+
+            <button onclick="abrirTesteGratis()" id="tab-teste" class="p-2 rounded-lg tab-active-gold font-bold text-[10px] uppercase shadow-inner">
+                Testegratis
+            </button>
+
+            <button onclick="setModo('limpar')" id="tab-limpar" class="p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase">
+                Limpar
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <div id="area-cliente-content" class="hidden space-y-4">
+                <input type="text" id="id-consulta" placeholder="WhatsApp (ex: 44 99999-9999)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-[#22c55e] text-white">
+                <button onclick="consultarAssinatura()" class="w-full bg-[#22c55e] text-black font-bold py-3 rounded-lg uppercase text-sm">ACESSAR</button>
+
+                <div id="resultado-consulta" class="hidden bg-[#0f0f0f] p-4 rounded-lg border border-gray-800 space-y-3">
+                    <div><p class="text-[10px] text-gray-500 uppercase">Cliente</p><p id="res-nome" class="font-bold uppercase text-sm">---</p></div>
+
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Usuário</p><p id="res-user" class="text-[#22c55e] font-bold text-xs">---</p></div>
+                        <div><p class="text-[10px] text-gray-500 uppercase">Senha</p><p id="res-pass" class="text-[#22c55e] font-bold text-xs">---</p></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Servidor</p><p id="res-servidor" class="text-blue-400 font-bold text-[10px]">---</p></div>
+                        <div><p class="text-[10px] text-gray-500 uppercase">Valor</p><p id="res-valor" class="font-bold text-[10px]">---</p></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 border-t border-gray-800 pt-2 items-center">
+                        <div><p class="text-[10px] text-gray-500 uppercase">Vencimento</p><p id="res-venc" class="text-red-500 font-bold text-[10px]">---</p></div>
+                        <div id="container-fatura" class="hidden">
+                            <a id="btn-fatura" href="#" target="_blank" class="block bg-yellow-500 hover:bg-yellow-600 text-black text-center font-extrabold py-2 rounded text-[10px] uppercase shadow-lg">
+                                💳 PAGAR AGORA
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="campos-identificacao" class="space-y-2">
+                <input type="text" id="mac" placeholder="Endereço Mac (MAC Address)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
+                <input type="text" id="key" placeholder="Chave do dispositivo (Device Key)" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none focus:border-blue-500">
+            </div>
+
+            <div id="campos-iptv" class="hidden space-y-2">
+                <input type="text" id="usuario" placeholder="Usuário IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+                <input type="text" id="senha" placeholder="Senha IPTV" class="w-full p-3 bg-[#0f0f0f] border border-gray-700 rounded-lg outline-none">
+            </div>
+
+            <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Atualizar Playlists</button>
+
+            <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
+
+            <button id="btn-notificacao" onclick="ativarNotificacoes()" class="w-full border border-yellow-600 text-yellow-400 font-bold py-2 rounded-lg uppercase text-[10px]">
+                🔔 Ativar Notificações
+            </button>
+        </div>
+
+        <div id="status-container" class="modal-status hidden">
+            <div class="modal-card text-center">
+                <div id="spinner-status" class="spinner-atualizacao"></div>
+
+                <h3 id="status-titulo" class="text-white font-extrabold text-sm uppercase mb-2">Iniciando...</h3>
+
+                <div class="w-full bg-gray-900 h-3 rounded-full overflow-hidden mb-2">
+                    <div id="status-barra" class="bg-[#22c55e] h-full transition-all" style="width: 5%"></div>
+                </div>
+
+                <p id="status-percentual" class="text-[#22c55e] text-xs font-extrabold mb-2">5%</p>
+                <p id="status-mensagem" class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Iniciando...</p>
+
+                <p class="text-[10px] text-yellow-400 font-bold uppercase mt-3">
+                    Mantenha a TV desligada e não feche esta tela.
+                </p>
+
+                <div id="checklist-atualizacao" class="mt-4 text-left bg-[#0f0f0f] border border-gray-800 rounded-lg p-3 space-y-1">
+                    <p id="checkAtualizacaoAcesso" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Acessando IB Player</p>
+                    <p id="checkAtualizacaoValidacao" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Validando MAC e KEY</p>
+                    <p id="checkAtualizacaoLimpeza" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Limpando playlists antigas</p>
+                    <p id="checkAtualizacaoDns" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Buscando DNS ativas</p>
+                    <p id="checkAtualizacaoPlaylist1" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 1 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist2" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 2 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist3" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 3 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist4" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 4 adicionada</p>
+                    <p id="checkAtualizacaoPlaylist5" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Playlist 5 adicionada</p>
+                    <p id="checkAtualizacaoFinalizado" class="text-[10px] text-gray-400 font-bold uppercase">⬜ Finalizando atualização</p>
+                </div>
+
+                <button
+                    id="btn-fechar-modal-status"
+                    onclick="fecharModalStatus()"
+                    class="hidden mt-4 w-full bg-[#262626] hover:bg-[#333] text-white font-bold py-3 rounded-lg uppercase text-[10px]"
+                >
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let modoAtual = 'ativar';
+        let intervaloStatus = null;
+        let instalador;
+        let whatsappConsultado = '';
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            instalador = e;
+            document.getElementById('btn-instalar').classList.remove('hidden');
+        });
+
+        async function instalarApp() {
+            if (instalador) {
+                instalador.prompt();
+                const { outcome } = await instalador.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('btn-instalar').classList.add('hidden');
+                }
+            } else {
+                alert("Para criar o atalho:\n1. Clique nos 3 pontinhos do navegador\n2. Selecione 'Instalar Aplicativo' ou 'Adicionar à tela inicial'.");
+            }
+        }
+
+        function abrirTesteGratis() {
+            window.open('/painelTeste/index.html', '_self');
+        }
+
+        function setModo(m) {
+            modoAtual = m;
+
+            document.getElementById('area-cliente-content').classList.toggle('hidden', m !== 'ativar');
+            document.getElementById('campos-identificacao').classList.toggle('hidden', m === 'ativar');
+            document.getElementById('campos-iptv').classList.toggle('hidden', m !== 'assinante');
+            document.getElementById('btn-acao').classList.toggle('hidden', m === 'ativar');
+
+            document.getElementById('tab-ativar').className = m === 'ativar'
+                ? 'p-2 rounded-lg tab-active-green font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            document.getElementById('tab-assinante').className = m === 'assinante'
+                ? 'p-2 rounded-lg tab-active-blue font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            document.getElementById('tab-teste').className = 'p-2 rounded-lg tab-active-gold font-bold text-[10px] uppercase shadow-inner';
+
+            document.getElementById('tab-limpar').className = m === 'limpar'
+                ? 'p-2 rounded-lg tab-active-red font-bold text-[10px] uppercase shadow-inner'
+                : 'p-2 rounded-lg tab-inactive font-bold text-[10px] uppercase';
+
+            const btn = document.getElementById('btn-acao');
+
+            if (m === 'limpar') {
+                btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Limpar Playlists";
+            } else if (m === 'assinante') {
+                btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg";
+                btn.innerText = "Atualizar Playlists";
+            }
+        }
+
+        async function consultarAssinatura() {
+            const inputVal = document.getElementById('id-consulta').value;
+            const containerFatura = document.getElementById('container-fatura');
+
+            let numeroLimpo = inputVal.replace(/\D/g, '');
+
+            if (numeroLimpo.length < 8) {
+                return alert("Por favor, digite seu WhatsApp com DDD.");
+            }
+
+            whatsappConsultado = numeroLimpo;
+            localStorage.setItem('cliente_whatsapp', numeroLimpo);
+
+            const finalDoNumero = numeroLimpo.slice(-8);
+            containerFatura.classList.add('hidden');
+
+            try {
+                const res = await fetch(`/api/cliente?id=${finalDoNumero}`);
+                const json = await res.json();
+
+                if (json.success) {
+                    document.getElementById('res-nome').innerText = json.dados.nome || '---';
+                    document.getElementById('res-user').innerText = json.dados.usuario_iptv || '---';
+                    document.getElementById('res-pass').innerText = json.dados.senha_iptv || '---';
+                    document.getElementById('res-servidor').innerText = json.dados.servidor || '---';
+                    document.getElementById('res-valor').innerText = json.dados.valor || '---';
+                    document.getElementById('res-venc').innerText = json.dados.vencimento || '---';
+
+                    if (json.dados.link_fatura && json.dados.link_fatura.length > 10) {
+                        document.getElementById('btn-fatura').href = json.dados.link_fatura;
+                        containerFatura.classList.remove('hidden');
+                    }
+
+                    document.getElementById('usuario').value = json.dados.usuario_iptv || '';
+                    document.getElementById('senha').value = json.dados.senha_iptv || '';
+                    document.getElementById('mac').value = json.dados.mac || '';
+                    document.getElementById('key').value = json.dados.key || '';
+                    document.getElementById('resultado-consulta').classList.remove('hidden');
+                } else {
+                    alert(json.mensagem);
+                }
+            } catch (e) {
+                alert("Erro ao conectar com o servidor.");
+            }
+        }
+
+        async function processar() {
+            const data = {
+                mac: document.getElementById('mac').value,
+                key: document.getElementById('key').value,
+                usuario: document.getElementById('usuario').value,
+                senha: document.getElementById('senha').value,
+                tipo: modoAtual === 'assinante' ? 'atualizar' : modoAtual,
+                whatsapp: whatsappConsultado || document.getElementById('id-consulta').value
+            };
+
+            if (!data.mac || !data.key) {
+                return alert("MAC e Key são obrigatórios!");
+            }
+
+            document.getElementById('status-container').classList.remove('hidden');
+            document.getElementById('status-mensagem').innerText = "ENVIANDO SOLICITAÇÃO...";
+
+            try {
+                await fetch('/ativar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                iniciarMonitoramento(data.mac);
+            } catch (e) {
+                alert("Erro ao enviar dados.");
+            }
+        }
+
+        function fecharModalStatus() {
+            document.getElementById('status-container').classList.add('hidden');
+        }
+
+        function atualizarChecklistAtualizacao(checklist) {
+            checklist = checklist || {};
+
+            document.getElementById('checkAtualizacaoAcesso').innerText =
+                checklist.acesso || checklist.acessoAdicionar ? '✅ Acessando IB Player' : '⬜ Acessando IB Player';
+
+            document.getElementById('checkAtualizacaoValidacao').innerText =
+                checklist.validacao ? '✅ Validando MAC e KEY' : '⬜ Validando MAC e KEY';
+
+            document.getElementById('checkAtualizacaoLimpeza').innerText =
+                checklist.limpeza ? '✅ Limpando playlists antigas' : '⬜ Limpando playlists antigas';
+
+            document.getElementById('checkAtualizacaoDns').innerText =
+                checklist.dns ? '✅ Buscando DNS ativas' : '⬜ Buscando DNS ativas';
+
+            document.getElementById('checkAtualizacaoPlaylist1').innerText =
+                checklist.playlist1 ? '✅ Playlist 1 adicionada' : '⬜ Playlist 1 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist2').innerText =
+                checklist.playlist2 ? '✅ Playlist 2 adicionada' : '⬜ Playlist 2 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist3').innerText =
+                checklist.playlist3 ? '✅ Playlist 3 adicionada' : '⬜ Playlist 3 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist4').innerText =
+                checklist.playlist4 ? '✅ Playlist 4 adicionada' : '⬜ Playlist 4 adicionada';
+
+            document.getElementById('checkAtualizacaoPlaylist5').innerText =
+                checklist.playlist5 ? '✅ Playlist 5 adicionada' : '⬜ Playlist 5 adicionada';
+
+            document.getElementById('checkAtualizacaoFinalizado').innerText =
+                checklist.finalizado ? '✅ Finalizando atualização' : '⬜ Finalizando atualização';
+        }
+
+        function iniciarMonitoramento(mac) {
+            if (intervaloStatus) clearInterval(intervaloStatus);
+
+            document.getElementById('status-container').classList.remove('hidden');
+            document.getElementById('btn-fechar-modal-status').classList.add('hidden');
+            document.getElementById('spinner-status').classList.remove('hidden');
+
+            document.getElementById('status-barra').classList.remove('bg-red-600');
+            document.getElementById('status-barra').classList.add('bg-[#22c55e]');
+
+            document.getElementById('status-barra').style.width = "5%";
+            document.getElementById('status-percentual').innerText = "5%";
+            document.getElementById('status-titulo').innerText = "Aguardando robô...";
+            document.getElementById('status-mensagem').innerText = "AGUARDANDO NA FILA...";
+
+            atualizarChecklistAtualizacao({});
+
+            intervaloStatus = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status?mac=${encodeURIComponent(mac)}`);
+                    const s = await res.json();
+
+                    const progresso = s.progresso || 0;
+
+                    document.getElementById('status-titulo').innerText =
+                        s.titulo || 'Atualizando playlists...';
+
+                    document.getElementById('status-mensagem').innerText =
+                        String(s.mensagem || s.message || '').toUpperCase();
+
+                    document.getElementById('status-barra').style.width =
+                        `${progresso}%`;
+
+                    document.getElementById('status-percentual').innerText =
+                        `${progresso}%`;
+
+                    atualizarChecklistAtualizacao(s.checklist || {});
+
+                    if (s.status === "ok") {
+                        document.getElementById('status-barra').style.width = "100%";
+                        document.getElementById('status-percentual').innerText = "100%";
+                        document.getElementById('spinner-status').classList.add('hidden');
+                        document.getElementById('btn-fechar-modal-status').classList.remove('hidden');
+                        clearInterval(intervaloStatus);
+                    } else if (s.status === "erro") {
+                        document.getElementById('status-barra').style.width = "100%";
+                        document.getElementById('status-percentual').innerText = "100%";
+                        document.getElementById('status-barra').classList.remove('bg-[#22c55e]');
+                        document.getElementById('status-barra').classList.add('bg-red-600');
+                        document.getElementById('spinner-status').classList.add('hidden');
+                        document.getElementById('btn-fechar-modal-status').classList.remove('hidden');
+                        clearInterval(intervaloStatus);
+                    }
+                } catch (e) {
+                    console.error("Erro status");
+                }
+            }, 2000);
+        }
+
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+
+            return outputArray;
+        }
+
+        async function registrarServiceWorkerPush() {
+            if (!('serviceWorker' in navigator)) {
+                throw new Error('Seu navegador não suporta Service Worker.');
+            }
+
+            if (!('PushManager' in window)) {
+                throw new Error('Seu navegador não suporta notificações push.');
+            }
+
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            return registration;
+        }
+
+        async function ativarNotificacoes() {
+            try {
+                const numero = whatsappConsultado || document.getElementById('id-consulta').value.replace(/\D/g, '');
+
+                if (!numero || numero.length < 8) {
+                    alert('Digite seu WhatsApp primeiro e clique em ACESSAR.');
+                    return;
+                }
+
+                localStorage.setItem('cliente_whatsapp', numero);
+
+                const permission = await Notification.requestPermission();
+
+                if (permission !== 'granted') {
+                    alert('Você precisa permitir as notificações.');
+                    return;
+                }
+
+                const registration = await registrarServiceWorkerPush();
+
+                const respostaKey = await fetch('/api/push/public-key');
+                const dadosKey = await respostaKey.json();
+
+                if (!dadosKey.success) {
+                    alert(dadosKey.mensagem || 'Erro ao buscar chave pública.');
+                    return;
+                }
+
+                let subscription = await registration.pushManager.getSubscription();
+
+                if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(dadosKey.publicKey)
+                    });
+                }
+
+                const resposta = await fetch('/api/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        whatsapp: numero,
+                        subscription
+                    })
+                });
+
+                const json = await resposta.json();
+
+                if (json.success) {
+                    document.getElementById('btn-notificacao').innerText = '🔔 Notificações Ativadas';
+                    document.getElementById('btn-notificacao').className = 'w-full border border-green-600 text-green-400 font-bold py-2 rounded-lg uppercase text-[10px]';
+                    alert('Notificações ativadas com sucesso!');
+                } else {
+                    alert(json.mensagem || 'Erro ao ativar notificações.');
+                }
+
+            } catch (err) {
+                alert('Erro ao ativar notificações: ' + err.message);
+            }
+        }
+
+        async function tentarLoginAutomatico() {
+            const salvo = localStorage.getItem('cliente_whatsapp');
+
+            if (!salvo) return;
+
+            document.getElementById('id-consulta').value = salvo;
+
+            try {
+                await consultarAssinatura();
+            } catch (e) {
+                console.log('Login automático não carregou.');
+            }
+        }
+
+
+        setModo('ativar');
+        tentarLoginAutomatico();
+    </script>
+</body>
+</html>
