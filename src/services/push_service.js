@@ -1,5 +1,6 @@
 const webpush = require("web-push");
-const admin = require("firebase-admin");
+const { initializeApp, cert, getApps } = require("firebase-admin/app");
+const { getMessaging } = require("firebase-admin/messaging");
 const { MongoClient } = require("mongodb");
 
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URL;
@@ -11,6 +12,7 @@ const VAPID_EMAIL = process.env.VAPID_EMAIL || "mailto:imperiumtv@email.com";
 let client;
 let db;
 let firebaseInicializado = false;
+let firebaseApp = null;
 
 function limparNumero(numero) {
     return String(numero || "").replace(/\D/g, "");
@@ -39,8 +41,15 @@ function configurarWebPush() {
 }
 
 function configurarFirebaseAdmin() {
-    if (firebaseInicializado) {
-        return admin;
+    if (firebaseInicializado && firebaseApp) {
+        return firebaseApp;
+    }
+
+    const apps = getApps();
+    if (apps.length > 0) {
+        firebaseApp = apps[0];
+        firebaseInicializado = true;
+        return firebaseApp;
     }
 
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -57,13 +66,13 @@ function configurarFirebaseAdmin() {
         throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON inválida. Copie o JSON completo da chave privada.");
     }
 
-    admin.initializeApp({
-    credential: admin.cert(serviceAccount)
+    firebaseApp = initializeApp({
+        credential: cert(serviceAccount)
     });
 
     firebaseInicializado = true;
     console.log("✅ Firebase Admin inicializado.");
-    return admin;
+    return firebaseApp;
 }
 
 async function salvarInscricaoPush({ whatsapp, subscription, userAgent }) {
@@ -163,7 +172,7 @@ async function enviarPush(subscription, payload) {
 }
 
 async function enviarPushFirebase(token, { titulo, mensagem, tipo = "geral", url = "/" }) {
-    configurarFirebaseAdmin();
+    const app = configurarFirebaseAdmin();
 
     const message = {
         token,
@@ -185,7 +194,7 @@ async function enviarPushFirebase(token, { titulo, mensagem, tipo = "geral", url
         }
     };
 
-    return admin.messaging().send(message);
+    return getMessaging(app).send(message);
 }
 
 async function buscarTokensAppPorWhatsapp(appCollection, whatsappFinal) {
