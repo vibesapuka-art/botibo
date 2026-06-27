@@ -193,6 +193,39 @@ router.post("/send-whatsapp", async (req, res) => {
     }
 });
 
+/**
+ * Rota temporária de teste.
+ * Use no navegador:
+ * https://botibo.onrender.com/api/push/teste-app?whatsapp=44998031789
+ */
+router.get("/teste-app", async (req, res) => {
+    try {
+        const whatsapp = req.query.whatsapp || "44998031789";
+
+        const resultado = await enviarParaWhatsapp({
+            whatsapp,
+            titulo: "Teste Imperium TV",
+            mensagem: "Notificação de teste do aplicativo.",
+            tipo: "teste",
+            url: "/"
+        });
+
+        return res.json({
+            success: true,
+            mensagem: "Teste enviado.",
+            resultado
+        });
+
+    } catch (err) {
+        console.error("Erro no teste app:", err);
+
+        return res.status(500).json({
+            success: false,
+            mensagem: err.message
+        });
+    }
+});
+
 router.get("/notificacoes", async (req, res) => {
     try {
         const whatsapp = req.query.whatsapp;
