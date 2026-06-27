@@ -39,8 +39,7 @@ function configurarWebPush() {
 }
 
 function configurarFirebaseAdmin() {
-    if (firebaseInicializado || admin.apps.length > 0) {
-        firebaseInicializado = true;
+    if (firebaseInicializado) {
         return admin;
     }
 
