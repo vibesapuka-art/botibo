@@ -63,13 +63,10 @@ function configurarFirebaseAdmin() {
     });
 
     firebaseInicializado = true;
+    console.log("✅ Firebase Admin inicializado.");
     return admin;
 }
 
-/**
- * Salva inscrição Web Push antiga.
- * Continua funcionando para navegador/PWA.
- */
 async function salvarInscricaoPush({ whatsapp, subscription, userAgent }) {
     const database = await conectarMongo();
     const collection = database.collection("push_subscriptions");
@@ -100,10 +97,6 @@ async function salvarInscricaoPush({ whatsapp, subscription, userAgent }) {
     return dados;
 }
 
-/**
- * Salva token nativo do app Android via Firebase/FCM.
- * Esta função será usada pela rota /api/push/app-token.
- */
 async function salvarTokenApp({ whatsapp, token, plataforma = "android", userAgent = "" }) {
     const database = await conectarMongo();
     const collection = database.collection("app_push_tokens");
@@ -131,7 +124,7 @@ async function salvarTokenApp({ whatsapp, token, plataforma = "android", userAge
         { upsert: true }
     );
 
-    console.log(`📲 Token Firebase salvo para ${numeroLimpo}`);
+    console.log(`📲 Token Firebase salvo para ${numeroLimpo} final ${whatsappFinal}`);
 
     return dados;
 }
@@ -186,7 +179,6 @@ async function enviarPushFirebase(token, { titulo, mensagem, tipo = "geral", url
         android: {
             priority: "high",
             notification: {
-                channelId: "imperium_tv_alertas",
                 sound: "default",
                 defaultSound: true,
                 defaultVibrateTimings: true
@@ -195,6 +187,31 @@ async function enviarPushFirebase(token, { titulo, mensagem, tipo = "geral", url
     };
 
     return admin.messaging().send(message);
+}
+
+async function buscarTokensAppPorWhatsapp(appCollection, whatsappFinal) {
+    const encontradosAtivos = await appCollection.find({
+        whatsappFinal,
+        ativo: true
+    }).toArray();
+
+    if (encontradosAtivos.length > 0) {
+        return encontradosAtivos;
+    }
+
+    console.log("⚠️ Nenhum token ativo encontrado com filtro exato. Tentando busca alternativa...");
+
+    const todos = await appCollection.find({}).toArray();
+
+    const filtrados = todos.filter((item) => {
+        const finalBanco = limparNumero(item.whatsappFinal || item.whatsapp || "").slice(-8);
+        const ativoValido = item.ativo === true || item.ativo === "true" || item.ativo === 1 || item.ativo === undefined;
+        return finalBanco === whatsappFinal && ativoValido && item.token;
+    });
+
+    console.log(`🔎 Tokens app encontrados na busca alternativa: ${filtrados.length}`);
+
+    return filtrados;
 }
 
 async function enviarParaTodos({ titulo, mensagem, tipo = "geral", url = "/" }) {
@@ -228,6 +245,8 @@ async function enviarParaTodos({ titulo, mensagem, tipo = "geral", url = "/" }) 
         url,
         formatoMensagem: "livre"
     });
+
+    console.log(`📣 Envio geral: web=${inscritosWeb.length}, app=${inscritosApp.length}`);
 
     for (const item of inscritosWeb) {
         try {
@@ -286,10 +305,26 @@ async function enviarParaWhatsapp({ whatsapp, titulo, mensagem, tipo = "individu
     const webCollection = database.collection("push_subscriptions");
     const appCollection = database.collection("app_push_tokens");
 
-    const whatsappFinal = limparNumero(whatsapp).slice(-8);
+    const whatsappLimpo = limparNumero(whatsapp);
+    const whatsappFinal = whatsappLimpo.slice(-8);
+
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("🔔 Envio individual solicitado");
+    console.log("WhatsApp recebido:", whatsapp);
+    console.log("WhatsApp limpo:", whatsappLimpo);
+    console.log("Final usado na busca:", whatsappFinal);
 
     const inscritosWeb = await webCollection.find({ whatsappFinal, ativo: true }).toArray();
-    const inscritosApp = await appCollection.find({ whatsappFinal, ativo: true }).toArray();
+    const inscritosApp = await buscarTokensAppPorWhatsapp(appCollection, whatsappFinal);
+
+    console.log("Web encontrados:", inscritosWeb.length);
+    console.log("App encontrados:", inscritosApp.length);
+
+    if (inscritosApp.length > 0) {
+        console.log("Primeiro token app final:", inscritosApp[0].whatsappFinal);
+        console.log("Primeiro token app ativo:", inscritosApp[0].ativo);
+        console.log("Primeiro token app plataforma:", inscritosApp[0].plataforma);
+    }
 
     const payloadWeb = {
         title: titulo,
@@ -334,11 +369,13 @@ async function enviarParaWhatsapp({ whatsapp, titulo, mensagem, tipo = "individu
 
     for (const item of inscritosApp) {
         try {
-            await enviarPushFirebase(item.token, { titulo, mensagem, tipo, url });
+            const respostaFirebase = await enviarPushFirebase(item.token, { titulo, mensagem, tipo, url });
+            console.log("✅ Firebase enviado:", respostaFirebase);
             enviadosApp++;
         } catch (err) {
             falhasApp++;
-            console.error("Erro push app individual:", err.code || err.message);
+            console.error("❌ Erro push app individual:", err.code || err.message);
+            console.error(err);
 
             if (
                 err.code === "messaging/registration-token-not-registered" ||
@@ -352,7 +389,7 @@ async function enviarParaWhatsapp({ whatsapp, titulo, mensagem, tipo = "individu
         }
     }
 
-    return {
+    const resultado = {
         web: {
             total: inscritosWeb.length,
             enviados: enviadosWeb,
@@ -364,6 +401,11 @@ async function enviarParaWhatsapp({ whatsapp, titulo, mensagem, tipo = "individu
             falhas: falhasApp
         }
     };
+
+    console.log("Resultado envio:", JSON.stringify(resultado, null, 2));
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    return resultado;
 }
 
 async function listarNotificacoesCliente(whatsapp) {
@@ -393,4 +435,4 @@ module.exports = {
     enviarParaWhatsapp,
     listarNotificacoesCliente,
     criarNotificacao
-}
+};
