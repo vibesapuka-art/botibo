@@ -63,13 +63,28 @@
 </head>
 
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
-    <button
-        id="btn-notificacao"
-        onclick="ativarNotificacoes()"
-        title="Ativar notificações"
-        class="fixed top-5 right-5 z-50 w-14 h-14 rounded-full bg-[#1a1a1a] border border-yellow-500 shadow-2xl text-yellow-400 text-2xl hover:scale-110 transition-all duration-300">
-        🔔
-    </button>
+    <div class="fixed top-5 right-5 z-50 flex gap-3">
+        <button
+            id="btn-notificacao"
+            onclick="ativarNotificacoes()"
+            title="Ativar notificações"
+            class="w-14 h-14 rounded-full bg-[#1a1a1a] border border-yellow-500 shadow-2xl text-yellow-400 text-2xl hover:scale-110 transition-all duration-300">
+            🔔
+        </button>
+
+        <button
+            id="btn-central-notificacoes"
+            onclick="abrirCentralNotificacoes()"
+            title="Últimas notificações"
+            class="relative w-14 h-14 rounded-full bg-[#1a1a1a] border border-blue-500 shadow-2xl text-blue-400 text-2xl hover:scale-110 transition-all duration-300">
+            📬
+            <span
+                id="contador-notificacoes"
+                class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-extrabold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                0
+            </span>
+        </button>
+    </div>
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
 
         <div class="flex justify-center mb-6">
@@ -144,6 +159,35 @@
 
             <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
 
+        </div>
+
+        <div id="central-notificacoes" class="modal-status hidden">
+            <div class="modal-card text-left">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-white font-extrabold text-sm uppercase">📬 Central de Notificações</h3>
+                        <p class="text-gray-400 text-[10px] uppercase mt-1">Últimos avisos enviados para você</p>
+                    </div>
+
+                    <button
+                        onclick="fecharCentralNotificacoes()"
+                        class="bg-[#262626] hover:bg-[#333] text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase">
+                        Fechar
+                    </button>
+                </div>
+
+                <div id="lista-notificacoes" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    <div class="text-center text-gray-400 text-xs py-6">
+                        Carregando notificações...
+                    </div>
+                </div>
+
+                <button
+                    onclick="carregarNotificacoesCliente()"
+                    class="mt-4 w-full border border-gray-700 text-gray-300 font-bold py-3 rounded-lg uppercase text-[10px]">
+                    🔄 Atualizar Lista
+                </button>
+            </div>
         </div>
 
         <div id="status-container" class="modal-status hidden">
@@ -286,6 +330,7 @@
                     document.getElementById('mac').value = json.dados.mac || '';
                     document.getElementById('key').value = json.dados.key || '';
                     document.getElementById('resultado-consulta').classList.remove('hidden');
+                    carregarNotificacoesCliente();
                 } else {
                     alert(json.mensagem);
                 }
@@ -545,6 +590,156 @@
             } catch (e) {
                 console.log('Login automático não carregou.');
             }
+        }
+
+
+
+        function formatarDataNotificacao(valor) {
+            if (!valor) return '';
+
+            try {
+                const data = new Date(valor);
+
+                if (isNaN(data.getTime())) return '';
+
+                return data.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function obterWhatsappCentral() {
+            const input = document.getElementById('id-consulta');
+            const digitado = input ? input.value.replace(/\D/g, '') : '';
+
+            return whatsappConsultado ||
+                digitado ||
+                localStorage.getItem('cliente_whatsapp') ||
+                '';
+        }
+
+        function renderizarNotificacoes(lista) {
+            const container = document.getElementById('lista-notificacoes');
+
+            if (!container) return;
+
+            if (!Array.isArray(lista) || lista.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 text-xs py-6">
+                        Nenhuma notificação encontrada ainda.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = lista.map((n) => {
+                const titulo = n.titulo || n.title || '📢 Imperium TV';
+                const mensagem = n.mensagem || n.message || n.body || '';
+                const tipo = n.tipo || 'aviso';
+                const data = formatarDataNotificacao(n.criadoEm || n.data || n.enviadoEm || n.createdAt);
+
+                let cor = 'border-gray-700';
+                let icone = '📢';
+
+                if (tipo.includes('fatura')) {
+                    cor = 'border-yellow-600';
+                    icone = '💳';
+                } else if (tipo.includes('pagamento')) {
+                    cor = 'border-green-600';
+                    icone = '✅';
+                } else if (tipo.includes('venc')) {
+                    cor = 'border-red-600';
+                    icone = '⚠️';
+                } else if (tipo.includes('bem')) {
+                    cor = 'border-blue-600';
+                    icone = '👋';
+                } else if (tipo.includes('dados')) {
+                    cor = 'border-purple-600';
+                    icone = '🔑';
+                }
+
+                return `
+                    <div class="bg-[#0f0f0f] border ${cor} rounded-xl p-3">
+                        <div class="flex items-start gap-2">
+                            <div class="text-xl leading-none">${icone}</div>
+                            <div class="flex-1">
+                                <p class="text-white font-extrabold text-xs uppercase">${titulo}</p>
+                                ${data ? `<p class="text-gray-500 text-[10px] mt-1">${data}</p>` : ''}
+                                <p class="text-gray-300 text-xs mt-2 whitespace-pre-line">${mensagem}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function carregarNotificacoesCliente() {
+            const container = document.getElementById('lista-notificacoes');
+            const contador = document.getElementById('contador-notificacoes');
+            const numero = obterWhatsappCentral();
+
+            if (!numero || numero.length < 8) {
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-yellow-400 text-xs py-6">
+                            Digite seu WhatsApp e clique em ACESSAR para ver suas notificações.
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 text-xs py-6">
+                        Carregando notificações...
+                    </div>
+                `;
+            }
+
+            try {
+                const res = await fetch(`/api/push/notificacoes?whatsapp=${encodeURIComponent(numero)}`);
+                const json = await res.json();
+
+                const lista = json.notificacoes || json.dados || [];
+
+                renderizarNotificacoes(lista);
+
+                if (contador) {
+                    const total = Array.isArray(lista) ? lista.length : 0;
+
+                    if (total > 0) {
+                        contador.innerText = total > 9 ? '9+' : String(total);
+                        contador.classList.remove('hidden');
+                    } else {
+                        contador.classList.add('hidden');
+                    }
+                }
+
+            } catch (e) {
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-red-400 text-xs py-6">
+                            Erro ao carregar notificações.
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function abrirCentralNotificacoes() {
+            document.getElementById('central-notificacoes').classList.remove('hidden');
+            carregarNotificacoesCliente();
+        }
+
+        function fecharCentralNotificacoes() {
+            document.getElementById('central-notificacoes').classList.add('hidden');
         }
 
 
