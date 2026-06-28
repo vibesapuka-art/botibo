@@ -712,14 +712,8 @@
                 renderizarNotificacoes(lista);
 
                 if (contador) {
-                    const total = Array.isArray(lista) ? lista.length : 0;
-
-                    if (total > 0) {
-                        contador.innerText = total > 9 ? '9+' : String(total);
-                        contador.classList.remove('hidden');
-                    } else {
-                        contador.classList.add('hidden');
-                    }
+                    contador.classList.add('hidden');
+                    contador.innerText = '0';
                 }
 
             } catch (e) {
@@ -735,6 +729,13 @@
 
         function abrirCentralNotificacoes() {
             document.getElementById('central-notificacoes').classList.remove('hidden');
+
+            const contador = document.getElementById('contador-notificacoes');
+            if (contador) {
+                contador.classList.add('hidden');
+                contador.innerText = '0';
+            }
+
             carregarNotificacoesCliente();
         }
 
