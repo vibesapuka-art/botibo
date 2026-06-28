@@ -80,8 +80,7 @@
             📬
             <span
                 id="contador-notificacoes"
-                class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-extrabold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
-                0
+                class="hidden absolute -top-1 -right-1 bg-red-600 rounded-full w-4 h-4 border-2 border-[#1a1a1a]">
             </span>
         </button>
     </div>
@@ -679,6 +678,61 @@
             }).join('');
         }
 
+        function obterDataNotificacao(n) {
+            return n.criadoEm || n.data || n.enviadoEm || n.createdAt || n.atualizadoEm || '';
+        }
+
+        function existeNotificacaoNova(lista) {
+            if (!Array.isArray(lista) || lista.length === 0) return false;
+
+            const numero = obterWhatsappCentral();
+            const chave = `ultima_leitura_notificacoes_${numero}`;
+            const ultimaLeitura = localStorage.getItem(chave);
+
+            if (!ultimaLeitura) {
+                return lista.length > 0;
+            }
+
+            const ultimaData = new Date(ultimaLeitura).getTime();
+
+            return lista.some((n) => {
+                const dataTexto = obterDataNotificacao(n);
+                const dataNotificacao = new Date(dataTexto).getTime();
+
+                if (!dataTexto || isNaN(dataNotificacao)) return false;
+
+                return dataNotificacao > ultimaData;
+            });
+        }
+
+        function atualizarBolinhaNotificacao(lista) {
+            const bolinha = document.getElementById('contador-notificacoes');
+
+            if (!bolinha) return;
+
+            if (existeNotificacaoNova(lista)) {
+                bolinha.classList.remove('hidden');
+            } else {
+                bolinha.classList.add('hidden');
+            }
+        }
+
+        function marcarNotificacoesComoLidas() {
+            const numero = obterWhatsappCentral();
+
+            if (!numero || numero.length < 8) return;
+
+            const chave = `ultima_leitura_notificacoes_${numero}`;
+
+            localStorage.setItem(chave, new Date().toISOString());
+
+            const bolinha = document.getElementById('contador-notificacoes');
+
+            if (bolinha) {
+                bolinha.classList.add('hidden');
+            }
+        }
+
         async function carregarNotificacoesCliente() {
             const container = document.getElementById('lista-notificacoes');
             const contador = document.getElementById('contador-notificacoes');
@@ -712,8 +766,7 @@
                 renderizarNotificacoes(lista);
 
                 if (contador) {
-                    contador.classList.add('hidden');
-                    contador.innerText = '0';
+                    atualizarBolinhaNotificacao(lista);
                 }
 
             } catch (e) {
@@ -729,13 +782,7 @@
 
         function abrirCentralNotificacoes() {
             document.getElementById('central-notificacoes').classList.remove('hidden');
-
-            const contador = document.getElementById('contador-notificacoes');
-            if (contador) {
-                contador.classList.add('hidden');
-                contador.innerText = '0';
-            }
-
+            marcarNotificacoesComoLidas();
             carregarNotificacoesCliente();
         }
 
