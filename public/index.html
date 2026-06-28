@@ -63,6 +63,13 @@
 </head>
 
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <button
+        id="btn-notificacao"
+        onclick="ativarNotificacoes()"
+        title="Ativar notificações"
+        class="fixed top-5 right-5 z-50 w-14 h-14 rounded-full bg-[#1a1a1a] border border-yellow-500 shadow-2xl text-yellow-400 text-2xl hover:scale-110 transition-all duration-300">
+        🔔
+    </button>
     <div class="w-full max-w-md bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-gray-800">
 
         <div class="flex justify-center mb-6">
@@ -128,11 +135,15 @@
 
             <button id="btn-acao" onclick="processar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg uppercase transition-all shadow-lg">Atualizar Playlists</button>
 
+            <a
+                href="https://github.com/vibesapuka-art/botibo/raw/main/releases/ImperiumTV.apk"
+                target="_blank"
+                class="block w-full bg-[#22c55e] hover:bg-green-600 text-black text-center font-extrabold py-3 rounded-lg uppercase text-[10px] shadow-lg">
+                📲 Baixar Aplicativo Imperium TV
+            </a>
+
             <button id="btn-instalar" onclick="instalarApp()" class="hidden w-full border border-gray-700 text-gray-400 font-bold py-2 rounded-lg uppercase text-[10px]">📥 Instalar Atalho no Celular</button>
 
-            <button id="btn-notificacao" onclick="ativarNotificacoes()" class="w-full border border-yellow-600 text-yellow-400 font-bold py-2 rounded-lg uppercase text-[10px]">
-                🔔 Ativar Notificações
-            </button>
         </div>
 
         <div id="status-container" class="modal-status hidden">
@@ -440,6 +451,24 @@
             return registration;
         }
 
+        function atualizarSinoNotificacao(ativo) {
+            const btn = document.getElementById('btn-notificacao');
+
+            if (!btn) return;
+
+            if (ativo) {
+                btn.classList.remove('text-yellow-400', 'border-yellow-500');
+                btn.classList.add('text-green-400', 'border-green-500');
+                btn.title = 'Notificações ativadas';
+                localStorage.setItem('push_ativo', '1');
+            } else {
+                btn.classList.remove('text-green-400', 'border-green-500');
+                btn.classList.add('text-yellow-400', 'border-yellow-500');
+                btn.title = 'Ativar notificações';
+                localStorage.removeItem('push_ativo');
+            }
+        }
+
         async function ativarNotificacoes() {
             try {
                 const numero = whatsappConsultado || document.getElementById('id-consulta').value.replace(/\D/g, '');
@@ -489,8 +518,7 @@
                 const json = await resposta.json();
 
                 if (json.success) {
-                    document.getElementById('btn-notificacao').innerText = '🔔 Notificações Ativadas';
-                    document.getElementById('btn-notificacao').className = 'w-full border border-green-600 text-green-400 font-bold py-2 rounded-lg uppercase text-[10px]';
+                    atualizarSinoNotificacao(true);
                     alert('Notificações ativadas com sucesso!');
                 } else {
                     alert(json.mensagem || 'Erro ao ativar notificações.');
@@ -502,6 +530,10 @@
         }
 
         async function tentarLoginAutomatico() {
+            if (localStorage.getItem('push_ativo') === '1') {
+                atualizarSinoNotificacao(true);
+            }
+
             const salvo = localStorage.getItem('cliente_whatsapp');
 
             if (!salvo) return;
